@@ -8,7 +8,8 @@ class ApplicationController < ActionController::Base
 
   def private_response
     response.headers["Cache-Control"] = "no-store"
-    response.headers["Referrer-Policy"] = "no-referrer"
+    # Preserve same-origin form origins for Rails CSRF checks; omit cross-origin referrers.
+    response.headers["Referrer-Policy"] = "same-origin"
   end
 
   def require_session

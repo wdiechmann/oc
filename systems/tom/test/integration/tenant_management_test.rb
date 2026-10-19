@@ -125,4 +125,20 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
   ensure
     ActionController::Base.allow_forgery_protection = original
   end
+  test "same-origin forms submit with CSRF protection and preserve browser origin" do
+    original = ActionController::Base.allow_forgery_protection
+    ActionController::Base.allow_forgery_protection = true
+    get new_session_path
+    assert_equal "same-origin", response.headers["Referrer-Policy"]
+    token = css_select("form[action='/magic_links'] input[name=authenticity_token]").first["value"]
+    stub_request(:post, "#{EP}/auth/magic-links")
+      .to_return(status: 202, body: { status: "check_your_email" }.to_json)
+    post magic_links_path, params: { email: "person@example.test", authenticity_token: token }, headers: { "Origin" => "http://www.example.com" }
+    assert_redirected_to new_session_path
+    post magic_links_path, params: { email: "person@example.test", authenticity_token: token }, headers: { "Origin" => "http://foreign.example" }
+    assert_response :unprocessable_entity
+    assert_requested :post, "#{EP}/auth/magic-links", times: 1
+  ensure
+    ActionController::Base.allow_forgery_protection = original
+  end
 end
