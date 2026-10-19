@@ -46,6 +46,25 @@ module Ep
       request(:post, "/tenants/#{tenant_id}/occasions", body: attributes, key: key)
     end
 
+    def incoming_invitations = request(:get, "/me/tenant-admin-invitations")
+
+    def admin_invitations(tenant_id)
+      uuid!(tenant_id)
+      request(:get, "/tenants/#{tenant_id}/admin-invitations")
+    end
+
+    def invite_admin(tenant_id, email, key)
+      uuid!(tenant_id)
+      request(:post, "/tenants/#{tenant_id}/admin-invitations", body: { email: email }, key: key)
+    end
+
+    def invitation_action(tenant_id, invitation_id, action, key)
+      uuid!(tenant_id)
+      uuid!(invitation_id)
+      raise ArgumentError unless %w[accept revoke].include?(action)
+      request(:post, "/tenants/#{tenant_id}/admin-invitations/#{invitation_id}/#{action}", body: {}, key: key)
+    end
+
     private
 
     def uuid!(id)

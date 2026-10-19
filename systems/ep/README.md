@@ -121,7 +121,7 @@ The rebuild transaction replays retained tenant events into this MV and replaces
 
 Tests cover verified/single-use/expired links, session expiry/revocation/suspension, atomic rollback, retries and conflicts, two-connection concurrent duplicate commands, outbox retry/recovery, effect-free rebuild, actor spoof prevention, pending/ready HTTP responses and cross-tenant isolation. They do not establish the planned 40,000–80,000 concurrency capacity.
 
-Occasion creation is available as described below. Next add governed administrator delegation and recruitment gating. Implement the production authentication/delivery and privacy lifecycle contracts before admitting production personal data. Reuse the transaction/outbox pattern rather than bypassing it with direct business-table or MV writes.
+Occasion creation is available as described below. Tenant-admin invitation/acceptance is now available below. Next add occasion-admin delegation and recruitment gating. Implement the production authentication/delivery and privacy lifecycle contracts before admitting production personal data. Reuse the transaction/outbox pattern rather than bypassing it with direct business-table or MV writes.
 
 See [architecture](../../architecture.md), [datastore](../../suggested-data-store.md), [system 1 plan](../../system_1_plan.md) and [privacy requirements](../../gdpr.md).
 
@@ -140,3 +140,23 @@ Acceptance atomically records the parent-bound occasion guard, `OccasionCreated`
 `OccasionWorker` projects only occasion streams; `TenantWorker` projects only tenant streams. Independent controls prevent a stopped occasion directory from blocking tenant projection. The occasion projector orders by stream and version and atomically commits output, inbox and acknowledgment. `mix ep.outbox.recover` routes pending work to the corresponding worker. These local consumers do not implement generic external fan-out.
 
 The expiry is a recorded **review deadline**, not automatic deletion or retirement. Expiry-review task scheduling, retirement/erasure execution, participant recruitment, occasion editing, assignment of other admins and occasion replay/rebuild are subsequent work. Do not treat this slice as production retention compliance. Admin grants remain separate from the one-membership-per-identity-per-occasion rule.
+
+## Tenant-admin invitations
+
+Apply `mix ecto.migrate` to the configured development database. An active tenant admin can invite an email address without creating an identity or granting access. Invitations expire after seven days. The prospect signs in using the invited email and explicitly accepts. Their current verified identity, the tenant, the invitation and its sponsor’s current active tenant-admin authority are checked within acceptance. No invitation ID or notification is an authentication credential.
+
+Endpoints require Bearer authentication; mutations also require an `Idempotency-Key`:
+
+- POST `/api/v1/tenants/:tenant_id/admin-invitations` with `{ "email": "prospect@example.org" }`.
+- GET `/api/v1/tenants/:tenant_id/admin-invitations`: current tenant admins only; at most 100 recent invitations, including computed expired status.
+- GET `/api/v1/me/tenant-admin-invitations`: only live invitations addressed to the current verified email, sponsored by an active admin in an active tenant.
+- POST `/api/v1/tenants/:tenant_id/admin-invitations/:id/accept`: verified intended recipient only.
+- POST `/api/v1/tenants/:tenant_id/admin-invitations/:id/revoke`: current tenant admin only; does not revoke an accepted admin grant.
+
+Acceptance atomically changes the invitation guard, grants/reactivates the tenant-scoped `TenantAccess`, appends `TenantAdminInvitationAccepted` and `TenantAdminGranted`, and persists receipt/outbox/projection job. Creation and revocation record their corresponding facts. Canonical recipient email is held in the supporting invitation table, not copied into event payloads or job arguments. Grant authority never comes from a lagging MV. Invitation lifecycle and inbox queries intentionally use this bounded synchronous command guard, not event scans; they are actionable authorization state rather than consolidated reporting.
+
+Invitation row locks serialize acceptance against revocation, and command/recipient/grant locks prevent duplicate grants. Replaying an accepted command returns historical acceptance without reactivating a subsequently revoked grant. Losing the sponsor’s current authority prevents acceptance. Accepted administrators are not removed by revoking their invitation; admin-removal and last-admin safeguards remain a separate future workflow. Neither invitation nor acceptance creates participant membership.
+
+A durable Oban default-queue job contains only `invitation_id`, rechecks pending state before notification, and resolves current delivery details. Local development writes private, retry-safe JSON under `tmp/admin_invitations`. The notification tells the prospect to sign in to TOM and open **Invitations**; it contains no bearer credential. There is no real email adapter in this slice. Production notification delivery must be configured, monitored and contracted before rollout. A notification already in flight cannot be recalled; acceptance always rechecks current invitation validity. External delivery must tolerate retries.
+
+Invitation addresses, local notification files and their backups remain personal data. Automated invitation retention/cleanup and integration with the planned erasure registry are not implemented. This feature does not establish production privacy compliance or full application-registration policy enforcement.

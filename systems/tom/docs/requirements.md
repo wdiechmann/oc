@@ -8,3 +8,6 @@
 
 - Tenant admins can create occasions with a name, tenant-unique short name, future expiry review date and an optional self occasion-admin grant; no participant membership or recruitment opening is implied.
 - Show occasion lists and pending/ready details from EP; EP enforces parent binding and current grants.
+
+- Tenant admins can invite prospects by email, review recent invitations and revoke pending invitations. Prospects must verify the intended email and explicitly accept before EP grants tenant-admin access.
+- Invitations expire after seven days; EP rechecks sponsor authority and serializes acceptance/revocation. No invitation ID is a credential.

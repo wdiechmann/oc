@@ -35,3 +35,5 @@ config :phoenix,
 config :ep, Oban, testing: :manual
 
 config :ep, :magic_link_delivery, Ep.Support.MagicLinkDelivery
+
+config :ep, :invitation_delivery, Ep.Support.InvitationDelivery

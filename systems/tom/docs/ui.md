@@ -18,3 +18,12 @@ The interface uses responsive Phlex components, semantic headings, explicit labe
 - `/tenants/:tenant_id/occasions/:id`: name, lifecycle, recruitment state, review deadline and projection version; explicit refresh while pending.
 
 Backend calls add POST/GET `/api/v1/tenants/:tenant_id/occasions` and GET `/api/v1/tenants/:tenant_id/occasions/:id`. Creating an occasion never opens recruitment. Expiry dates record a future review deadline; the expiry workflow is pending.
+
+
+## Tenant-admin invitations
+
+- The tenant overview links to `/tenants/:tenant_id/admin_invitations`: email invitation form, current lifecycle/expiry and pending **Revoke** actions. This shows up to 100 recent invitations.
+- The signed-in header links to `/invitations`: the current verified email’s pending invitations with explicit **Accept tenant-admin invitation** forms. Acceptance redirects to the newly accessible tenant.
+- Notifications currently use EP’s private development mailbox; no real email or credential-bearing invitation URL is generated.
+
+Backend calls add GET/POST `/api/v1/tenants/:tenant_id/admin-invitations`, POST on its `/:id/accept` and `/:id/revoke` routes, and GET `/api/v1/me/tenant-admin-invitations`. All writes carry idempotency keys and use the browser user’s existing EP Bearer session. Role and actor scope remain EP-controlled.

@@ -16,3 +16,8 @@ No PWA/offline caching, automatic POST retries, production email adapter, tenant
 
 
 Occasion creation is nested under a verified tenant route. The form preflight lists occasions through EP to check tenant-admin access. EP independently revalidates the write. A tenant-bound session key is forwarded for idempotency. The request allowlist contains name, slug, UTC expiry timestamp and optional self admin assignment; scope and actor fields cannot be overridden by the browser. Name/slug/expiry failures render the form again without changing its key. The tenant overview and occasion detail consume EP's dedicated occasion-directory MV. No occasion tables or grants exist in TOM.
+
+
+Tenant-admin invitations are owned entirely by EP. TOM stores only a tenant-bound creation idempotency key in its encrypted session, renders the current tenant-admin invitation list and provides a verified-recipient inbox. Accept/revoke use deterministic per-invitation command keys plus Rails CSRF protection. A browser-supplied role, recipient identity or grant state is never forwarded. EP’s bounded synchronous invitation guard is the deliberate source for actionable lifecycle/inbox queries; grant mutation and authority checks are transactional. Notifications are durable EP jobs with private development delivery and no credential links.
+
+Seven-day expiry is the initial implementation policy. Current sponsor authority and recipient email verification are required at acceptance. Invitation revocation never removes an already accepted administrator. Admin-removal/last-admin recovery, occasion-admin invitations, production email delivery and invitation privacy cleanup remain separate work.

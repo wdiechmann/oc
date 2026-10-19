@@ -28,6 +28,7 @@ class Components::Layout < Components::Base
               span(class: "hidden text-sm font-normal text-stone-500 sm:inline") { "Tenant & Occasion Management" }
             end
             if @signed_in
+              a(href: invitations_path, class: "text-sm font-medium text-emerald-800 hover:underline") { "Invitations" }
               form_with(url: session_path, method: :delete) { |f| f.submit("Sign out", class: "cursor-pointer text-sm font-medium text-stone-600 hover:text-emerald-800") }
             end
           end

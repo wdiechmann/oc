@@ -16,7 +16,7 @@ Open http://localhost:3000. `bin/dev` runs Puma and the Tailwind watcher without
 
 Request a sign-in message in TOM. EP currently writes development messages to its private `systems/ep/tmp/magic_links/` directory. Paste the **single-use magic-link token**, not an existing Bearer session token, into TOM's sign-in form. TOM exchanges it with EP. Real email delivery and clickable magic-link callbacks remain future integration work.
 
-Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant listing, invitations, recruitment opening and delegation to other identities remain future work.
+Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant-admin invitations are available; tenant listing, recruitment opening and occasion-admin delegation remain future work.
 
 ## Security and state
 
@@ -44,3 +44,9 @@ Tests stub EP HTTP, block external traffic, and need no PostgreSQL. See [archite
 Apply EP's new migration, refresh your tenant overview and choose **Create occasion**. Enter a name, tenant-unique short name and expiry review date. TOM converts the end of that date in UTC to EP's timestamp. The checked “Assign me as occasion admin” option is explicit and may be cleared; it grants administration without participant membership. Recruitment remains closed.
 
 The creation form and pending/ready detail screen use EP commands and materialized queries. The tenant overview lists projected occasions and can be refreshed. Duplicate short names and invalid fields retain form values; creation keys are tenant-bound and retained across uncertain responses. EP rechecks authority on the actual write even after a form was opened. Expiry review scheduling, retirement and recruitment opening are not implemented by this form.
+
+## Invite another tenant admin
+
+From the tenant overview choose **Invite tenant admins**. Enter the prospect’s email. An invitation lasts seven days and can be revoked while pending. Creation records an invitation, not a grant and not a claim of email delivery. Development messages are written privately by EP under `tmp/admin_invitations`.
+
+The prospect signs in using that same email, opens **Invitations** in the header, and explicitly accepts. EP checks their verified identity and the inviter’s current authority before granting tenant-wide admin access. Expired, revoked, wrong-recipient and inactive-sponsor invitations cannot grant access. The accepted recipient can then open the tenant. Revocation controls apply to pending invitations; removing an accepted administrator is a separate future workflow.

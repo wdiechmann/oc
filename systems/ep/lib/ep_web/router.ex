@@ -24,6 +24,11 @@ defmodule EpWeb.Router do
 
   scope "/api/v1", EpWeb do
     pipe_through [:api, :authenticated]
+    get "/me/tenant-admin-invitations", InvitationController, :incoming
+    get "/tenants/:tenant_id/admin-invitations", InvitationController, :index
+    post "/tenants/:tenant_id/admin-invitations", InvitationController, :create
+    post "/tenants/:tenant_id/admin-invitations/:id/revoke", InvitationController, :revoke
+    post "/tenants/:tenant_id/admin-invitations/:id/accept", InvitationController, :accept
     post "/tenants/:tenant_id/occasions", OccasionController, :create
     get "/tenants/:tenant_id/occasions", OccasionController, :index
     get "/tenants/:tenant_id/occasions/:id", OccasionController, :show

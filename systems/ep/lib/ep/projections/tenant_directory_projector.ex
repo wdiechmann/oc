@@ -84,7 +84,13 @@ defmodule Ep.Projections.TenantDirectoryProjector do
     })
   end
 
-  defp apply_event!(%Event{schema_version: 1, event_type: "TenantAdminGranted"} = event, _payload) do
+  defp apply_event!(%Event{schema_version: 1, event_type: type} = event, _payload)
+       when type in [
+              "TenantAdminGranted",
+              "TenantAdminInvitationCreated",
+              "TenantAdminInvitationRevoked",
+              "TenantAdminInvitationAccepted"
+            ] do
     row = Repo.get_by!(TenantDirectory, tenant_id: event.tenant_id)
 
     unless row.source_version + 1 == event.stream_version,

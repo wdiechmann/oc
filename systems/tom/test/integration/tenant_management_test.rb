@@ -194,4 +194,47 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_select "input[name=slug][value=sl2030]"
     assert_select "input[name=idempotency_key][value=?]", key
   end
+  test "tenant admin creates and revokes an invitation through EP" do
+    sign_in
+    iid = "df763842-2538-4ccb-8445-17e232c37d84"
+    list = stub_request(:get, "#{EP}/tenants/#{TENANT}/admin-invitations").to_return(status: 200, body: { invitations: [] }.to_json)
+    get tenant_admin_invitations_path(TENANT)
+    assert_response :success
+    key = css_select("input[name=idempotency_key]").first["value"]
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/admin-invitations")
+      .with(body: { email: "prospect@example.test" }.to_json, headers: { "Authorization" => "Bearer private-bearer", "Idempotency-Key" => key })
+      .to_return(status: 201, body: { invitation_id: iid }.to_json)
+    post tenant_admin_invitations_path(TENANT), params: { email: "prospect@example.test", idempotency_key: key }
+    assert_redirected_to tenant_admin_invitations_path(TENANT)
+    remove_request_stub(list)
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/admin-invitations").to_return(status: 200, body: { invitations: [ { invitation_id: iid, email: "prospect@example.test", status: "pending", expires_at: "2031-01-01T00:00:00Z" } ] }.to_json)
+    follow_redirect!
+    assert_select "td", "prospect@example.test"
+    assert_select "input[value=Revoke]"
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/admin-invitations/#{iid}/revoke").to_return(status: 200, body: { status: "revoked" }.to_json)
+    post revoke_tenant_admin_invitation_path(TENANT, iid)
+    assert_redirected_to tenant_admin_invitations_path(TENANT)
+  end
+
+  test "recipient sees inbox and explicitly accepts under their EP identity" do
+    sign_in
+    iid = "df763842-2538-4ccb-8445-17e232c37d84"
+    stub_request(:get, "#{EP}/me/tenant-admin-invitations").with(headers: { "Authorization" => "Bearer private-bearer" })
+      .to_return(status: 200, body: { invitations: [ { invitation_id: iid, tenant_id: TENANT, tenant_name: "SL", expires_at: "2031-01-01T00:00:00Z" } ] }.to_json)
+    get invitations_path
+    assert_select "h1", "Your invitations"
+    assert_select "input[value='Accept tenant-admin invitation']"
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/admin-invitations/#{iid}/accept")
+      .with(headers: { "Idempotency-Key" => "accept-invitation:#{iid}" })
+      .to_return(status: 200, body: { tenant_id: TENANT, status: "accepted" }.to_json)
+    post accept_tenant_admin_invitation_path(TENANT, iid)
+    assert_redirected_to tenant_path(TENANT)
+  end
+
+  test "forged invitation creation key never reaches EP" do
+    sign_in
+    post tenant_admin_invitations_path(TENANT), params: { email: "prospect@example.test", idempotency_key: "forged" }
+    assert_redirected_to tenant_admin_invitations_path(TENANT)
+    assert_not_requested :post, "#{EP}/tenants/#{TENANT}/admin-invitations"
+  end
 end

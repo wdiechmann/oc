@@ -28,7 +28,7 @@ class TenantsController < ApplicationController
   def show
     @tenant = ep.tenant(params[:id])
     @tenant["tenant_id"] = params[:id]
-    render Views::Tenants::Show.new(tenant: @tenant, occasions: ep.occasions(params[:id]), signed_in: true), status: :ok
+    render Views::Tenants::Show.new(tenant: @tenant, occasions: ep.occasions(params[:id]), signed_in: true, notice: flash[:notice], alert: flash[:alert]), status: :ok
   end
 
   private

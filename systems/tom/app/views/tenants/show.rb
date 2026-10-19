@@ -27,6 +27,7 @@ class Views::Tenants::Show < Views::Base
       end
       a(href: tenant_path(@tenant["tenant_id"]), class: "mt-8 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Refresh status" }
     end
+    a(href: tenant_admin_invitations_path(@tenant["tenant_id"]), class: "mt-6 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Invite tenant admins →" }
     section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8") do
       div(class: "flex flex-wrap items-center justify-between gap-4") do
         h2(class: "text-2xl font-semibold") { "Occasions" }
