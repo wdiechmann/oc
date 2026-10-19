@@ -63,7 +63,13 @@ defmodule Ep.Projections.OccasionDirectoryProjector do
     })
   end
 
-  defp apply_event!(%Event{schema_version: 1, event_type: "OccasionAdminGranted"} = e, _) do
+  defp apply_event!(%Event{schema_version: 1, event_type: type} = e, _)
+       when type in [
+              "OccasionAdminGranted",
+              "OccasionAdminInvitationCreated",
+              "OccasionAdminInvitationAccepted",
+              "OccasionAdminInvitationRevoked"
+            ] do
     row = Repo.get_by!(Directory, tenant_id: e.tenant_id, occasion_id: e.occasion_id)
     unless row.source_version + 1 == e.stream_version, do: raise("occasion projection stream gap")
 

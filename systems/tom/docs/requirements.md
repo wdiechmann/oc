@@ -11,3 +11,7 @@
 
 - Tenant admins can invite prospects by email, review recent invitations and revoke pending invitations. Prospects must verify the intended email and explicitly accept before EP grants tenant-admin access.
 - Invitations expire after seven days; EP rechecks sponsor authority and serializes acceptance/revocation. No invitation ID is a credential.
+
+- Tenant admins can invite occasion-admin prospects, with verified-recipient acceptance, seven-day expiry and pending revocation restricted to the named tenant and occasion.
+- Acceptance must not grant tenant access or create participant membership. Occasion admins cannot issue admin invitations without separate tenant authority.
+- Accepted recipients can return directly to authorized occasions without navigating the tenant overview.

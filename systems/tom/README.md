@@ -16,7 +16,7 @@ Open http://localhost:3000. `bin/dev` runs Puma and the Tailwind watcher without
 
 Request a sign-in message in TOM. EP currently writes development messages to its private `systems/ep/tmp/magic_links/` directory. Paste the **single-use magic-link token**, not an existing Bearer session token, into TOM's sign-in form. TOM exchanges it with EP. Real email delivery and clickable magic-link callbacks remain future integration work.
 
-Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant-admin invitations are available; tenant listing, recruitment opening and occasion-admin delegation remain future work.
+Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant-admin invitations are available; tenant listing and recruitment opening remain future work.
 
 ## Security and state
 
@@ -50,3 +50,9 @@ The creation form and pending/ready detail screen use EP commands and materializ
 From the tenant overview choose **Invite tenant admins**. Enter the prospect’s email. An invitation lasts seven days and can be revoked while pending. Creation records an invitation, not a grant and not a claim of email delivery. Development messages are written privately by EP under `tmp/admin_invitations`.
 
 The prospect signs in using that same email, opens **Invitations** in the header, and explicitly accepts. EP checks their verified identity and the inviter’s current authority before granting tenant-wide admin access. Expired, revoked, wrong-recipient and inactive-sponsor invitations cannot grant access. The accepted recipient can then open the tenant. Revocation controls apply to pending invitations; removing an accepted administrator is a separate future workflow.
+
+## Invite an occasion admin
+
+A tenant admin opens the occasion and chooses **Invite occasion admins**. The form names the occasion, records a seven-day invitation and permits pending revocation. The prospect signs in with the invited email, opens **Invitations**, and chooses **Accept occasion-admin invitation**. They receive access only to that occasion and can return using its **Open occasion** card. The card is hidden when their current grant or parent lifecycle is no longer valid.
+
+Occasion admins cannot use these invitations to grant tenant administration or appoint additional admins; that action remains with tenant admins. Invitation acceptance creates no participant membership. Notifications still use EP’s private development mailbox; no real email delivery has been added.

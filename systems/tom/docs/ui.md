@@ -27,3 +27,10 @@ Backend calls add POST/GET `/api/v1/tenants/:tenant_id/occasions` and GET `/api/
 - Notifications currently use EP’s private development mailbox; no real email or credential-bearing invitation URL is generated.
 
 Backend calls add GET/POST `/api/v1/tenants/:tenant_id/admin-invitations`, POST on its `/:id/accept` and `/:id/revoke` routes, and GET `/api/v1/me/tenant-admin-invitations`. All writes carry idempotency keys and use the browser user’s existing EP Bearer session. Role and actor scope remain EP-controlled.
+
+
+## Occasion-admin invitations
+
+Tenant admins see **Invite occasion admins** on the occasion overview. `/tenants/:tenant_id/occasions/:occasion_id/admin_invitations` names the occasion and offers invitation creation plus pending revocation. The shared **Invitations** page labels occasion versus tenant roles and provides explicit occasion acceptance. Accepted occasion cards show **Open occasion** while the current grant and lifecycle remain eligible. Occasion-only recipients return to their inbox rather than an inaccessible tenant overview.
+
+EP calls use the nested occasion `admin-invitations` collection and its accept/revoke routes, plus GET `/api/v1/me/occasion-admin-invitations`. Recipient identity, scope, sponsor authority and grants remain EP-owned.

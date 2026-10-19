@@ -5,7 +5,7 @@ class Views::Occasions::Show < Views::Base
   end
 
   def view_template
-    a(href: tenant_path(@tenant_id), class: "text-sm font-medium text-emerald-800 hover:underline") { "← Tenant overview" }
+    a(href: @occasion["can_manage_admins"] ? tenant_path(@tenant_id) : invitations_path, class: "text-sm font-medium text-emerald-800 hover:underline") { @occasion["can_manage_admins"] ? "← Tenant overview" : "← Your invitations" }
     section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8 md:p-12") do
       p(class: "text-xs font-bold uppercase tracking-widest text-emerald-800") { "Occasion overview" }
       h1(class: "mt-4 text-4xl font-semibold tracking-tight") { @occasion["status"] == "pending" ? "Preparing your occasion" : @occasion["name"] }
@@ -23,6 +23,9 @@ class Views::Occasions::Show < Views::Base
       end
       a(href: tenant_occasion_path(@tenant_id, @occasion_id), class: "mt-8 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Refresh status" }
     end
-    p(class: "mt-6 text-sm text-stone-500") { "Opening recruitment and assigning other administrators are separate next steps." }
+    if @occasion["can_manage_admins"]
+      a(href: tenant_occasion_admin_invitations_path(@tenant_id, @occasion_id), class: "mt-6 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Invite occasion admins →" }
+    end
+    p(class: "mt-6 text-sm text-stone-500") { "Recruitment remains closed until explicitly opened." }
   end
 end

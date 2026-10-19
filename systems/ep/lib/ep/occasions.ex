@@ -104,8 +104,16 @@ defmodule Ep.Occasions do
         running!(tenant_id)
 
         case Repo.get_by(Directory, tenant_id: tenant_id, occasion_id: occasion_id) do
-          nil -> %{status: :pending, tenant_id: tenant_id, occasion_id: occasion_id}
-          row -> present(row)
+          nil ->
+            %{
+              status: :pending,
+              tenant_id: tenant_id,
+              occasion_id: occasion_id,
+              can_manage_admins: not is_nil(access)
+            }
+
+          row ->
+            Map.put(present(row), :can_manage_admins, not is_nil(access))
         end
       end)
     end

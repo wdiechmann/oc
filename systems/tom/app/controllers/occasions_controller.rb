@@ -31,7 +31,7 @@ class OccasionsController < ApplicationController
 
   def show
     occasion = ep.occasion(params[:tenant_id], params[:id])
-    render Views::Occasions::Show.new(occasion: occasion, tenant_id: params[:tenant_id], occasion_id: params[:id], signed_in: true)
+    render Views::Occasions::Show.new(occasion: occasion, tenant_id: params[:tenant_id], occasion_id: params[:id], signed_in: true, notice: flash[:notice], alert: flash[:alert])
   end
 
   private

@@ -8,7 +8,12 @@ Rails.application.routes.draw do
       post :revoke, on: :member
       post :accept, on: :member
     end
-    resources :occasions, only: %i[new create show]
+    resources :occasions, only: %i[new create show] do
+      resources :admin_invitations, only: %i[index create] do
+        post :revoke, on: :member
+        post :accept, on: :member
+      end
+    end
   end
   post "open_tenant", to: "tenants#open"
   get "up" => "rails/health#show", as: :rails_health_check

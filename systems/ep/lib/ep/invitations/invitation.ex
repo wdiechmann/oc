@@ -4,6 +4,7 @@ defmodule Ep.Invitations.Invitation do
 
   schema "tenant_admin_invitation" do
     field :tenant_id, :binary_id
+    field :occasion_id, :binary_id
     field :email, :string
     field :inviter_identity_id, :binary_id
     field :accepted_identity_id, :binary_id

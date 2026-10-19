@@ -48,24 +48,33 @@ module Ep
 
     def incoming_invitations = request(:get, "/me/tenant-admin-invitations")
 
-    def admin_invitations(tenant_id)
+    def incoming_occasion_invitations = request(:get, "/me/occasion-admin-invitations")
+
+    def admin_invitations(tenant_id, occasion_id: nil)
       uuid!(tenant_id)
-      request(:get, "/tenants/#{tenant_id}/admin-invitations")
+      request(:get, invitation_collection(tenant_id, occasion_id))
     end
 
-    def invite_admin(tenant_id, email, key)
+    def invite_admin(tenant_id, email, key, occasion_id: nil)
       uuid!(tenant_id)
-      request(:post, "/tenants/#{tenant_id}/admin-invitations", body: { email: email }, key: key)
+      request(:post, invitation_collection(tenant_id, occasion_id), body: { email: email }, key: key)
     end
 
-    def invitation_action(tenant_id, invitation_id, action, key)
+    def invitation_action(tenant_id, invitation_id, action, key, occasion_id: nil)
       uuid!(tenant_id)
       uuid!(invitation_id)
       raise ArgumentError unless %w[accept revoke].include?(action)
-      request(:post, "/tenants/#{tenant_id}/admin-invitations/#{invitation_id}/#{action}", body: {}, key: key)
+      request(:post, "#{invitation_collection(tenant_id, occasion_id)}/#{invitation_id}/#{action}", body: {}, key: key)
     end
 
     private
+
+    def invitation_collection(tenant_id, occasion_id)
+      uuid!(tenant_id)
+      return "/tenants/#{tenant_id}/admin-invitations" unless occasion_id
+      uuid!(occasion_id)
+      "/tenants/#{tenant_id}/occasions/#{occasion_id}/admin-invitations"
+    end
 
     def uuid!(id)
       raise Error.new(404) unless id.to_s.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)

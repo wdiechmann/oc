@@ -5,6 +5,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
   TENANT = "657df2d1-0f99-4007-a914-e26de1d58dc9"
 
   def sign_in
+    stub_request(:get, "#{EP}/me/occasion-admin-invitations").to_return(status: 200, body: { invitations: [] }.to_json)
     stub_request(:get, %r{#{EP}/tenants/[^/]+/occasions$}).to_return(status: 200, body: { status: "ready", occasions: [] }.to_json)
     stub_request(:post, "#{EP}/auth/magic-links/verify").with(body: { token: "one-use-token" }.to_json)
       .to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
@@ -236,5 +237,57 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     post tenant_admin_invitations_path(TENANT), params: { email: "prospect@example.test", idempotency_key: "forged" }
     assert_redirected_to tenant_admin_invitations_path(TENANT)
     assert_not_requested :post, "#{EP}/tenants/#{TENANT}/admin-invitations"
+  end
+  test "occasion admin invitation form uses occasion-scoped EP commands" do
+    sign_in
+    oid = "b4f78441-4b07-49cd-b42f-744fc086decb"
+    iid = "df763842-2538-4ccb-8445-17e232c37d84"
+    url = "#{EP}/tenants/#{TENANT}/occasions/#{oid}/admin-invitations"
+    stub_request(:get, url).to_return(status: 200, body: { invitations: [], occasion_name: "SL2030" }.to_json)
+    get tenant_occasion_admin_invitations_path(TENANT, oid)
+    assert_response :success
+    assert_select "h1", "Share occasion administration"
+    assert_select "p", "Occasion: SL2030"
+    key = css_select("input[name=idempotency_key]").first["value"]
+    stub_request(:post, url).with(body: { email: "prospect@example.test" }.to_json, headers: { "Idempotency-Key" => key }).to_return(status: 201, body: { invitation_id: iid, occasion_id: oid }.to_json)
+    post tenant_occasion_admin_invitations_path(TENANT, oid), params: { email: "prospect@example.test", idempotency_key: key }
+    assert_redirected_to tenant_occasion_admin_invitations_path(TENANT, oid)
+    stub_request(:post, "#{url}/#{iid}/revoke").to_return(status: 200, body: { status: "revoked" }.to_json)
+    post revoke_tenant_occasion_admin_invitation_path(TENANT, oid, iid)
+    assert_redirected_to tenant_occasion_admin_invitations_path(TENANT, oid)
+    assert_not_requested :post, "#{EP}/tenants/#{TENANT}/admin-invitations"
+  end
+
+  test "occasion recipient inbox clearly scopes acceptance and preserves access after accepting" do
+    sign_in
+    oid = "b4f78441-4b07-49cd-b42f-744fc086decb"
+    iid = "df763842-2538-4ccb-8445-17e232c37d84"
+    invitation = { invitation_id: iid, tenant_id: TENANT, occasion_id: oid, tenant_name: "SL", occasion_name: "SL2030", role: "occasion_admin", status: "pending", expires_at: "2031-01-01T00:00:00Z" }
+    stub_request(:get, "#{EP}/me/tenant-admin-invitations").to_return(status: 200, body: { invitations: [] }.to_json)
+    stub_request(:get, "#{EP}/me/occasion-admin-invitations").to_return(status: 200, body: { invitations: [ invitation ] }.to_json)
+    get invitations_path
+    assert_select "h2", "SL2030"
+    assert_select "input[value='Accept occasion-admin invitation']"
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/occasions/#{oid}/admin-invitations/#{iid}/accept").to_return(status: 200, body: { tenant_id: TENANT, occasion_id: oid, status: "accepted" }.to_json)
+    post accept_tenant_occasion_admin_invitation_path(TENANT, oid, iid)
+    assert_redirected_to tenant_occasion_path(TENANT, oid)
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/occasions/#{oid}").to_return(status: 200, body: { name: "SL2030", status: "ready", can_manage_admins: false }.to_json)
+    follow_redirect!
+    assert_select "h1", "SL2030"
+    assert_select "a[href=?]", tenant_occasion_admin_invitations_path(TENANT, oid), count: 0
+    stub_request(:get, "#{EP}/me/occasion-admin-invitations").to_return(status: 200, body: { invitations: [ invitation.merge(status: "accepted") ] }.to_json)
+    get invitations_path
+    assert_select "a[href=?]", tenant_occasion_path(TENANT, oid), text: "Open occasion"
+    assert_select "input[value='Accept occasion-admin invitation']", count: 0
+  end
+
+  test "occasion invitation creation key cannot cross to another scope" do
+    sign_in
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/admin-invitations").to_return(status: 200, body: { invitations: [] }.to_json)
+    get tenant_admin_invitations_path(TENANT)
+    key = css_select("input[name=idempotency_key]").first["value"]
+    post tenant_occasion_admin_invitations_path(TENANT, TENANT), params: { email: "prospect@example.test", idempotency_key: key }
+    assert_redirected_to tenant_occasion_admin_invitations_path(TENANT, TENANT)
+    assert_not_requested :post, "#{EP}/tenants/#{TENANT}/occasions/#{TENANT}/admin-invitations"
   end
 end
