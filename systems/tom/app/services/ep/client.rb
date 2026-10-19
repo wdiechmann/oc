@@ -4,9 +4,9 @@ require "json"
 module Ep
   class Client
     class Error < StandardError
-      attr_reader :status
-      def initialize(status)
-        @status = status
+      attr_reader :status, :code
+      def initialize(status, code: nil)
+        @status, @code = status, code
         super("EP request failed (#{status})")
       end
     end
@@ -30,7 +30,27 @@ module Ep
       request(:get, "/tenants/#{id}")
     end
 
+    def occasions(tenant_id)
+      uuid!(tenant_id)
+      request(:get, "/tenants/#{tenant_id}/occasions")
+    end
+
+    def occasion(tenant_id, id)
+      uuid!(tenant_id)
+      uuid!(id)
+      request(:get, "/tenants/#{tenant_id}/occasions/#{id}")
+    end
+
+    def create_occasion(tenant_id, attributes, key)
+      uuid!(tenant_id)
+      request(:post, "/tenants/#{tenant_id}/occasions", body: attributes, key: key)
+    end
+
     private
+
+    def uuid!(id)
+      raise Error.new(404) unless id.to_s.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)
+    end
 
     def request(method, path, body: nil, key: nil)
       uri = @origin.dup
@@ -48,8 +68,10 @@ module Ep
       req["Idempotency-Key"] = key if key
       req.body = JSON.generate(body) if body
       response = http.request(req)
-      raise Error.new(response.code.to_i) unless response.code.to_i.between?(200, 299)
-      JSON.parse(response.body)
+      payload = JSON.parse(response.body)
+      raise Unavailable, "Invalid EP response" unless payload.is_a?(Hash)
+      raise Error.new(response.code.to_i, code: payload["error"]) unless response.code.to_i.between?(200, 299)
+      payload
     rescue Timeout::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError, JSON::ParserError
       raise Unavailable, "EP is temporarily unavailable"
     end

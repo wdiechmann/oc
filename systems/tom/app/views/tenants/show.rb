@@ -1,7 +1,8 @@
 class Views::Tenants::Show < Views::Base
-  def initialize(tenant:, **options)
+  def initialize(tenant:, occasions:, **options)
     super(**options)
     @tenant = tenant
+    @occasions = occasions
   end
 
   def view_template
@@ -26,6 +27,24 @@ class Views::Tenants::Show < Views::Base
       end
       a(href: tenant_path(@tenant["tenant_id"]), class: "mt-8 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Refresh status" }
     end
-    p(class: "mt-6 text-sm text-stone-500") { "Occasion creation and administrator delegation are coming in the next implementation step." }
+    section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8") do
+      div(class: "flex flex-wrap items-center justify-between gap-4") do
+        h2(class: "text-2xl font-semibold") { "Occasions" }
+        a(href: new_tenant_occasion_path(@tenant["tenant_id"]), class: "rounded-lg bg-emerald-900 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800") { "Create occasion" }
+      end
+      p(class: "mt-5 text-sm text-stone-500") { "An occasion overview is being prepared. Refresh to see the latest changes." } if @occasions["status"] == "pending"
+      if @occasions.fetch("occasions").empty?
+        p(class: "mt-7 text-stone-500") { "No occasions to show yet. Create the first one when you’re ready." }
+      else
+        ul(class: "mt-6 divide-y divide-stone-200") do
+          @occasions.fetch("occasions").each do |occasion|
+            li(class: "flex flex-wrap items-center justify-between gap-3 py-5") do
+              a(href: tenant_occasion_path(@tenant["tenant_id"], occasion.fetch("occasion_id")), class: "font-semibold text-emerald-800 hover:underline") { occasion.fetch("name") }
+              span(class: "rounded-full bg-stone-100 px-3 py-1 text-xs text-stone-600") { occasion.fetch("lifecycle").capitalize }
+            end
+          end
+        end
+      end
+    end
   end
 end

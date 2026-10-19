@@ -16,7 +16,7 @@ Open http://localhost:3000. `bin/dev` runs Puma and the Tailwind watcher without
 
 Request a sign-in message in TOM. EP currently writes development messages to its private `systems/ep/tmp/magic_links/` directory. Paste the **single-use magic-link token**, not an existing Bearer session token, into TOM's sign-in form. TOM exchanges it with EP. Real email delivery and clickable magic-link callbacks remain future integration work.
 
-Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. Tenant listing, occasions, invitations and delegation require additional EP endpoints and are not presented as working features.
+Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant listing, invitations, recruitment opening and delegation to other identities remain future work.
 
 ## Security and state
 
@@ -38,3 +38,9 @@ bundle exec brakeman --no-pager
 ```
 
 Tests stub EP HTTP, block external traffic, and need no PostgreSQL. See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md) and [UI](docs/ui.md).
+
+## Occasions
+
+Apply EP's new migration, refresh your tenant overview and choose **Create occasion**. Enter a name, tenant-unique short name and expiry review date. TOM converts the end of that date in UTC to EP's timestamp. The checked “Assign me as occasion admin” option is explicit and may be cleared; it grants administration without participant membership. Recruitment remains closed.
+
+The creation form and pending/ready detail screen use EP commands and materialized queries. The tenant overview lists projected occasions and can be refreshed. Duplicate short names and invalid fields retain form values; creation keys are tenant-bound and retained across uncertain responses. EP rechecks authority on the actual write even after a form was opened. Expiry review scheduling, retirement and recruitment opening are not implemented by this form.

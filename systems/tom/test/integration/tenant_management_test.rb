@@ -5,6 +5,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
   TENANT = "657df2d1-0f99-4007-a914-e26de1d58dc9"
 
   def sign_in
+    stub_request(:get, %r{#{EP}/tenants/[^/]+/occasions$}).to_return(status: 200, body: { status: "ready", occasions: [] }.to_json)
     stub_request(:post, "#{EP}/auth/magic-links/verify").with(body: { token: "one-use-token" }.to_json)
       .to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
     post session_path, params: { token: "one-use-token" }
@@ -140,5 +141,57 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_requested :post, "#{EP}/auth/magic-links", times: 1
   ensure
     ActionController::Base.allow_forgery_protection = original
+  end
+  test "create occasion form posts only intended fields and shows projected result" do
+    sign_in
+    get new_tenant_occasion_path(TENANT)
+    assert_response :success
+    assert_select "h1", "Create an occasion"
+    key = css_select("input[name=idempotency_key]").first["value"]
+    oid = "b4f78441-4b07-49cd-b42f-744fc086decb"
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/occasions")
+      .with(headers: { "Authorization" => "Bearer private-bearer", "Idempotency-Key" => key }, body: { name: "SL2030", slug: "sl2030", expires_at: "2031-01-01T23:59:59.000000Z", assign_self_as_admin: true }.to_json)
+      .to_return(status: 201, body: { occasion_id: oid }.to_json)
+    post tenant_occasions_path(TENANT), params: { name: "SL2030", slug: "sl2030", expires_on: "2031-01-01", assign_self_as_admin: "1", idempotency_key: key, status: "active", tenant_id: TENANT }
+    assert_redirected_to tenant_occasion_path(TENANT, oid)
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/occasions/#{oid}")
+      .to_return(status: 200, body: { name: "SL2030", slug: "sl2030", lifecycle: "draft", recruitment_state: "closed", status: "ready", expires_at: "2031-01-01T23:59:59Z", source_version: 2 }.to_json)
+    follow_redirect!
+    assert_response :success
+    assert_select "h1", "SL2030"
+    assert_select "dd", "Closed"
+  end
+
+  test "occasion forms reject forged keys and invalid dates without backend mutations" do
+    sign_in
+    get new_tenant_occasion_path(TENANT)
+    key = css_select("input[name=idempotency_key]").first["value"]
+    post tenant_occasions_path(TENANT), params: { name: "SL", slug: "sl", expires_on: "invalid", idempotency_key: key }
+    assert_response :unprocessable_entity
+    assert_select "[role=alert]", /date/
+    post tenant_occasions_path(TENANT), params: { name: "SL", slug: "sl", expires_on: "2031-01-01", idempotency_key: "forged" }
+    assert_redirected_to new_tenant_occasion_path(TENANT)
+    assert_not_requested :post, "#{EP}/tenants/#{TENANT}/occasions"
+  end
+
+  test "tenant overview lists occasions returned by EP" do
+    sign_in
+    stub_request(:get, "#{EP}/tenants/#{TENANT}").to_return(status: 200, body: { name: "SL", status: "ready", tenant_id: TENANT, source_version: 2 }.to_json)
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/occasions").to_return(status: 200, body: { status: "ready", occasions: [ { name: "SL2030", slug: "sl2030", occasion_id: TENANT, lifecycle: "draft" } ] }.to_json)
+    get tenant_path(TENANT)
+    assert_select "a[href=?]", tenant_occasion_path(TENANT, TENANT), text: "SL2030"
+    assert_select "a[href=?]", new_tenant_occasion_path(TENANT), text: "Create occasion"
+  end
+
+  test "duplicate occasion short names retain form fields and command key" do
+    sign_in
+    get new_tenant_occasion_path(TENANT)
+    key = css_select("input[name=idempotency_key]").first["value"]
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/occasions").to_return(status: 409, body: { error: "slug_taken" }.to_json)
+    post tenant_occasions_path(TENANT), params: { name: "SL2030", slug: "sl2030", expires_on: "2031-01-01", idempotency_key: key }
+    assert_response :conflict
+    assert_select "[role=alert]", /already used/
+    assert_select "input[name=slug][value=sl2030]"
+    assert_select "input[name=idempotency_key][value=?]", key
   end
 end

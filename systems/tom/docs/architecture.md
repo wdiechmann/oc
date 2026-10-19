@@ -12,4 +12,7 @@ Rails' encrypted HttpOnly cookie avoids a session database while keeping bearer 
 
 CreateTenant uses a server-generated session key sent as `Idempotency-Key`. It survives failures so an uncertain write can be retried. Successful responses rotate it. An altered payload under that key is rejected by EP; TOM never silently changes keys to bypass a conflict.
 
-No PWA/offline caching, automatic POST retries, production email adapter, tenant-list API, occasion API or administrator editing is implied by this slice. The app may scale independently of EP; concurrency and production load remain unmeasured.
+No PWA/offline caching, automatic POST retries, production email adapter, tenant-list API or administrator editing is implied by this slice. The app may scale independently of EP; concurrency and production load remain unmeasured.
+
+
+Occasion creation is nested under a verified tenant route. The form preflight lists occasions through EP to check tenant-admin access. EP independently revalidates the write. A tenant-bound session key is forwarded for idempotency. The request allowlist contains name, slug, UTC expiry timestamp and optional self admin assignment; scope and actor fields cannot be overridden by the browser. Name/slug/expiry failures render the form again without changing its key. The tenant overview and occasion detail consume EP's dedicated occasion-directory MV. No occasion tables or grants exist in TOM.

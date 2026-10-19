@@ -1,0 +1,10 @@
+defmodule Ep.Support.AuthHelpers do
+  import ExUnit.Assertions
+
+  def sign_in(email \\ "user-#{System.unique_integer([:positive])}@example.test") do
+    assert :ok = Ep.Auth.request_magic_link(email)
+    assert_receive {:magic_link, ^email, token}
+    assert {:ok, session} = Ep.Auth.verify_magic_link(token)
+    session
+  end
+end

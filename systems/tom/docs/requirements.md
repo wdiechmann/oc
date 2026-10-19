@@ -5,3 +5,6 @@
 - Support email sign-in, tenant creation and opening an authorized tenant, including pending/unavailable states.
 - Keep credentials out of browser JavaScript and URLs; enforce CSRF, private responses and secure production cookies.
 - Preserve tenant isolation and command idempotency through EP; never invent UI-side permissions.
+
+- Tenant admins can create occasions with a name, tenant-unique short name, future expiry review date and an optional self occasion-admin grant; no participant membership or recruitment opening is implied.
+- Show occasion lists and pending/ready details from EP; EP enforces parent binding and current grants.

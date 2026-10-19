@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ep
+      POSTGRES_PASSWORD: ep
+      POSTGRES_DB: ep_dev
+    ports:
+      - "127.0.0.1:${EP_POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - ep_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ep -d ep_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  ep_postgres:
