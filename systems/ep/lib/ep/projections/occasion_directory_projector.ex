@@ -65,6 +65,7 @@ defmodule Ep.Projections.OccasionDirectoryProjector do
 
   defp apply_event!(%Event{schema_version: 1, event_type: type} = e, _)
        when type in [
+              "RecruitmentApplicationSubmitted",
               "OccasionAdminGranted",
               "OccasionAdminInvitationCreated",
               "OccasionAdminInvitationAccepted",
@@ -76,6 +77,25 @@ defmodule Ep.Projections.OccasionDirectoryProjector do
     Repo.update!(
       Ecto.Changeset.change(row, source_version: e.stream_version, last_event_id: e.id)
     )
+  end
+
+  defp apply_event!(%Event{schema_version: 1, event_type: type} = e, p)
+       when type in ["OccasionRecruitmentOpened", "OccasionRecruitmentClosed"] do
+    row = Repo.get_by!(Directory, tenant_id: e.tenant_id, occasion_id: e.occasion_id)
+    unless row.source_version + 1 == e.stream_version, do: raise("occasion projection stream gap")
+
+    changes = [
+      source_version: e.stream_version,
+      last_event_id: e.id,
+      recruitment_state: if(type == "OccasionRecruitmentOpened", do: "open", else: "closed")
+    ]
+
+    changes =
+      if type == "OccasionRecruitmentOpened",
+        do: Keyword.put(changes, :recruitment_config, Map.fetch!(p, "config")),
+        else: changes
+
+    Repo.update!(Ecto.Changeset.change(row, changes))
   end
 
   defp apply_event!(_, _), do: raise("unsupported occasion event or schema version")

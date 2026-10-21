@@ -22,8 +22,31 @@ defmodule EpWeb.Router do
     post "/magic-links/verify", AuthController, :verify
   end
 
+  scope "/api/v1/recruitment", EpWeb do
+    pipe_through :api
+    get "/:tenant_id/:slug", RecruitmentController, :landing
+  end
+
   scope "/api/v1", EpWeb do
     pipe_through [:api, :authenticated]
+    get "/tenants/:tenant_id/occasions/:occasion_id/recruitment", RecruitmentController, :manage
+
+    post "/tenants/:tenant_id/occasions/:occasion_id/recruitment/open",
+         RecruitmentController,
+         :open
+
+    post "/tenants/:tenant_id/occasions/:occasion_id/recruitment/close",
+         RecruitmentController,
+         :close
+
+    post "/tenants/:tenant_id/occasions/:occasion_id/recruitment/applications",
+         RecruitmentController,
+         :submit
+
+    get "/tenants/:tenant_id/occasions/:occasion_id/recruitment/applications",
+        RecruitmentController,
+        :applications
+
     get "/me/occasion-admin-invitations", OccasionInvitationController, :incoming
 
     get "/tenants/:tenant_id/occasions/:occasion_id/admin-invitations",

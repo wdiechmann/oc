@@ -26,6 +26,8 @@ class Views::Occasions::Show < Views::Base
     if @occasion["can_manage_admins"]
       a(href: tenant_occasion_admin_invitations_path(@tenant_id, @occasion_id), class: "mt-6 inline-block text-sm font-semibold text-emerald-800 hover:underline") { "Invite occasion admins →" }
     end
-    p(class: "mt-6 text-sm text-stone-500") { "Recruitment remains closed until explicitly opened." }
+    if @occasion["can_manage_recruitment"]
+      a(href: tenant_occasion_recruitment_path(@tenant_id, @occasion_id), class: "mt-6 block text-sm font-semibold text-emerald-800 hover:underline") { "Manage recruitment →" }
+    end
   end
 end

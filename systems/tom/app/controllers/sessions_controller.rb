@@ -6,10 +6,11 @@ class SessionsController < ApplicationController
   def create
     result = Ep::Client.new.verify(params[:token].to_s.strip)
     expiry = Time.iso8601(result.fetch("expires_at"))
+    return_to = session[:recruitment_return_to]
     reset_session
     session[:ep_token] = result.fetch("token")
     session[:expires_at] = expiry.to_i
-    redirect_to root_path, status: :see_other
+    redirect_to(return_to.is_a?(String) && return_to.start_with?("/recruitment/") ? return_to : root_path, status: :see_other)
   end
 
   def destroy

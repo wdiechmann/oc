@@ -34,3 +34,13 @@ Backend calls add GET/POST `/api/v1/tenants/:tenant_id/admin-invitations`, POST 
 Tenant admins see **Invite occasion admins** on the occasion overview. `/tenants/:tenant_id/occasions/:occasion_id/admin_invitations` names the occasion and offers invitation creation plus pending revocation. The shared **Invitations** page labels occasion versus tenant roles and provides explicit occasion acceptance. Accepted occasion cards show **Open occasion** while the current grant and lifecycle remain eligible. Occasion-only recipients return to their inbox rather than an inaccessible tenant overview.
 
 EP calls use the nested occasion `admin-invitations` collection and its accept/revoke routes, plus GET `/api/v1/me/occasion-admin-invitations`. Recipient identity, scope, sponsor authority and grants remain EP-owned.
+
+
+## Recruitment
+
+- Occasion overview: **Manage recruitment**, available to current tenant/occasion admins according to EP.
+- `/tenants/:tenant_id/occasions/:occasion_id/recruitment`: public campaign fields and manual-review policy confirmation when closed; shareable application-page link and close-with-reason form when open; up to 100 recent applications awaiting review. No admission action is exposed.
+- `/recruitment/:tenant_id/:slug`: published intake instructions and notice, sign-in link or notice acknowledgment/submission form. Successful sign-in returns to this locally generated path.
+- `/recruitment/received`: authenticated confirmation of the session's recorded application; explicitly states pending review and no membership/assignment.
+
+EP integration adds scoped recruitment GET/open/close/applications endpoints and the public recruitment lookup. Application intake requires current policy version and verified identity. Public pages and forms use no-store responses; no database or business-state cache is added to TOM.

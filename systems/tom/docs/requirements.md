@@ -15,3 +15,7 @@
 - Tenant admins can invite occasion-admin prospects, with verified-recipient acceptance, seven-day expiry and pending revocation restricted to the named tenant and occasion.
 - Acceptance must not grant tenant access or create participant membership. Occasion admins cannot issue admin invitations without separate tenant authority.
 - Accepted recipients can return directly to authorized occasions without navigating the tenant overview.
+
+- Tenant admins and the current occasion admins explicitly open and close recruitment with published instructions, a privacy-notice link and a fixed pending-manual-review policy.
+- Verified prospects may submit one minimal expression of interest per occasion after notice acknowledgment; EP grants no membership or assignment.
+- Closing/expiry blocks intake immediately; stale policy versions and unauthorized sibling operations are rejected by EP.

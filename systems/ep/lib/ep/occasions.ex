@@ -109,11 +109,14 @@ defmodule Ep.Occasions do
               status: :pending,
               tenant_id: tenant_id,
               occasion_id: occasion_id,
+              can_manage_recruitment: true,
               can_manage_admins: not is_nil(access)
             }
 
           row ->
-            Map.put(present(row), :can_manage_admins, not is_nil(access))
+            present(row)
+            |> Map.put(:can_manage_admins, not is_nil(access))
+            |> Map.put(:can_manage_recruitment, true)
         end
       end)
     end

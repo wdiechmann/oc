@@ -290,4 +290,51 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_redirected_to tenant_occasion_admin_invitations_path(TENANT, TENANT)
     assert_not_requested :post, "#{EP}/tenants/#{TENANT}/occasions/#{TENANT}/admin-invitations"
   end
+  test "admin opens and closes recruitment through scoped EP commands" do
+    sign_in
+    path = tenant_occasion_recruitment_path(TENANT, TENANT)
+    api = "#{EP}/tenants/#{TENANT}/occasions/#{TENANT}/recruitment"
+    stub_request(:get, api).to_return(status: 200, body: { name: "SL2030", slug: "sl2030", recruitment_state: "closed", config: {}, expired: false }.to_json)
+    stub_request(:get, "#{api}/applications").to_return(status: 200, body: { applications: [] }.to_json)
+    get path
+    assert_select "h1", "Recruitment · SL2030"
+    key = css_select("input[name=idempotency_key]").first["value"]
+    stub_request(:post, "#{api}/open").with(body: { title: "Join us", instructions: "Manual review", privacy_notice_url: "https://example.test/privacy", confirm_manual_review: true }.to_json).to_return(status: 200, body: { recruitment_state: "open" }.to_json)
+    post open_tenant_occasion_recruitment_path(TENANT, TENANT), params: { title: "Join us", instructions: "Manual review", privacy_notice_url: "https://example.test/privacy", confirm_manual_review: "1", idempotency_key: key }
+    assert_redirected_to path
+    stub_request(:get, api).to_return(status: 200, body: { name: "SL2030", slug: "sl2030", recruitment_state: "open", config: {}, expired: false }.to_json)
+    get path
+    key = css_select("input[name=idempotency_key]").first["value"]
+    assert_select "a[href=?]", recruitment_path(TENANT, "sl2030")
+    stub_request(:post, "#{api}/close").with(body: { reason: "Team filled" }.to_json).to_return(status: 200, body: { recruitment_state: "closed" }.to_json)
+    post close_tenant_occasion_recruitment_path(TENANT, TENANT), params: { reason: "Team filled", idempotency_key: key }
+    assert_redirected_to path
+  end
+
+  test "public recruitment page requires sign in before submitting minimal pending application" do
+    config = { title: "Join us", instructions: "Manual review", privacy_notice_url: "https://example.test/privacy", notice_version: "policy-v1" }
+    stub_request(:get, "#{EP}/recruitment/#{TENANT}/sl2030").to_return(status: 200, body: { status: "ready", tenant_id: TENANT, occasion_id: TENANT, name: "SL2030", slug: "sl2030", config: config }.to_json)
+    get recruitment_path(TENANT, "sl2030")
+    assert_select "a", "Sign in to apply"
+    delete session_path
+    sign_in
+    get recruitment_path(TENANT, "sl2030")
+    assert_select "h1", "Join us"
+    key = css_select("input[name=idempotency_key]").first["value"]
+    stub_request(:post, "#{EP}/tenants/#{TENANT}/occasions/#{TENANT}/recruitment/applications").with(body: { notice_version: "policy-v1", acknowledge_notice: true }.to_json).to_return(status: 201, body: { application_id: TENANT, status: "pending_review" }.to_json)
+    post recruitment_applications_path(TENANT, "sl2030"), params: { notice_version: "policy-v1", acknowledge_notice: "1", idempotency_key: key, status: "accepted" }
+    assert_redirected_to recruitment_received_path
+    follow_redirect!
+    assert_select "h1", "Application received"
+    assert_select "p", /pending review/
+  end
+
+  test "recruitment sign in returns to the application page with no external redirect" do
+    config = { title: "Join us", instructions: "Manual review", privacy_notice_url: "https://example.test/privacy", notice_version: "v1" }
+    stub_request(:get, "#{EP}/recruitment/#{TENANT}/sl2030").to_return(status: 200, body: { status: "ready", tenant_id: TENANT, occasion_id: TENANT, name: "SL", config: config }.to_json)
+    get recruitment_path(TENANT, "sl2030")
+    stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
+    post session_path, params: { token: "token" }
+    assert_redirected_to recruitment_path(TENANT, "sl2030")
+  end
 end

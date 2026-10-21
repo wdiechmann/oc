@@ -121,7 +121,7 @@ The rebuild transaction replays retained tenant events into this MV and replaces
 
 Tests cover verified/single-use/expired links, session expiry/revocation/suspension, atomic rollback, retries and conflicts, two-connection concurrent duplicate commands, outbox retry/recovery, effect-free rebuild, actor spoof prevention, pending/ready HTTP responses and cross-tenant isolation. They do not establish the planned 40,000–80,000 concurrency capacity.
 
-Occasion creation is available as described below. Tenant-admin invitation/acceptance is now available below. Occasion-admin invitation/acceptance is also available below. Recruitment gating is the next lifecycle flow. Implement the production authentication/delivery and privacy lifecycle contracts before admitting production personal data. Reuse the transaction/outbox pattern rather than bypassing it with direct business-table or MV writes.
+Occasion creation is available as described below. Tenant-admin invitation/acceptance is now available below. Occasion-admin invitation/acceptance is also available below. Recruitment opening and minimal pending-review intake are available below. Implement the production authentication/delivery and privacy lifecycle contracts before admitting production personal data. Reuse the transaction/outbox pattern rather than bypassing it with direct business-table or MV writes.
 
 See [architecture](../../architecture.md), [datastore](../../suggested-data-store.md), [system 1 plan](../../system_1_plan.md) and [privacy requirements](../../gdpr.md).
 
@@ -139,7 +139,7 @@ Acceptance atomically records the parent-bound occasion guard, `OccasionCreated`
 
 `OccasionWorker` projects only occasion streams; `TenantWorker` projects only tenant streams. Independent controls prevent a stopped occasion directory from blocking tenant projection. The occasion projector orders by stream and version and atomically commits output, inbox and acknowledgment. `mix ep.outbox.recover` routes pending work to the corresponding worker. These local consumers do not implement generic external fan-out.
 
-The expiry is a recorded **review deadline**, not automatic deletion or retirement. Expiry-review task scheduling, retirement/erasure execution, participant recruitment, occasion editing, occasion replay/rebuild are subsequent work. Do not treat this slice as production retention compliance. Admin grants remain separate from the one-membership-per-identity-per-occasion rule.
+The expiry is a recorded **review deadline**, not automatic deletion or retirement. Expiry-review task scheduling, retirement/erasure execution, occasion editing, occasion replay/rebuild are subsequent work. Do not treat this slice as production retention compliance. Admin grants remain separate from the one-membership-per-identity-per-occasion rule.
 
 ## Tenant-admin invitations
 
@@ -175,3 +175,22 @@ Only current tenant admins issue or revoke occasion-admin invitations. An occasi
 Mutations require Bearer authentication and an Idempotency-Key. Client role/actor/lifecycle claims are ignored. Tenant and sibling-occasion routes cannot accept or revoke an invitation from another scope. Duplicate detection, command fingerprints and grant locks include scope. Invitation facts and `OccasionAdminGranted` belong to the occasion stream and its projector; tenant invitation facts remain on the tenant stream. The development notification identifies both tenant and occasion and uses the existing private mailbox, with no credential links.
 
 The occasion-detail query returns `can_manage_admins` from current tenant authority, not MV role claims. TOM uses it only to display navigation; EP still checks every invitation mutation. Accepted recipient cards persist as **Open occasion** links while the exact grant and parent lifecycle remain valid, without exposing sibling lists or tenant administration. Invite/grant removal, automated personal-data cleanup and production email delivery retain their documented limits.
+
+## Recruitment opening and minimal intake
+
+Tenant admins and current admins of the exact occasion can open or close recruitment explicitly. An active tenant and a draft/active occasion are required. Opening requires a public title (1–120 characters), instructions (1–2000), a published HTTPS privacy-notice URL and confirmation of the fixed manual-review policy. The policy requires lead vouching plus safeguarding and qualification checks before assignment. The checkbox records policy acknowledgment; it does not certify a complete safeguarding integration or a lawful basis.
+
+- GET `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment`: authorized current lifecycle/configuration for administrative actions.
+- POST on `/recruitment/open` with `{ "title": "Join the volunteer team", "instructions": "How applications will be reviewed", "privacy_notice_url": "https://your-site.example/privacy", "confirm_manual_review": true }`.
+- POST on `/recruitment/close` with `{ "reason": "Team filled" }` (1–500 characters).
+- Public GET `/api/v1/recruitment/:tenant_id/:slug`: published name and policy only. It serves the occasion MV after checking current tenant/occasion lifecycle, authoritative open state, expiry and MV control. A not-yet-matching policy projection returns 202. Closed or expired recruitment cannot be served from a stale open MV.
+- Authenticated POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment/applications` with the published `notice_version` and `acknowledge_notice: true`.
+- Authorized admin GET on the same applications collection: up to 100 recent pending applications and their contact emails for review. Applicants cannot enumerate this queue.
+
+All writes require an Idempotency-Key and current authenticated authority. Accepted opening/closure records `OccasionRecruitmentOpened`/`OccasionRecruitmentClosed` on the occasion stream, synchronous guard state, receipt, outbox and projection job together. Opening/closure is separate from the occasion's draft/active lifecycle. Changing campaign policy requires closing then opening explicitly. Matching command retries return historical results without executing new changes.
+
+Intake collects only a reference to the verified identity, policy version and pending status. One application per identity per occasion is enforced. `RecruitmentApplicationSubmitted` and the guard/receipt/outbox/job commit atomically; email is not copied into that fact. No membership, appointment or admin grant is created. A changed policy rejects stale forms. Intake holds a SHARE lock on the occasion row through commit; opening/closure uses UPDATE, so a concurrent successful submission precedes the closing fact or is rejected. The tests exercise both operations on separate database connections.
+
+The review deadline blocks new opening/intake without waiting for a background job. This does not yet create the planned expiry-review WorkItem or complete retirement. Administrative state/queue queries deliberately read bounded command guards for live decisions, while the published consolidated view uses the incremental MV.
+
+**This is an expressions-of-interest slice, not full workforce admission.** Review decisions, lead-vouch evidence, safeguard/qualification integrations, membership acceptance, assignment, applicant history/withdrawal, queue pagination, erasure/retention execution and recruitment notifications remain subsequent work. The broader production gates in system_1_plan.md (systems 2/3 readiness, approved notice/purpose, application registration and privacy controls) are not satisfied merely by this local opening form. Acknowledging the notice is not treated as blanket consent or proof of legal compliance.

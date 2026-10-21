@@ -67,7 +67,32 @@ module Ep
       request(:post, "#{invitation_collection(tenant_id, occasion_id)}/#{invitation_id}/#{action}", body: {}, key: key)
     end
 
+    def recruitment(tenant_id, occasion_id)
+      request(:get, recruitment_collection(tenant_id, occasion_id))
+    end
+
+    def recruitment_applications(tenant_id, occasion_id)
+      request(:get, "#{recruitment_collection(tenant_id, occasion_id)}/applications")
+    end
+
+    def recruitment_command(tenant_id, occasion_id, action, attrs, key)
+      raise ArgumentError unless %w[open close applications].include?(action)
+      request(:post, "#{recruitment_collection(tenant_id, occasion_id)}/#{action}", body: attrs, key: key)
+    end
+
+    def recruitment_landing(tenant_id, slug)
+      uuid!(tenant_id)
+      raise Error.new(404) unless slug.to_s.match?(/\A[a-z0-9]+(?:-[a-z0-9]+)*\z/) && slug.bytesize <= 64
+      request(:get, "/recruitment/#{tenant_id}/#{slug}")
+    end
+
     private
+
+    def recruitment_collection(tenant_id, occasion_id)
+      uuid!(tenant_id)
+      uuid!(occasion_id)
+      "/tenants/#{tenant_id}/occasions/#{occasion_id}/recruitment"
+    end
 
     def invitation_collection(tenant_id, occasion_id)
       uuid!(tenant_id)

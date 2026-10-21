@@ -11,3 +11,8 @@ Added tenant-scoped occasion creation, occasion listing in the tenant overview, 
 Added tenant-admin prospect invitations, seven-day expiry, pending revocation and a recipient inbox with verified-email acceptance. EP atomically grants tenant access on acceptance, rechecks sponsor authority, serializes acceptance/revocation and queues private development notifications. Verified the owner-to-prospect flow in a real browser using an isolated database; 43 EP tests and 20 TOM tests pass, including a two-connection acceptance/revocation race. Production notification delivery and automated invitation privacy cleanup remain pending.
 
 Added occasion-admin invitations using the shared EP lifecycle with parent-bound occasion scope, expiry, revocation and verified-recipient acceptance. Acceptance creates only an occasion-admin grant. TOM displays explicit scope, gates invitation controls using current EP tenant authority and retains authorized **Open occasion** navigation for accepted recipients. Scope isolation and concurrent accept/revoke are covered; existing tenant invitation contracts remain compatible.
+
+
+## 2026-10-21
+
+Added explicit recruitment opening and closure, published campaign/policy fields, a shareable verified-user expression-of-interest form and a pending application queue. EP atomically records lifecycle and application facts; closure/expiry and changed-policy guards override stale views. Applications create no membership or assignment. Browser verification covered owner opening, applicant sign-in return, submission, queue visibility and closure; separate-connection tests cover concurrent close/intake. Admission, safeguarding review and retention execution remain subsequent work.

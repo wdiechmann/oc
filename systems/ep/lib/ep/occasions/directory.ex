@@ -8,6 +8,7 @@ defmodule Ep.Occasions.Directory do
     field :name, :string
     field :slug, :string
     field :status, :string
+    field :recruitment_config, :map, default: %{}
     field :recruitment_state, :string
     field :expires_at, :utc_datetime_usec
     field :source_version, :integer
