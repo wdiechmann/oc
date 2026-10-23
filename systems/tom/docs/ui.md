@@ -44,3 +44,8 @@ EP calls use the nested occasion `admin-invitations` collection and its accept/r
 - `/recruitment/received`: authenticated confirmation of the session's recorded application; explicitly states pending review and no membership/assignment.
 
 EP integration adds scoped recruitment GET/open/close/applications endpoints and the public recruitment lookup. Application intake requires current policy version and verified identity. Public pages and forms use no-store responses; no database or business-state cache is added to TOM.
+
+
+## Message-delivery boundary (agreed target)
+
+The browser talks to TOM; TOM's backend requests an invitation or authentication challenge from EP, receives the necessary delivery material in the API response and sends the message. The recipient then verifies/accepts through the application using EP validation. EP does not send the user-facing message as part of the intended contract. Current private-EP-mailbox instructions describe temporary implementation awaiting this API/delivery refactor; no UI or runtime behavior changed in this documentation update.

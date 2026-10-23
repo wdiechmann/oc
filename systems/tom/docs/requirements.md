@@ -19,3 +19,7 @@
 - Tenant admins and the current occasion admins explicitly open and close recruitment with published instructions, a privacy-notice link and a fixed pending-manual-review policy.
 - Verified prospects may submit one minimal expression of interest per occasion after notice acknowledgment; EP grants no membership or assignment.
 - Closing/expiry blocks intake immediately; stale policy versions and unauthorized sibling operations are rejected by EP.
+
+- The API response is EP's contract with application backends: an authorized invitation/challenge request returns the result and necessary delivery material to its calling backend. A future MCP interface preserves these same rules.
+- TOM owns rendering and delivering its invitation/authentication messages, including provider handling; EP owns scoped state, verification, expiry, revocation and command idempotency. No shared mailbox, mandatory delivery queue or separate acknowledgment protocol is required.
+- Raw authentication secrets must not enter ordinary events, MVs or logs. Returning delivery material is restricted to authorized backend callers and does not weaken recipient verification or anti-enumeration controls.

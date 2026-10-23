@@ -16,3 +16,8 @@ Added occasion-admin invitations using the shared EP lifecycle with parent-bound
 ## 2026-10-21
 
 Added explicit recruitment opening and closure, published campaign/policy fields, a shareable verified-user expression-of-interest form and a pending application queue. EP atomically records lifecycle and application facts; closure/expiry and changed-policy guards override stale views. Applications create no membership or assignment. Browser verification covered owner opening, applicant sign-in return, submission, queue visibility and closure; separate-connection tests cover concurrent close/intake. Admission, safeguarding review and retention execution remain subsequent work.
+
+
+## 2026-10-23
+
+Clarified the application boundary: EP returns invitations/authentication challenge delivery material to an authorized calling backend through its API (potentially MCP later); TOM or another application delivers its messages. No separate delivery-acknowledgment or queue contract is required. EP-side mailboxes/delivery workers are explicitly documented as temporary existing code requiring refactoring; runtime behavior has not changed.

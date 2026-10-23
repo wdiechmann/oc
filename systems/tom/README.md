@@ -1,5 +1,12 @@
 # TOM — Tenant & Occasion Management
 
+## Delivery ownership
+
+TOM's backend requests invitations and authentication challenges through EP's API (potentially MCP later), receives the invitation/challenge delivery material in the API response and sends the appropriate message to the intended recipient. EP owns lifecycle/verification and scoped authority; TOM owns message presentation, application URLs and delivery/provider handling. No separate acknowledgment/queue protocol is required for this handoff. See [the detailed contract](docs/architecture.md#application-contract-and-message-delivery).
+
+**Implementation status:** This is the agreed contract. Current code still uses EP-side development mailboxes and an invitation delivery worker, and magic-link requests return only `check_your_email`. Moving delivery material into the protected backend API response and moving delivery/provider handling into TOM is pending implementation. Existing mailbox instructions below describe that temporary code, not the intended application integration.
+
+
 A separate Rails 8.1 / Ruby 3.4.4 application with Phlex and Tailwind CSS. TOM has no database, SQL client, Active Record, background worker or independent business-data store. Its backend calls EP over HTTP; browsers talk only to TOM.
 
 ## Start locally
