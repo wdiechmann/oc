@@ -10,7 +10,8 @@ class AdminInvitationsController < ApplicationController
       redirect_to management_path, alert: "Open a new invitation form and try again."
       return
     end
-    ep.invite_admin(params[:tenant_id], params[:email].to_s.strip, session[:admin_invitation_key], occasion_id: params[:occasion_id])
+    result = ep.invite_admin(params[:tenant_id], params[:email].to_s.strip, session[:admin_invitation_key], occasion_id: params[:occasion_id])
+    Notifications::Delivery.invitation(result["delivery"])
     session.delete(:admin_invitation_key)
     redirect_to management_path, notice: "Invitation recorded. The recipient must sign in with the invited email and accept before receiving access.", status: :see_other
   end

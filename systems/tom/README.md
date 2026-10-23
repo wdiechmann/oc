@@ -1,39 +1,51 @@
 # TOM — Tenant & Occasion Management
 
-## Delivery ownership
+Rails / Phlex / Tailwind UI with no database, Active Record, SQL client, background queue or independent business-data store. Browser → TOM backend → EP API. EP owns identity, permission and business state; TOM owns the email message, application URL, delivery provider and its delivery retries. No EP filesystem mailbox or delivery worker is used.
 
-TOM's backend requests invitations and authentication challenges through EP's API (potentially MCP later), receives the invitation/challenge delivery material in the API response and sends the appropriate message to the intended recipient. EP owns lifecycle/verification and scoped authority; TOM owns message presentation, application URLs and delivery/provider handling. No separate acknowledgment/queue protocol is required for this handoff. See [the detailed contract](docs/architecture.md#application-contract-and-message-delivery).
-
-**Implementation status:** This is the agreed contract. Current code still uses EP-side development mailboxes and an invitation delivery worker, and magic-link requests return only `check_your_email`. Moving delivery material into the protected backend API response and moving delivery/provider handling into TOM is pending implementation. Existing mailbox instructions below describe that temporary code, not the intended application integration.
-
-
-A separate Rails 8.1 / Ruby 3.4.4 application with Phlex and Tailwind CSS. TOM has no database, SQL client, Active Record, background worker or independent business-data store. Its backend calls EP over HTTP; browsers talk only to TOM.
-
-## Start locally
-
-Keep EP running at http://localhost:4000, then in another terminal:
+## Start
 
 ```sh
 cd systems/tom
 bundle install
+bin/provision-ep-backend
 bin/dev
 ```
 
-Open http://localhost:3000. `bin/dev` runs Puma and the Tailwind watcher without Foreman or Node. For a different EP origin, export `EP_BASE_URL=http://localhost:4000`; for a different TOM port export `PORT=3001`. `.env.example` is documentation, not automatically loaded.
+Keep EP running on http://localhost:4000. TOM opens at http://localhost:3000. `bin/dev` runs Rails and the Tailwind watcher without Node or Foreman. `bin/setup` also provisions development backend credentials. Existing matching private credentials are retained; mismatches are not silently overwritten. The two running applications each read only their own gitignored mode-0600 configuration file. In production provide EP_BACKEND_TOKEN independently to both apps through their secret managers; EP_BACKEND_ID defaults to tom. The token is never sent to browsers.
 
-Request a sign-in message in TOM. EP currently writes development messages to its private `systems/ep/tmp/magic_links/` directory. Paste the **single-use magic-link token**, not an existing Bearer session token, into TOM's sign-in form. TOM exchanges it with EP. Real email delivery and clickable magic-link callbacks remain future integration work.
+`EP_BASE_URL` changes the EP origin; `PORT` changes TOM's port. Set `TOM_PUBLIC_BASE_URL` to TOM's externally reachable origin (HTTPS required in production); message links use this configured value, not the browser's Host header. `.env.example` is documentation, not automatically loaded.
 
-Create a tenant, or open an existing tenant using its UUID. EP checks your current access on every tenant read. The tenant overview lists occasions and offers creation. Tenant-admin invitations are available; tenant listing remains future work.
+## Delivery
 
-## Security and state
+Development defaults to `TOM_DELIVERY_METHOD=file`: TOM writes mode-0600 JSON messages under its private mode-0700 `tmp/outbox`. Open the URL in the message's text. This is TOM's own development delivery provider, not a shared filesystem integration with EP. A magic link opens a confirmation page; clicking **Confirm sign-in** redeems it. GET/prefetch alone never creates a session. The existing manual token entry remains available, but normal testing now follows the clickable link.
 
-The EP Bearer token and its expiry are held in Rails' encrypted, authenticated, HttpOnly, SameSite=Lax session cookie. This cookie is browser-held encrypted state, not a server-side session database. Tokens never enter JavaScript, localStorage, URLs or rendered HTML. Production cookies require HTTPS. TOM checks expiry; EP remains responsible for current authorization and revocation. Protect `SECRET_KEY_BASE` and use the same secret across replicas.
+For email set `TOM_DELIVERY_METHOD=smtp`, `TOM_MAIL_FROM`, `TOM_SMTP_HOST`, and optionally `TOM_SMTP_PORT` (587), `TOM_SMTP_USERNAME`, `TOM_SMTP_PASSWORD` and `TOM_SMTP_SSL=true` for implicit TLS (465). Otherwise STARTTLS is required. Configure actual provider credentials yourself; no production provider has been connected or externally tested. Production cannot fall back to file delivery. Tests force Mail's in-memory test provider and never send email externally.
 
-Sign-out currently clears TOM's cookie; it does **not** revoke the EP session. A copied cookie remains usable until EP expiry/revocation. An EP revoke-session endpoint is required before production sign-out can promise server-side invalidation. No local token blacklist or identity database is introduced.
+SMTP/file delivery is synchronous in TOM; no database or EP acknowledgment/queue protocol is introduced. A failed invitation send retains its idempotency key. Retrying asks EP for the same still-live invitation and sends it again, with a stable Message-ID; this cannot guarantee exactly-once SMTP delivery. A failed/lost magic-link issuance requires an explicit new request, invalidating the previous challenge for this backend. TOM does not automatically retry issuance. Throttled responses remain generic to the browser and generate no message.
 
-Forms use Rails CSRF protection; responses are `no-store`, credentials are filtered from Rails logs, and CSP disallows scripts and third-party resources. The fixed operator-configured EP origin prevents user-selected destinations; HTTPS is mandatory in production. The client has bounded timeouts and does not automatically retry requests. A session-held creation key survives uncertain outcomes for safe retries; EP owns authoritative deduplication. Local `/up` is TOM liveness, not EP readiness.
+## Seven administration flows
 
-No cached tenant snapshot is served: pending projections can be refreshed, stopped projections fail closed, and foreign tenants remain unavailable. The last-opened tenant UUID is only a navigation hint in the encrypted session. Multiple tenants are supported through EP access checks, with no tenant scope inferred from client claims.
+1. Initial signup/sign-in: email → EP-issued challenge → TOM message → link confirmation → canonical EP identity/session → first tenant creation grants tenant_admin.
+2. Tenant-admin invite: from tenant overview choose **Invite tenant admins**; TOM sends the material returned by EP.
+3. Tenant invitation acceptance: open the message's invitation link, verify the invited email and explicitly accept in **Invitations**. Login alone grants nothing.
+4. Later tenant-admin sign-in: a new message/session preserves identity/grants; the home page lists authorized tenants under **Your administration**.
+5. Occasion-admin invite: a tenant admin opens the occasion and chooses **Invite occasion admins**; TOM sends a named, scope-specific message.
+6. Occasion acceptance: the verified recipient explicitly accepts and receives only the named occasion grant, with no tenant grant or participant membership.
+7. Later occasion-admin sign-in: the home page lists the currently authorized occasion, without tenant administration or sibling access.
+
+Invitations last seven days and pending ones may be revoked. EP checks current sponsor authority, parent lifecycle and recipient email at acceptance. Accepted occasion cards also provide **Open occasion** links while their grants remain active. Session expiry/revocation and MV controls remain EP-authoritative.
+
+## Occasion and recruitment setup
+
+Create an occasion with name, tenant-unique short name and future expiry review date (end of date in UTC). Optional self occasion administration is explicit. It starts as draft with recruitment closed. The review date does not automatically schedule a WorkItem or erase data yet.
+
+**Manage recruitment** lets current tenant/occasion admins publish a title, instructions, approved HTTPS notice link and fixed manual-review policy, then open or close intake. Share the application-page URL. Verified users acknowledge the policy and submit one expression of interest, pending review. Closure, expired review dates and changed policy block new intake independently of MV lag. Admins can see the scoped pending queue; no admission/membership/assignment action is implemented.
+
+## Security and limits
+
+Bearer sessions stay in Rails' encrypted HttpOnly SameSite cookie, not JavaScript, localStorage or URLs. Magic-link callback tokens are staged in that cookie and removed from the address bar before the confirmation POST. Rails filters token parameters, uses CSRF protection/no-store responses and forbids third-party scripts. Keep Rails secrets safe and shared across replicas. Local sign-out still clears only TOM's cookie; EP session-revocation integration remains future work.
+
+Backend secrets, development message files and their backups need appropriate operational retention. Production application registry/scopes, source abuse controls, privacy/erasure and backup workflows, admin removal/recovery, workforce admission and load validation remain incomplete. A notice acknowledgment is not blanket consent or production compliance certification.
 
 ## Checks
 
@@ -44,30 +56,4 @@ bin/rails zeitwerk:check
 bundle exec brakeman --no-pager
 ```
 
-Tests stub EP HTTP, block external traffic, and need no PostgreSQL. See [architecture](docs/architecture.md), [roadmap](docs/roadmap.md) and [UI](docs/ui.md).
-
-## Occasions
-
-Apply EP's new migration, refresh your tenant overview and choose **Create occasion**. Enter a name, tenant-unique short name and expiry review date. TOM converts the end of that date in UTC to EP's timestamp. The checked “Assign me as occasion admin” option is explicit and may be cleared; it grants administration without participant membership. Recruitment remains closed.
-
-The creation form and pending/ready detail screen use EP commands and materialized queries. The tenant overview lists projected occasions and can be refreshed. Duplicate short names and invalid fields retain form values; creation keys are tenant-bound and retained across uncertain responses. EP rechecks authority on the actual write even after a form was opened. Expiry review scheduling, retirement is not implemented by this form.
-
-## Invite another tenant admin
-
-From the tenant overview choose **Invite tenant admins**. Enter the prospect’s email. An invitation lasts seven days and can be revoked while pending. Creation records an invitation, not a grant and not a claim of email delivery. Development messages are written privately by EP under `tmp/admin_invitations`.
-
-The prospect signs in using that same email, opens **Invitations** in the header, and explicitly accepts. EP checks their verified identity and the inviter’s current authority before granting tenant-wide admin access. Expired, revoked, wrong-recipient and inactive-sponsor invitations cannot grant access. The accepted recipient can then open the tenant. Revocation controls apply to pending invitations; removing an accepted administrator is a separate future workflow.
-
-## Invite an occasion admin
-
-A tenant admin opens the occasion and chooses **Invite occasion admins**. The form names the occasion, records a seven-day invitation and permits pending revocation. The prospect signs in with the invited email, opens **Invitations**, and chooses **Accept occasion-admin invitation**. They receive access only to that occasion and can return using its **Open occasion** card. The card is hidden when their current grant or parent lifecycle is no longer valid.
-
-Occasion admins cannot use these invitations to grant tenant administration or appoint additional admins; that action remains with tenant admins. Invitation acceptance creates no participant membership. Notifications still use EP’s private development mailbox; no real email delivery has been added.
-
-## Open recruitment
-
-From an occasion choose **Manage recruitment**. Tenant admins and that occasion's admins can enter a public title, instructions and a published HTTPS recruitment privacy-notice URL, then confirm the manual-review/assignment policy and open intake. The resulting **Open application page** link is tenant-and-slug scoped and can be shared. Opening does not make the occasion active or accept participants automatically.
-
-A prospect signs in from that page, returns to it after verification, acknowledges the notice and submits a minimal expression of interest. The application remains **pending review** and appears in the scoped admin queue. It creates no membership or assignment. The configured notice/policy version is checked again by EP on submission. Closing recruitment requires a reason and blocks new intake immediately, even before projection refresh. Reaching the occasion's review deadline also blocks new intake.
-
-Applicant admission, vouching evidence, safeguarding/qualification checks, membership acceptance, applicant history/withdrawal, expiry-review tasks and notifications are subsequent work. Use an approved recruitment notice/purpose and complete the broader platform privacy/security/readiness work before production collection. No real email delivery was added.
+Tests stub EP HTTP, block external network and use Mail::TestMailer, with no PostgreSQL. See docs/architecture.md, docs/roadmap.md and docs/ui.md.

@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+# Operator-only provisioning; neither running application reads the other's files.
+require "securerandom"
+ep_config = File.expand_path("../../ep/config/backend_api_token", __dir__)
+tom_config = File.expand_path("../config/ep_backend_token", __dir__)
+paths = [ep_config, tom_config]
+values = paths.filter_map { |path| File.read(path).strip if File.file?(path) }
+abort "Existing backend credentials differ; resolve them explicitly before provisioning." if values.uniq.length > 1
+secret = values.first || SecureRandom.urlsafe_base64(48)
+abort "Backend credential must be at least 32 characters." if secret.bytesize < 32
+paths.each do |path|
+  unless File.exist?(path)
+    File.open(path, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |file| file.write(secret + "\n") }
+  end
+  File.chmod(0o600, path)
+end
+puts "EP and TOM development backend credentials are ready (private, separate files)."

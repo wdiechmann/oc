@@ -108,3 +108,22 @@ if config_env() == :prod do
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
 end
+
+# Backend credential provisioned by the operator, never returned to browsers.
+local_backend_token =
+  if config_env() == :dev do
+    case File.read(Path.expand("backend_api_token", __DIR__)) do
+      {:ok, value} -> String.trim(value)
+      _ -> nil
+    end
+  end
+
+env_backend_token =
+  case System.get_env("EP_BACKEND_TOKEN") do
+    "" -> nil
+    value -> value
+  end
+
+if backend_token = if(config_env() != :test, do: env_backend_token || local_backend_token) do
+  config :ep, :backend_tokens, %{System.get_env("EP_BACKEND_ID", "tom") => backend_token}
+end

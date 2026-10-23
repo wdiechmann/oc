@@ -8,7 +8,7 @@ EP owns authority checks, tenant/occasion/recipient binding, expiry, revocation,
 
 Delivery material is returned only to the appropriately authorized backend. A magic-link secret is sensitive authentication material: retain only its hash/verification state in EP and keep the raw value out of ordinary events, MVs, logs and unrelated clients. An invitation ID alone remains insufficient for acceptance; the verified intended recipient and current scope/authority rules still apply. Retries/reissuance must have documented API semantics so an uncertain response cannot silently create duplicate invitations or invalidate a challenge being delivered. This boundary preserves the existing recipient verification, rate limits and anti-enumeration requirements; it does not authorize a public browser endpoint to retrieve arbitrary login secrets.
 
-**Implementation status:** This is the agreed contract. Current code still uses EP-side development mailboxes and an invitation delivery worker, and magic-link requests return only `check_your_email`. Moving delivery material into the protected backend API response and moving delivery/provider handling into TOM is pending implementation. Existing mailbox instructions below describe that temporary code, not the intended application integration.
+**Implementation status:** Implemented. EP returns delivery material through protected API responses; TOM constructs and delivers the messages. EP delivery workers/mailbox adapters are removed. TOM supports a private development mailbox and configurable SMTP. No delivery-acknowledgment protocol or EP notification queue is required.
 
 
 ## Purpose and design position

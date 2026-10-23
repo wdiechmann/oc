@@ -5,6 +5,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
   TENANT = "657df2d1-0f99-4007-a914-e26de1d58dc9"
 
   def sign_in
+    stub_request(:get, "#{EP}/me/workspaces").to_return(status: 200, body: { tenants: [], occasions: [] }.to_json)
     stub_request(:get, "#{EP}/me/occasion-admin-invitations").to_return(status: 200, body: { invitations: [] }.to_json)
     stub_request(:get, %r{#{EP}/tenants/[^/]+/occasions$}).to_return(status: 200, body: { status: "ready", occasions: [] }.to_json)
     stub_request(:post, "#{EP}/auth/magic-links/verify").with(body: { token: "one-use-token" }.to_json)
@@ -24,7 +25,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
 
   test "requests a magic link without revealing it" do
     stub_request(:post, "#{EP}/auth/magic-links").with(body: { email: "person@example.test" }.to_json)
-      .to_return(status: 202, body: { status: "check_your_email" }.to_json)
+      .to_return(status: 202, body: { status: "check_your_email", delivery: nil }.to_json)
     post magic_links_path, params: { email: "person@example.test" }
     assert_redirected_to new_session_path
     follow_redirect!
@@ -134,7 +135,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_equal "same-origin", response.headers["Referrer-Policy"]
     token = css_select("form[action='/magic_links'] input[name=authenticity_token]").first["value"]
     stub_request(:post, "#{EP}/auth/magic-links")
-      .to_return(status: 202, body: { status: "check_your_email" }.to_json)
+      .to_return(status: 202, body: { status: "check_your_email", delivery: nil }.to_json)
     post magic_links_path, params: { email: "person@example.test", authenticity_token: token }, headers: { "Origin" => "http://www.example.com" }
     assert_redirected_to new_session_path
     post magic_links_path, params: { email: "person@example.test", authenticity_token: token }, headers: { "Origin" => "http://foreign.example" }
@@ -204,7 +205,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     key = css_select("input[name=idempotency_key]").first["value"]
     stub_request(:post, "#{EP}/tenants/#{TENANT}/admin-invitations")
       .with(body: { email: "prospect@example.test" }.to_json, headers: { "Authorization" => "Bearer private-bearer", "Idempotency-Key" => key })
-      .to_return(status: 201, body: { invitation_id: iid }.to_json)
+      .to_return(status: 201, body: { invitation_id: iid, delivery: nil }.to_json)
     post tenant_admin_invitations_path(TENANT), params: { email: "prospect@example.test", idempotency_key: key }
     assert_redirected_to tenant_admin_invitations_path(TENANT)
     remove_request_stub(list)
@@ -249,7 +250,7 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_select "h1", "Share occasion administration"
     assert_select "p", "Occasion: SL2030"
     key = css_select("input[name=idempotency_key]").first["value"]
-    stub_request(:post, url).with(body: { email: "prospect@example.test" }.to_json, headers: { "Idempotency-Key" => key }).to_return(status: 201, body: { invitation_id: iid, occasion_id: oid }.to_json)
+    stub_request(:post, url).with(body: { email: "prospect@example.test" }.to_json, headers: { "Idempotency-Key" => key }).to_return(status: 201, body: { invitation_id: iid, occasion_id: oid, delivery: nil }.to_json)
     post tenant_occasion_admin_invitations_path(TENANT, oid), params: { email: "prospect@example.test", idempotency_key: key }
     assert_redirected_to tenant_occasion_admin_invitations_path(TENANT, oid)
     stub_request(:post, "#{url}/#{iid}/revoke").to_return(status: 200, body: { status: "revoked" }.to_json)
@@ -336,5 +337,92 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
     post session_path, params: { token: "token" }
     assert_redirected_to recruitment_path(TENANT, "sl2030")
+  end
+  test "TOM delivers a magic link returned by EP without exposing credentials to the browser" do
+    stub_request(:post, "#{EP}/auth/magic-links").with(headers: { "X-Ep-Backend-Token" => "b" * 48 })
+      .to_return(status: 202, body: { status: "check_your_email", delivery: { email: "person@example.test", token: "a" * 43, expires_at: 15.minutes.from_now.iso8601 } }.to_json)
+    post magic_links_path, params: { email: "person@example.test" }
+    assert_redirected_to new_session_path
+    mail = Mail::TestMailer.deliveries.last
+    assert_equal [ "person@example.test" ], mail.to
+    assert_includes mail.body.decoded, "/session/verify?token="
+    assert_includes mail.body.decoded, "a" * 43
+    follow_redirect!
+    assert_not_includes response.body, "a" * 43
+    assert_not_includes response.body, "b" * 48
+  end
+
+  test "mail scanners cannot redeem a magic link with GET; confirmation POST creates the session" do
+    get verify_session_path, params: { token: "a" * 43 }
+    assert_redirected_to confirm_session_path
+    assert_not_requested :post, "#{EP}/auth/magic-links/verify"
+    follow_redirect!
+    assert_select "input[value='Confirm sign-in']"
+    assert_not_includes response.body, "a" * 43
+    stub_request(:post, "#{EP}/auth/magic-links/verify").with(body: { token: "a" * 43 }.to_json)
+      .to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
+    post session_path
+    assert_redirected_to root_path
+  end
+
+  test "TOM sends tenant and occasion invitations using API response material" do
+    sign_in
+    iid = "df763842-2538-4ccb-8445-17e232c37d84"
+    [ nil, TENANT ].each do |oid|
+      collection = oid ? "#{EP}/tenants/#{TENANT}/occasions/#{oid}/admin-invitations" : "#{EP}/tenants/#{TENANT}/admin-invitations"
+      route = oid ? tenant_occasion_admin_invitations_path(TENANT, oid) : tenant_admin_invitations_path(TENANT)
+      stub_request(:get, collection).to_return(status: 200, body: { invitations: [] }.to_json)
+      get route
+      key = css_select("input[name=idempotency_key]").first["value"]
+      material = { email: "prospect@example.test", invitation_id: iid, tenant_id: TENANT, tenant_name: "SL", occasion_id: oid, occasion_name: oid ? "SL2030" : nil, role: oid ? "occasion_admin" : "tenant_admin", expires_at: 7.days.from_now.iso8601 }
+      stub_request(:post, collection).to_return(status: 201, body: { invitation_id: iid, delivery: material }.to_json)
+      post route, params: { email: "prospect@example.test", idempotency_key: key }
+      assert_redirected_to route
+      mail = Mail::TestMailer.deliveries.last
+      assert_equal [ "prospect@example.test" ], mail.to
+      assert_includes mail.body.decoded, "/invitations"
+      assert_includes mail.subject, oid ? "occasion" : "tenant"
+    end
+  end
+
+  test "subsequent admin sign-in lists the currently authorized workspaces" do
+    sign_in
+    stub_request(:get, "#{EP}/me/workspaces").to_return(status: 200, body: { tenants: [ { tenant_id: TENANT, name: "My tenant" } ], occasions: [ { tenant_id: TENANT, occasion_id: TENANT, name: "My occasion", tenant_name: "My tenant" } ] }.to_json)
+    get root_path
+    assert_select "a[href=?]", tenant_path(TENANT), text: "My tenant"
+    assert_select "a[href=?]", tenant_occasion_path(TENANT, TENANT), text: "My occasion"
+  end
+  test "failed invitation delivery retains command key and retry delivers the same invitation" do
+    sign_in
+    route = tenant_admin_invitations_path(TENANT)
+    api = "#{EP}/tenants/#{TENANT}/admin-invitations"
+    stub_request(:get, api).to_return(status: 200, body: { invitations: [] }.to_json)
+    get route
+    key = css_select("input[name=idempotency_key]").first["value"]
+    failed = stub_request(:post, api).to_return(status: 201, body: { invitation_id: TENANT, delivery: { email: "prospect@example.test" } }.to_json)
+    post route, params: { email: "prospect@example.test", idempotency_key: key }
+    assert_response :service_unavailable
+    get route
+    assert_equal key, css_select("input[name=idempotency_key]").first["value"]
+    remove_request_stub(failed)
+    delivery = { email: "prospect@example.test", invitation_id: TENANT, tenant_name: "SL", expires_at: 7.days.from_now.iso8601 }
+    stub_request(:post, api).with(headers: { "Idempotency-Key" => key }).to_return(status: 200, body: { invitation_id: TENANT, replayed: true, delivery: delivery }.to_json)
+    post route, params: { email: "prospect@example.test", idempotency_key: key }
+    assert_redirected_to route
+    assert_equal 1, Mail::TestMailer.deliveries.length
+  end
+
+  test "invitation sign in returns to explicit invitation acceptance" do
+    get invitations_path
+    assert_redirected_to new_session_path
+    stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
+    post session_path, params: { token: "verified-token" }
+    assert_redirected_to invitations_path
+  end
+  test "a legacy EP response cannot falsely report successful TOM delivery" do
+    stub_request(:post, "#{EP}/auth/magic-links").to_return(status: 202, body: { status: "check_your_email" }.to_json)
+    post magic_links_path, params: { email: "person@example.test" }
+    assert_response :service_unavailable
+    assert_empty Mail::TestMailer.deliveries
   end
 end

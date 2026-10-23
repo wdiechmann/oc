@@ -1,5 +1,6 @@
 defmodule EpWeb.OccasionInvitationController do
   use EpWeb, :controller
+  plug EpWeb.Plugs.Backend when action in [:create]
 
   def create(conn, %{"tenant_id" => tid, "occasion_id" => oid} = params),
     do:
@@ -37,7 +38,12 @@ defmodule EpWeb.OccasionInvitationController do
     conn = put_resp_header(conn, "cache-control", "no-store")
 
     case result do
-      {:ok, %{result: result, replayed: replayed}} ->
+      {:ok, %{result: result, replayed: replayed} = accepted} ->
+        result =
+          if Map.has_key?(accepted, :delivery),
+            do: Map.put(result, "delivery", accepted.delivery),
+            else: result
+
         conn
         |> put_status(if(replayed, do: :ok, else: status))
         |> json(Map.put(result, "replayed", replayed))

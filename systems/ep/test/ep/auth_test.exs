@@ -5,8 +5,9 @@ defmodule Ep.AuthTest do
   import Ep.Support.AuthHelpers
 
   test "verification is one-use and stores hashes rather than credentials" do
-    assert :ok = Ep.Auth.request_magic_link("first@example.test")
-    assert_receive {:magic_link, _, link_token}
+    assert {:ok, %{delivery: %{token: link_token}}} =
+             Ep.Auth.request_magic_link("first@example.test")
+
     assert {:ok, result} = Ep.Auth.verify_magic_link(link_token)
     assert {:ok, principal} = Ep.Auth.authenticate(result.token)
     assert principal == result.principal
@@ -21,21 +22,25 @@ defmodule Ep.AuthTest do
   end
 
   test "expired links are rejected without creating an identity" do
-    :ok = Ep.Auth.request_magic_link("expired@example.test")
-    assert_receive {:magic_link, _, token}
+    {:ok, %{delivery: %{token: token}}} = Ep.Auth.request_magic_link("expired@example.test")
     Repo.update_all(MagicLink, set: [expires_at: DateTime.add(DateTime.utc_now(), -1, :second)])
     assert {:error, :invalid_token} = Ep.Auth.verify_magic_link(token)
     assert Repo.aggregate(Identity, :count) == 0
   end
 
   test "resend invalidates prior link and fourth request is silently throttled" do
-    Enum.each(1..3, fn _ -> assert :ok = Ep.Auth.request_magic_link("limit@example.test") end)
-    assert_receive {:magic_link, _, first}
-    assert_receive {:magic_link, _, second}
-    assert_receive {:magic_link, _, third}
+    tokens =
+      Enum.map(1..3, fn _ ->
+        assert {:ok, %{delivery: %{token: token}}} =
+                 Ep.Auth.request_magic_link("limit@example.test")
+
+        token
+      end)
+
+    [first, second, third] = tokens
     assert {:error, :invalid_token} = Ep.Auth.verify_magic_link(first)
     assert {:error, :invalid_token} = Ep.Auth.verify_magic_link(second)
-    assert :ok = Ep.Auth.request_magic_link("limit@example.test")
+    assert {:ok, %{delivery: nil}} = Ep.Auth.request_magic_link("limit@example.test")
     assert Repo.aggregate(MagicLink, :count) == 3
     assert {:ok, _} = Ep.Auth.verify_magic_link(third)
   end

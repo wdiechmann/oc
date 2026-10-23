@@ -34,6 +34,4 @@ config :phoenix,
 # Test jobs only when a test explicitly performs them.
 config :ep, Oban, testing: :manual
 
-config :ep, :magic_link_delivery, Ep.Support.MagicLinkDelivery
-
-config :ep, :invitation_delivery, Ep.Support.InvitationDelivery
+config :ep, :backend_tokens, %{"test-backend" => String.duplicate("b", 48)}

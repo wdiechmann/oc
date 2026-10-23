@@ -46,8 +46,6 @@ defmodule Ep.Invitations do
               expires_at: DateTime.add(now, 7 * 86_400, :second)
             })
 
-          Oban.insert!(Ep.Invitations.DeliveryWorker.new(%{invitation_id: invitation.id}))
-
           {invitation,
            [
              {event_type("InvitationCreated", occasion_id),
@@ -381,85 +379,102 @@ defmodule Ep.Invitations do
     if is_binary(key) && Regex.match?(~r/^[A-Za-z0-9._:-]{1,128}$/, key) do
       fingerprint = :crypto.hash(:sha256, :erlang.term_to_binary({type, attrs}))
 
-      Repo.transaction(fn ->
-        identity = Auth.lock_principal!(principal)
-        authorize.(identity)
-        Events.lock!("command:" <> identity.id <> ":" <> type <> ":" <> key)
+      transaction =
+        Repo.transaction(fn ->
+          identity = Auth.lock_principal!(principal)
+          authorize.(identity)
+          Events.lock!("command:" <> identity.id <> ":" <> type <> ":" <> key)
 
-        case Repo.get_by(CommandReceipt,
-               identity_id: identity.id,
-               command_type: type,
-               idempotency_key: key
-             ) do
-          nil ->
-            {invitation, facts} = apply.(identity)
-            command_id = Ecto.UUID.generate()
+          case Repo.get_by(CommandReceipt,
+                 identity_id: identity.id,
+                 command_type: type,
+                 idempotency_key: key
+               ) do
+            nil ->
+              {invitation, facts} = apply.(identity)
+              command_id = Ecto.UUID.generate()
 
-            metadata = %{
-              scope: "tenant",
-              scope_key: "tenant:" <> invitation.tenant_id,
-              tenant_id: invitation.tenant_id,
-              stream_type: "tenant",
-              stream_id: invitation.tenant_id,
-              actor_identity_id: identity.id,
-              command_id: command_id,
-              correlation_id: command_id
-            }
+              metadata = %{
+                scope: "tenant",
+                scope_key: "tenant:" <> invitation.tenant_id,
+                tenant_id: invitation.tenant_id,
+                stream_type: "tenant",
+                stream_id: invitation.tenant_id,
+                actor_identity_id: identity.id,
+                command_id: command_id,
+                correlation_id: command_id
+              }
 
-            metadata =
-              if invitation.occasion_id,
-                do:
-                  Map.merge(metadata, %{
-                    scope: "occasion",
-                    scope_key:
-                      "tenant:" <> invitation.tenant_id <> ":occasion:" <> invitation.occasion_id,
-                    occasion_id: invitation.occasion_id,
-                    stream_type: "occasion",
-                    stream_id: invitation.occasion_id
-                  }),
-                else: metadata
+              metadata =
+                if invitation.occasion_id,
+                  do:
+                    Map.merge(metadata, %{
+                      scope: "occasion",
+                      scope_key:
+                        "tenant:" <>
+                          invitation.tenant_id <> ":occasion:" <> invitation.occasion_id,
+                      occasion_id: invitation.occasion_id,
+                      stream_type: "occasion",
+                      stream_id: invitation.occasion_id
+                    }),
+                  else: metadata
 
-            events = Events.append!(metadata, facts)
+              events = Events.append!(metadata, facts)
 
-            Enum.each(events, fn e ->
-              Repo.insert!(%Outbox{event_id: e.id, tenant_id: e.tenant_id})
-            end)
+              Enum.each(events, fn e ->
+                Repo.insert!(%Outbox{event_id: e.id, tenant_id: e.tenant_id})
+              end)
 
-            worker =
-              if invitation.occasion_id,
-                do: Ep.Projections.OccasionWorker,
-                else: Ep.Projections.TenantWorker
+              worker =
+                if invitation.occasion_id,
+                  do: Ep.Projections.OccasionWorker,
+                  else: Ep.Projections.TenantWorker
 
-            Oban.insert!(worker.new(%{tenant_id: invitation.tenant_id}))
+              Oban.insert!(worker.new(%{tenant_id: invitation.tenant_id}))
 
-            result = %{
-              "tenant_id" => invitation.tenant_id,
-              "occasion_id" => invitation.occasion_id,
-              "invitation_id" => invitation.id,
-              "command_id" => command_id,
-              "event_ids" => Enum.map(events, & &1.id),
-              "status" => invitation.status,
-              "expires_at" => DateTime.to_iso8601(invitation.expires_at)
-            }
+              result = %{
+                "tenant_id" => invitation.tenant_id,
+                "occasion_id" => invitation.occasion_id,
+                "invitation_id" => invitation.id,
+                "command_id" => command_id,
+                "event_ids" => Enum.map(events, & &1.id),
+                "status" => invitation.status,
+                "expires_at" => DateTime.to_iso8601(invitation.expires_at)
+              }
 
-            Repo.insert!(%CommandReceipt{
-              id: command_id,
-              identity_id: identity.id,
-              command_type: type,
-              idempotency_key: key,
-              fingerprint: fingerprint,
-              result: result
-            })
+              Repo.insert!(%CommandReceipt{
+                id: command_id,
+                identity_id: identity.id,
+                command_type: type,
+                idempotency_key: key,
+                fingerprint: fingerprint,
+                result: result
+              })
 
-            %{result: result, replayed: false}
+              %{result: result, replayed: false}
 
-          %{fingerprint: ^fingerprint, result: result} ->
-            %{result: result, replayed: true}
+            %{fingerprint: ^fingerprint, result: result} ->
+              %{result: result, replayed: true}
 
-          _ ->
-            Repo.rollback(:idempotency_conflict)
-        end
-      end)
+            _ ->
+              Repo.rollback(:idempotency_conflict)
+          end
+        end)
+
+      case transaction do
+        {:ok, %{result: result} = accepted}
+        when type in ["InviteTenantAdmin", "InviteOccasionAdmin"] ->
+          delivery =
+            case notification(result["invitation_id"]) do
+              {:ok, message} -> message
+              :skip -> nil
+            end
+
+          {:ok, Map.put(accepted, :delivery, delivery)}
+
+        other ->
+          other
+      end
     else
       {:error, :invalid_idempotency_key}
     end

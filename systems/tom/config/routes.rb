@@ -4,7 +4,10 @@ Rails.application.routes.draw do
   get "recruitment/:tenant_id/:slug", to: "recruitment_intake#show", as: :recruitment
   post "recruitment/:tenant_id/:slug/applications", to: "recruitment_intake#create", as: :recruitment_applications
   resources :invitations, only: :index
-  resource :session, only: %i[new create destroy]
+  resource :session, only: %i[new create destroy] do
+    get :verify
+    get :confirm
+  end
   resources :magic_links, only: :create
   resources :tenants, only: %i[index create show] do
     resources :admin_invitations, only: %i[index create] do

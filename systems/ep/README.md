@@ -1,207 +1,80 @@
 # EP — Event Protocol
 
-## Application contract and message delivery
+EP is the Elixir/Phoenix JSON API and PostgreSQL-backed authority for identities, invitations, tenants, occasions, recruitment, scoped events and projections. It does not send email/SMS, construct application links or expose a filesystem mailbox to clients. API responses are the delivery handoff; future MCP operations must preserve the same security and lifecycle contract.
 
-The application backend integrates with EP through its API; a future MCP interface may expose the same governed operations. EP creates and validates invitations/authentication challenges and returns the result, including the delivery material the authorized calling backend needs, in that request's API response. For example, TOM requests an invitation or magic-link challenge, receives it and delivers it to the intended recipient through TOM's email/SMS/provider integration. No shared database, filesystem mailbox or EP-specific delivery worker is part of this contract.
+## Run locally
 
-EP owns authority checks, tenant/occasion/recipient binding, expiry, revocation, verification/redemption, idempotency and accepted facts. The application backend owns message templates, application URLs, provider credentials, sending and provider retries. The API response is the handoff: recording an invitation/challenge does not mean that a message was delivered. Delivery acknowledgments, delivery queues or a separate notification service are not prerequisites for this request/response flow; any later delivery-status reporting must be an explicit optional API capability.
-
-Delivery material is returned only to the appropriately authorized backend. A magic-link secret is sensitive authentication material: retain only its hash/verification state in EP and keep the raw value out of ordinary events, MVs, logs and unrelated clients. An invitation ID alone remains insufficient for acceptance; the verified intended recipient and current scope/authority rules still apply. Retries/reissuance must have documented API semantics so an uncertain response cannot silently create duplicate invitations or invalidate a challenge being delivered. This boundary preserves the existing recipient verification, rate limits and anti-enumeration requirements; it does not authorize a public browser endpoint to retrieve arbitrary login secrets.
-
-**Implementation status:** This is the agreed contract. Current code still uses EP-side development mailboxes and an invitation delivery worker, and magic-link requests return only `check_your_email`. Moving delivery material into the protected backend API response and moving delivery/provider handling into TOM is pending implementation. Existing mailbox instructions below describe that temporary code, not the intended application integration.
-
-
-API-focused Elixir/Phoenix application for the shared Event Protocol. Module namespaces are `Ep` and `EpWeb`; the OTP application is `:ep`.
-
-## Included
-
-- Phoenix 1.8 with Bandit, JSON requests/responses and request telemetry.
-- PostgreSQL/Ecto with UUID generator defaults and microsecond UTC timestamps.
-- Supervised Oban database-backed jobs, an initial queue and its versioned migration.
-- Separate development/test databases, environment URL overrides and ExUnit SQL sandbox support.
-- `GET /health/live` for process liveness and `GET /health/ready` for migrated EP database/queue readiness.
-
-The first EP vertical slice is implemented: email verification, opaque bearer sessions, idempotent `CreateTenant`, atomic first-admin/event/receipt/outbox persistence, durable local projection and authorized MV reads. Identity records are separate from event payloads; raw credentials never enter event or job payloads.
-
-This is a local-development slice, not production-ready system 1. Production authentication delivery remains unavailable; under the agreed contract its provider integration belongs to the calling application, not an EP email adapter. Phone/code/OpenID authentication, organizational delegation, generic permission registration, source-level abuse controls, rights/erasure/backup automation and general subscriber fan-out remain planned. The schema supports global, tenant and parent-validated occasion events. No public raw-event ingestion exists. Phoenix PubSub is not the durable outbox.
-
-## Requirements
-
-Use the versions pinned in `mise.toml` (Elixir 1.20 / Erlang OTP 29), plus PostgreSQL. Docker Compose provides PostgreSQL 17 locally; an existing PostgreSQL server also works through URL overrides. No Node.js/frontend asset toolchain is required.
-
-## Local setup
-
-From `systems/ep`:
+Use the Elixir/Erlang versions in `mise.toml` and an existing PostgreSQL server or the optional compose service. From `systems/ep`:
 
 ```sh
-mise install
-mix deps.get
-docker compose up -d --wait
+export DATABASE_URL="ecto://$(whoami)@localhost:5432/sl2030_ep_dev"
 mix ecto.setup
 mix phx.server
 ```
 
-The default local database is `ep_dev`, user/password `ep`, at `127.0.0.1:55432`. Compose binds only to loopback and uses these development-only credentials. Change `EP_POSTGRES_PORT` when needed and provide corresponding database URLs.
+`GET /health/live` is liveness. `/health/ready` checks required tables and Oban. Backend credentials must be provisioned before issuing authentication challenges or invitation delivery responses. This workspace already has separate private development credentials in EP and TOM. For a fresh checkout run `systems/tom/bin/provision-ep-backend`; this operator command creates matching mode-0600 files at `systems/ep/config/backend_api_token` and `systems/tom/config/ep_backend_token`, both gitignored. Each running app reads only its own configuration file. These are configuration secrets, not a shared runtime integration.
 
-Using an existing server instead:
+Production uses operator-provided `EP_BACKEND_TOKEN` (at least 32 characters), `EP_BACKEND_ID` (default `tom`), `DATABASE_URL`, `SECRET_KEY_BASE`, `PHX_HOST` and `PHX_SERVER`. No development secret file is read in production. The backend-token map is the first trusted-caller gate, not the complete planned application registry/permission system.
 
-```sh
-export DATABASE_URL=ecto://USER:PASS@HOST:PORT/ep_dev
-export TEST_DATABASE_URL=ecto://USER:PASS@HOST:PORT/ep_test
-mix ecto.setup
-mix phx.server
+## Authentication API and delivery contract
+
+The calling backend sends `X-EP-Backend-Token` to both POST `/api/v1/auth/magic-links` and POST `/api/v1/auth/magic-links/verify`. Missing/wrong credentials fail closed. The backend token never belongs in browser JavaScript, HTML or user messages.
+
+Issuance accepts `{ "email": "person@example.org" }` and returns 202 with:
+
+```json
+{"status":"check_your_email","delivery":{"email":"person@example.org","token":"SINGLE_USE_SECRET","expires_at":"ISO8601_TIMESTAMP"}}
 ```
 
-The database user needs permission to create the development/test databases for the setup/test aliases, or those databases must already exist. `.env.example` documents variables; Phoenix does not automatically load `.env` files. Never point `TEST_DATABASE_URL` at a database containing application data.
+The application renders/sends its own message and exposes only a generic check-email response to the browser. At the email limit, the authorized API gets the same status with `delivery: null`; TOM sends nothing and keeps the browser response generic. This applies equally to new and existing addresses. No message provider is called by EP and no raw secret enters EP event details, command receipts or jobs. Only a hash is stored.
+
+A challenge is valid for 15 minutes, single-use and bound to the issuing backend. Explicit new issuance invalidates outstanding challenges for that email/backend. Three requests per email in a rolling 15-minute window are currently allowed. Issuance is an explicit fresh-challenge operation, not a replayable secret response: after a lost response or failed delivery, request a new challenge; clients must not silently retry issuance. Requests from other backends do not consume an existing backend's challenge. Production source-level abuse controls remain planned.
+
+Verification accepts `{ "token": "SINGLE_USE_SECRET" }` under the same backend credential and returns an opaque Bearer session and expiry. It verifies or creates the same canonical identity; subsequent sign-ins do not create memberships or repeat admin grants. Current identity/session revocation and expiry are checked on protected operations. The application must not redeem links on GET (mail scanners may follow links). TOM stages the secret privately in its encrypted session, redirects off the token URL and requires an explicit CSRF-protected confirmation POST. Password auth is excluded; phone/code/OpenID/recovery remain future work.
+
+## Invitations
+
+Tenant-admin and occasion-admin creation require both current tenant-admin Bearer authority and the backend credential. EP returns ordinary command metadata plus `delivery`: recipient email, role, tenant/occasion IDs and names, invitation ID and expiry. TOM renders and sends the message linking to its own `/invitations` page. The invitation itself is not a login credential: recipients must verify their email, then explicitly accept.
+
+- GET/POST `/api/v1/tenants/:tenant_id/admin-invitations`.
+- GET/POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/admin-invitations`.
+- POST on a collection's `/:id/accept` and `/:id/revoke` routes.
+- GET `/api/v1/me/tenant-admin-invitations` and `/api/v1/me/occasion-admin-invitations`.
+
+Writes require Idempotency-Key. Invitations expire after seven days and may be revoked while pending. Acceptance rechecks verified recipient, parent lifecycle and sponsor authority. Tenant invitations grant TenantAccess; occasion invitations grant only the named occasion's admin role, not tenant access or participant membership. Occasion admins cannot appoint further admins without separate tenant authority. Scope-specific row/command/grant locks protect retries and acceptance/revocation races.
+
+For a lost response or caller delivery failure, retry invitation creation with the same key and payload. EP returns the same invitation and newly reads its current delivery material without creating a second invitation. Delivery material is not stored in the command receipt. If the invitation is no longer eligible, `delivery` is null. SMTP retry can duplicate an already accepted message; applications must not claim exactly-once email delivery. Revoking an invitation never removes an already accepted admin grant. Subsequent sign-in never reinstates a revoked grant.
+
+The migration cancels obsolete queued `Ep.Invitations.DeliveryWorker` jobs. That worker and EP's magic-link/invitation mailbox adapters are removed. Legacy EP mailbox files are not used by either application; old magic links lacking the new backend binding must be replaced with newly requested links. Stop/restart EP when upgrading.
+
+## Tenants, occasions and returning admins
+
+- POST `/api/v1/tenants`: verified identity creates a tenant and its first tenant_admin atomically.
+- GET `/api/v1/tenants/:id`: current authorized tenant directory query.
+- POST/GET `/api/v1/tenants/:tenant_id/occasions`; GET its `/:id`.
+- GET `/api/v1/me/workspaces`: current identity's authorized tenant and occasion navigation from running projections, filtered by current grants and parent lifecycle. It restores navigation after a new session without trusting roles stored in a browser cookie.
+
+Tenant and occasion writes accept Idempotency-Key. Occasions require name, tenant-local slug and future expiry review timestamp, and start as draft/recruitment closed. Optional self occasion-admin assignment is explicit; it creates no participant membership. Composite keys reject mismatched tenant/occasion parents. Queries return pending while projections catch up; stopped controls and current authority override projected content. The physical invitation table retains its original name `tenant_admin_invitation`, with nullable occasion scope for additive compatibility.
+
+## Recruitment
+
+Current tenant/occasion admins manage GET `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment`, POST `/open` (title, instructions, published HTTPS privacy-notice URL, confirm_manual_review) and POST `/close` (reason). Public GET `/api/v1/recruitment/:tenant_id/:slug` serves only published MV-backed policy after authoritative open/expiry/control checks. Policy changes require explicit close/open.
+
+Verified applicants POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment/applications` with notice_version and acknowledge_notice. One pending-only application per identity/occasion is enforced. Current admins GET that collection for up to 100 recent pending applications. A submission grants no membership, appointment or admin role. Shared occasion-row locks on submission serialize against exclusive close/open transitions. Changed policy and expiry block intake independently of MV lag.
+
+Admission decisions, lead-vouch evidence, qualification/safeguarding integrations, applicant withdrawal/history, expiry WorkItems and privacy cleanup remain future work. Opening a local expression-of-interest form does not satisfy all production readiness/legal requirements.
+
+## Event persistence and operations
+
+Accepted business commands atomically persist current guards, scoped event/event_details, stream head, command receipt, outbox and projection job. Oban maintains tenant/occasion MVs with inbox deduplication and transactional acknowledgment. It remains responsible for these EP duties, not user-facing message transport. Consumers use committed pending state rather than a global sequence-ID watermark. Unknown schemas fail without acknowledging work.
+
+`mix ep.outbox.recover` requeues pending projection work. `Ep.Projections.TenantDirectoryProjector.rebuild(tenant_id)` is operator-only and creates no external effects; erasure-aware replay is not implemented, so do not use it for production personal-data restoration. Occasion rebuild, generic fan-out/application registration, permission administration, admin removal/last-admin recovery, erasure/backup automation and load validation remain planned. No 40,000–80,000 concurrency claim has been validated.
+
+## Verification
 
 ```sh
-curl http://localhost:4000/health/live
-curl http://localhost:4000/health/ready
-```
-
-Expected responses: `{"status":"ok"}` and `{"status":"ready"}`. Readiness returns 503 with a generic unavailable status if its database/queue check fails. It does not certify business capability or load capacity.
-
-## Checks
-
-```sh
-mix format --check-formatted
-mix compile --warnings-as-errors
-mix test
+export TEST_DATABASE_URL="ecto://$(whoami)@localhost:5432/sl2030_ep_test"
 mix precommit
 ```
 
-`mix test` creates/migrates the test database and isolates database work with the SQL sandbox. Oban uses manual test mode so queued jobs do not run implicitly. `mix precommit` checks compilation, dependency usage, formatting and tests.
-
-## Production configuration
-
-Provide `DATABASE_URL`, `SECRET_KEY_BASE` (generate with `mix phx.gen.secret`), `PHX_HOST` and `PHX_SERVER=true`; configure `PORT` and `POOL_SIZE` for the deployment. Terminate/configure TLS appropriately and run migrations before admitting traffic. Local Compose and development secret values are not production configuration. Replica count, pool sizes, load objectives, authorization, job recovery and deployment policies require validation before production.
-
-## First operational flow
-
-1. Request email verification:
-
-   ```sh
-   curl -sS -X POST http://localhost:4000/api/v1/auth/magic-links \
-     -H 'Content-Type: application/json' \
-     -d '{"email":"developer@example.test"}'
-   ```
-
-   Development delivery writes a private JSON message containing the email and verification token under `tmp/magic_links/`. Read the matching local file; this directory has no HTTP route and is ignored by Git. Treat its token as a credential and delete the message after use. Production has no default delivery adapter and returns 503 instead of exposing local credentials.
-
-2. Verify the token by posting `{"token":"MAGIC_LINK_TOKEN"}` to `/api/v1/auth/magic-links/verify`. The response contains an opaque bearer token and expiry, with `Cache-Control: no-store`. Magic links expire in 15 minutes, are single-use, and a resend invalidates the earlier link. At most three sends per email are accepted per rolling 15 minutes; extra requests return the same generic 202. Sessions currently last 12 hours (configured through `:session_lifetime_seconds`), and current identity/session state controls access. The separate identity store currently implements verified human email signup only.
-
-3. Create a tenant using the returned bearer token:
-
-   ```sh
-   curl -sS -X POST http://localhost:4000/api/v1/tenants \
-     -H 'Content-Type: application/json' \
-     -H 'Authorization: Bearer SESSION_TOKEN' \
-     -H 'Idempotency-Key: create-my-tenant-1' \
-     -d '{"name":"My camp organization"}'
-   ```
-
-   A new command returns 201 with `tenant_id`, `command_id`, two `event_ids` and `stream_version: 2`. Repeating the same identity/key/name returns 200 with the original result; changing the name under that key returns 409. Keys are 1–128 letters, digits or `._:-`. The server derives the actor from the authenticated session, never a body/header identity ID. Tenant creation does not create an occasion or occasion membership.
-
-4. Query `GET /api/v1/tenants/TENANT_ID` using the bearer token. It returns 202 while the directory MV is pending and 200 with the name, source version and update time after the worker projects it. An unrelated identity gets 404 for both an existing tenant and an unknown ID. Current revoked access/identity/session and stopped MV controls override cached projected data.
-
-## Transaction and projection boundaries
-
-`Ep.Tenancy.create_tenant/3` validates the request and rechecks the current session inside its transaction. Identity-scoped command locks and a unique receipt prevent concurrent duplicate acceptance. It commits tenant state, first `tenant_admin` access, initial MV control, `TenantCreated` and `TenantAdminGranted` envelopes/details, stream head, receipt, two outbox rows and an Oban job together. No post-commit best-effort enqueue is required.
-
-`Ep.Projections.TenantWorker` is the first local publisher/consumer implementation. It locks the tenant projection, reads committed pending outbox rows in stream order, and commits MV updates, per-event consumer inbox checkpoints and delivery acknowledgements atomically. A retry after completion does nothing. It does not scan by an unsafe global event-ID watermark. Unsupported event schemas fail the job and retain pending outbox work.
-
-The first `tenant_admin` role currently authorizes the tenant-directory query; generic permission/delegation administration is not yet available. This demonstrates the first-admin grant without claiming the rest of the permission catalogue is implemented. The first MV control defaults to running. A stopped control blocks reads and snoozes ordinary projection work; the full lifecycle/configuration and mandatory privacy-cleanup workers remain to be implemented.
-
-For recovery after discarded/deleted jobs:
-
-```sh
-mix ep.outbox.recover
-```
-
-The command requeues up to 100 tenants with pending rows. Repeat as necessary; duplicate wake-ups are safe. Oban retains failed job evidence and retries normal failures. Resolve the underlying failure before retrying a repeatedly failing schema or data case.
-
-For an operator-only local rebuild in IEx:
-
-```elixir
-Ep.Projections.TenantDirectoryProjector.rebuild(tenant_id)
-```
-
-The rebuild transaction replays retained tenant events into this MV and replaces its inbox checkpoints without sending notifications, creating new events or re-enqueuing external effects. The public query still enforces current access/MV controls. **Erasure-aware replay is not yet implemented**, so this operator function must not be used for production personal-data restoration until the privacy registry is integrated.
-
-## Verification and next delivery
-
-Tests cover verified/single-use/expired links, session expiry/revocation/suspension, atomic rollback, retries and conflicts, two-connection concurrent duplicate commands, outbox retry/recovery, effect-free rebuild, actor spoof prevention, pending/ready HTTP responses and cross-tenant isolation. They do not establish the planned 40,000–80,000 concurrency capacity.
-
-Occasion creation is available as described below. Tenant-admin invitation/acceptance is now available below. Occasion-admin invitation/acceptance is also available below. Recruitment opening and minimal pending-review intake are available below. Implement the production authentication/delivery and privacy lifecycle contracts before admitting production personal data. Reuse the transaction/outbox pattern rather than bypassing it with direct business-table or MV writes.
-
-See [architecture](../../architecture.md), [datastore](../../suggested-data-store.md), [system 1 plan](../../system_1_plan.md) and [privacy requirements](../../gdpr.md).
-
-## Occasion creation
-
-Run `mix ecto.migrate` against your configured EP development database before using the new endpoints. Existing tenants are supported; their `occasion_directory` control is initialized on first creation without changing tenant grants.
-
-- `POST /api/v1/tenants/:tenant_id/occasions`, with Bearer authentication and `Idempotency-Key`: `{ "name": "Spejdernes Lejr 2030", "slug": "sl2030", "expires_at": "2031-01-01T23:59:59.000000Z", "assign_self_as_admin": true }`.
-- `GET /api/v1/tenants/:tenant_id/occasions`: access-filtered tenant-admin directory, 202 while pending, otherwise 200. Empty lists are valid before first creation.
-- `GET /api/v1/tenants/:tenant_id/occasions/:id`: tenant admin or an active admin of this exact occasion, 202 pending / 200 ready. Foreign parent, absent resources and denied access return 404.
-
-Creation requires current active tenant-admin authority in an active tenant. Name is trimmed to 1–120 characters; slug is 1–64 lowercase ASCII letters/digits with internal hyphens and unique within the tenant. Expiry must be a future ISO8601 timestamp. `assign_self_as_admin` is an optional boolean, default false in EP; TOM offers it as a checked, explicit option. Client-supplied lifecycle, recruitment state, actor and other grants are ignored. No participant membership is created.
-
-Acceptance atomically records the parent-bound occasion guard, `OccasionCreated`, optional self `OccasionAdminGranted` and its synchronous grant, stream head, receipt, outbox and Oban wakeup. New occasions are drafts with recruitment closed. The scope key is `tenant:TENANT_ID:occasion:OCCASION_ID`; composite foreign keys reject mismatched event/grant/view parents. Command fingerprints include the tenant binding. Slug and command locks serialize competing creates; an identical receipt is replayed, a changed command conflicts, and a duplicate slug under another command returns `slug_taken` (409).
-
-`OccasionWorker` projects only occasion streams; `TenantWorker` projects only tenant streams. Independent controls prevent a stopped occasion directory from blocking tenant projection. The occasion projector orders by stream and version and atomically commits output, inbox and acknowledgment. `mix ep.outbox.recover` routes pending work to the corresponding worker. These local consumers do not implement generic external fan-out.
-
-The expiry is a recorded **review deadline**, not automatic deletion or retirement. Expiry-review task scheduling, retirement/erasure execution, occasion editing, occasion replay/rebuild are subsequent work. Do not treat this slice as production retention compliance. Admin grants remain separate from the one-membership-per-identity-per-occasion rule.
-
-## Tenant-admin invitations
-
-Apply `mix ecto.migrate` to the configured development database. An active tenant admin can invite an email address without creating an identity or granting access. Invitations expire after seven days. The prospect signs in using the invited email and explicitly accepts. Their current verified identity, the tenant, the invitation and its sponsor’s current active tenant-admin authority are checked within acceptance. No invitation ID or notification is an authentication credential.
-
-Endpoints require Bearer authentication; mutations also require an `Idempotency-Key`:
-
-- POST `/api/v1/tenants/:tenant_id/admin-invitations` with `{ "email": "prospect@example.org" }`.
-- GET `/api/v1/tenants/:tenant_id/admin-invitations`: current tenant admins only; at most 100 recent invitations, including computed expired status.
-- GET `/api/v1/me/tenant-admin-invitations`: only live invitations addressed to the current verified email, sponsored by an active admin in an active tenant.
-- POST `/api/v1/tenants/:tenant_id/admin-invitations/:id/accept`: verified intended recipient only.
-- POST `/api/v1/tenants/:tenant_id/admin-invitations/:id/revoke`: current tenant admin only; does not revoke an accepted admin grant.
-
-Acceptance atomically changes the invitation guard, grants/reactivates the tenant-scoped `TenantAccess`, appends `TenantAdminInvitationAccepted` and `TenantAdminGranted`, and persists receipt/outbox/projection job. Creation and revocation record their corresponding facts. Canonical recipient email is held in the supporting invitation table, not copied into event payloads or job arguments. Grant authority never comes from a lagging MV. Invitation lifecycle and inbox queries intentionally use this bounded synchronous command guard, not event scans; they are actionable authorization state rather than consolidated reporting.
-
-Invitation row locks serialize acceptance against revocation, and command/recipient/grant locks prevent duplicate grants. Replaying an accepted command returns historical acceptance without reactivating a subsequently revoked grant. Losing the sponsor’s current authority prevents acceptance. Accepted administrators are not removed by revoking their invitation; admin-removal and last-admin safeguards remain a separate future workflow. Neither invitation nor acceptance creates participant membership.
-
-A durable Oban default-queue job contains only `invitation_id`, rechecks pending state before notification, and resolves current delivery details. Local development writes private, retry-safe JSON under `tmp/admin_invitations`. The notification tells the prospect to sign in to TOM and open **Invitations**; it contains no bearer credential. There is no real email adapter in this slice. Production notification delivery must be configured, monitored and contracted before rollout. A notification already in flight cannot be recalled; acceptance always rechecks current invitation validity. External delivery must tolerate retries.
-
-Invitation addresses, local notification files and their backups remain personal data. Automated invitation retention/cleanup and integration with the planned erasure registry are not implemented. This feature does not establish production privacy compliance or full application-registration policy enforcement.
-
-## Occasion-admin invitations
-
-The shared invitation lifecycle now supports an optional `occasion_id`, bound to the same tenant by a composite foreign key. The existing physical table name `tenant_admin_invitation` is retained for additive compatibility; null occasion scope means tenant admin, while a populated scope means occasion admin. Existing tenant endpoint behavior and command fingerprints are preserved.
-
-Only current tenant admins issue or revoke occasion-admin invitations. An occasion admin does not implicitly receive authority to appoint other occasion admins. The recipient verifies the invited email and explicitly accepts. Acceptance grants only `occasion_admin` for that exact occasion through `occasion_admin`; it creates neither `TenantAccess` nor participant membership. Parent tenant and occasion must be active (occasion may be draft), and the inviter must still be an active tenant admin at acceptance. Seven-day expiry and pending revocation follow the tenant invitation policy.
-
-- GET/POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/admin-invitations`.
-- POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/admin-invitations/:id/accept`.
-- POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/admin-invitations/:id/revoke`.
-- GET `/api/v1/me/occasion-admin-invitations`: current verified recipient’s live pending invitations plus accepted occasion invitations with a currently active corresponding grant, for navigation. A pending invitation’s deadline is not the lifetime of its accepted grant.
-
-Mutations require Bearer authentication and an Idempotency-Key. Client role/actor/lifecycle claims are ignored. Tenant and sibling-occasion routes cannot accept or revoke an invitation from another scope. Duplicate detection, command fingerprints and grant locks include scope. Invitation facts and `OccasionAdminGranted` belong to the occasion stream and its projector; tenant invitation facts remain on the tenant stream. The development notification identifies both tenant and occasion and uses the existing private mailbox, with no credential links.
-
-The occasion-detail query returns `can_manage_admins` from current tenant authority, not MV role claims. TOM uses it only to display navigation; EP still checks every invitation mutation. Accepted recipient cards persist as **Open occasion** links while the exact grant and parent lifecycle remain valid, without exposing sibling lists or tenant administration. Invite/grant removal, automated personal-data cleanup and production email delivery retain their documented limits.
-
-## Recruitment opening and minimal intake
-
-Tenant admins and current admins of the exact occasion can open or close recruitment explicitly. An active tenant and a draft/active occasion are required. Opening requires a public title (1–120 characters), instructions (1–2000), a published HTTPS privacy-notice URL and confirmation of the fixed manual-review policy. The policy requires lead vouching plus safeguarding and qualification checks before assignment. The checkbox records policy acknowledgment; it does not certify a complete safeguarding integration or a lawful basis.
-
-- GET `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment`: authorized current lifecycle/configuration for administrative actions.
-- POST on `/recruitment/open` with `{ "title": "Join the volunteer team", "instructions": "How applications will be reviewed", "privacy_notice_url": "https://your-site.example/privacy", "confirm_manual_review": true }`.
-- POST on `/recruitment/close` with `{ "reason": "Team filled" }` (1–500 characters).
-- Public GET `/api/v1/recruitment/:tenant_id/:slug`: published name and policy only. It serves the occasion MV after checking current tenant/occasion lifecycle, authoritative open state, expiry and MV control. A not-yet-matching policy projection returns 202. Closed or expired recruitment cannot be served from a stale open MV.
-- Authenticated POST `/api/v1/tenants/:tenant_id/occasions/:occasion_id/recruitment/applications` with the published `notice_version` and `acknowledge_notice: true`.
-- Authorized admin GET on the same applications collection: up to 100 recent pending applications and their contact emails for review. Applicants cannot enumerate this queue.
-
-All writes require an Idempotency-Key and current authenticated authority. Accepted opening/closure records `OccasionRecruitmentOpened`/`OccasionRecruitmentClosed` on the occasion stream, synchronous guard state, receipt, outbox and projection job together. Opening/closure is separate from the occasion's draft/active lifecycle. Changing campaign policy requires closing then opening explicitly. Matching command retries return historical results without executing new changes.
-
-Intake collects only a reference to the verified identity, policy version and pending status. One application per identity per occasion is enforced. `RecruitmentApplicationSubmitted` and the guard/receipt/outbox/job commit atomically; email is not copied into that fact. No membership, appointment or admin grant is created. A changed policy rejects stale forms. Intake holds a SHARE lock on the occasion row through commit; opening/closure uses UPDATE, so a concurrent successful submission precedes the closing fact or is rejected. The tests exercise both operations on separate database connections.
-
-The review deadline blocks new opening/intake without waiting for a background job. This does not yet create the planned expiry-review WorkItem or complete retirement. Administrative state/queue queries deliberately read bounded command guards for live decisions, while the published consolidated view uses the incremental MV.
-
-**This is an expressions-of-interest slice, not full workforce admission.** Review decisions, lead-vouch evidence, safeguard/qualification integrations, membership acceptance, assignment, applicant history/withdrawal, queue pagination, erasure/retention execution and recruitment notifications remain subsequent work. The broader production gates in system_1_plan.md (systems 2/3 readiness, approved notice/purpose, application registration and privacy controls) are not satisfied merely by this local opening form. Acknowledging the notice is not treated as blanket consent or proof of legal compliance.
+Tests include backend-only issuance, backend-bound single-use verification, all seven signup/admin invitation/sign-in flows, preserved canonical identity/grants, no delivery jobs/material in events or receipts, current scoped navigation, idempotency, projection failures, and independent-connection invite/close/intake races. This is still a development slice, not a production security/privacy compliance claim.

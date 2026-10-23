@@ -4,58 +4,61 @@ defmodule Ep.Auth do
   alias Ep.Auth.{Identity, MagicLink, Party, Principal, Session}
   alias Ep.{Events, Repo}
 
-  def request_magic_link(email) do
-    with {:ok, email} <- normalize_email(email),
-         delivery when not is_nil(delivery) <- Application.get_env(:ep, :magic_link_delivery) do
+  def request_magic_link(email, backend_id \\ "internal") do
+    with {:ok, email} <- normalize_email(email) do
       token = new_token()
       now = DateTime.utc_now()
 
-      result =
-        Repo.transaction(fn ->
-          Events.lock!("email:" <> email)
-          recent = DateTime.add(now, -900, :second)
+      Repo.transaction(fn ->
+        Events.lock!("email:" <> email)
+        recent = DateTime.add(now, -900, :second)
 
-          count =
-            Repo.aggregate(
-              from(m in MagicLink, where: m.email == ^email and m.inserted_at > ^recent),
-              :count
+        count =
+          Repo.aggregate(
+            from(m in MagicLink, where: m.email == ^email and m.inserted_at > ^recent),
+            :count
+          )
+
+        if count < 3 do
+          pending =
+            from(m in MagicLink,
+              where: m.email == ^email and m.backend_id == ^backend_id and is_nil(m.consumed_at)
             )
 
-          if count < 3 do
-            Repo.update_all(
-              from(m in MagicLink, where: m.email == ^email and is_nil(m.consumed_at)),
-              set: [consumed_at: now]
-            )
+          Repo.update_all(pending, set: [consumed_at: now])
 
-            Repo.insert!(%MagicLink{
-              email: email,
-              token_hash: hash(token),
-              expires_at: DateTime.add(now, 900, :second)
-            })
+          expires_at = DateTime.add(now, 900, :second)
 
-            :deliver
-          else
-            :throttled
-          end
-        end)
+          Repo.insert!(%MagicLink{
+            email: email,
+            backend_id: backend_id,
+            token_hash: hash(token),
+            expires_at: expires_at
+          })
 
-      case result do
-        {:ok, :deliver} -> delivery.deliver(email, token)
-        {:ok, :throttled} -> :ok
-        {:error, reason} -> {:error, reason}
-      end
-    else
-      nil -> {:error, :delivery_unavailable}
-      error -> error
+          %{
+            status: "check_your_email",
+            delivery: %{email: email, token: token, expires_at: expires_at}
+          }
+        else
+          %{status: "check_your_email", delivery: nil}
+        end
+      end)
     end
   end
 
-  def verify_magic_link(token) when is_binary(token) and byte_size(token) in 32..128 do
+  def verify_magic_link(token, backend_id \\ "internal")
+
+  def verify_magic_link(token, backend_id)
+      when is_binary(token) and byte_size(token) in 32..128 do
     token_hash = hash(token)
     session_token = new_token()
 
     Repo.transaction(fn ->
-      candidate = Repo.get_by(MagicLink, token_hash: token_hash) || Repo.rollback(:invalid_token)
+      candidate =
+        Repo.get_by(MagicLink, token_hash: token_hash, backend_id: backend_id) ||
+          Repo.rollback(:invalid_token)
+
       Events.lock!("email:" <> candidate.email)
       link = Repo.one!(from(m in MagicLink, where: m.id == ^candidate.id, lock: "FOR UPDATE"))
       now = DateTime.utc_now()
@@ -86,7 +89,7 @@ defmodule Ep.Auth do
     end)
   end
 
-  def verify_magic_link(_), do: {:error, :invalid_token}
+  def verify_magic_link(_, _), do: {:error, :invalid_token}
 
   def authenticate(token) when is_binary(token) and byte_size(token) in 32..128 do
     query = session_query(hash(token), DateTime.utc_now())

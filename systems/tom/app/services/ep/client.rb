@@ -21,8 +21,15 @@ module Ep
       raise ArgumentError, "EP requires HTTPS in production" if Rails.env.production? && @origin.scheme != "https"
     end
 
-    def request_link(email) = request(:post, "/auth/magic-links", body: { email: email })
-    def verify(token) = request(:post, "/auth/magic-links/verify", body: { token: token })
+    def request_link(email)
+      backend!
+      delivery_response(request(:post, "/auth/magic-links", body: { email: email }))
+    end
+    def verify(token)
+      backend!
+      request(:post, "/auth/magic-links/verify", body: { token: token })
+    end
+    def workspaces = request(:get, "/me/workspaces")
     def create_tenant(name, key) = request(:post, "/tenants", body: { name: name }, key: key)
 
     def tenant(id)
@@ -56,8 +63,9 @@ module Ep
     end
 
     def invite_admin(tenant_id, email, key, occasion_id: nil)
+      backend!
       uuid!(tenant_id)
-      request(:post, invitation_collection(tenant_id, occasion_id), body: { email: email }, key: key)
+      delivery_response(request(:post, invitation_collection(tenant_id, occasion_id), body: { email: email }, key: key))
     end
 
     def invitation_action(tenant_id, invitation_id, action, key, occasion_id: nil)
@@ -105,6 +113,26 @@ module Ep
       raise Error.new(404) unless id.to_s.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)
     end
 
+    def delivery_response(response)
+      raise Unavailable, "EP delivery contract is unavailable" unless response.key?("delivery")
+      response
+    end
+
+    def configured_backend_token
+      return Rails.application.config.x.ep_backend_token if Rails.env.test?
+      configured = Rails.application.config.x.ep_backend_token
+      token = ENV["EP_BACKEND_TOKEN"].presence || (configured if configured.is_a?(String))
+      path = Rails.root.join("config", "ep_backend_token")
+      token ||= File.read(path).strip if Rails.env.development? && File.file?(path)
+      token
+    end
+
+    def backend!
+      token = configured_backend_token
+      raise Unavailable, "EP backend credential is missing" unless token.is_a?(String) && token.bytesize >= 32
+      token
+    end
+
     def request(method, path, body: nil, key: nil)
       uri = @origin.dup
       uri.path = "/api/v1#{path}"
@@ -115,6 +143,8 @@ module Ep
       http.write_timeout = 8
       http.max_retries = 0
       req = (method == :post ? Net::HTTP::Post : Net::HTTP::Get).new(uri)
+      backend_token = configured_backend_token
+      req["X-EP-Backend-Token"] = backend_token if backend_token.present?
       req["Accept"] = "application/json"
       req["Content-Type"] = "application/json"
       req["Authorization"] = "Bearer #{@token}" if @token
@@ -123,6 +153,7 @@ module Ep
       response = http.request(req)
       payload = JSON.parse(response.body)
       raise Unavailable, "Invalid EP response" unless payload.is_a?(Hash)
+      raise Unavailable, "EP backend authentication unavailable" if payload["error"] == "backend_authentication_required"
       raise Error.new(response.code.to_i, code: payload["error"]) unless response.code.to_i.between?(200, 299)
       payload
     rescue Timeout::Error, SocketError, SystemCallError, IOError, OpenSSL::SSL::SSLError, JSON::ParserError

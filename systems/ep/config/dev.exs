@@ -59,11 +59,3 @@ config :phoenix, :stacktrace_depth, 20
 
 # Initialize plugs at runtime for faster development compilation
 config :phoenix, :plug_init_mode, :runtime
-
-# Private local mailbox until a reviewed production email adapter is configured.
-config :ep, :magic_link_delivery, Ep.Auth.LocalDelivery
-config :ep, :local_magic_links_enabled, true
-config :ep, :magic_link_spool_dir, Path.expand("../tmp/magic_links", __DIR__)
-
-config :ep, :invitation_delivery, Ep.Invitations.LocalDelivery
-config :ep, :invitation_spool_dir, Path.expand("../tmp/admin_invitations", __DIR__)

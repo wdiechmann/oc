@@ -47,6 +47,7 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/me/workspaces", WorkspaceController, :index
     get "/me/occasion-admin-invitations", OccasionInvitationController, :incoming
 
     get "/tenants/:tenant_id/occasions/:occasion_id/admin-invitations",

@@ -44,3 +44,6 @@ gem "phlex-rails", "~> 2.4"
 group :test do
   gem "webmock"
 end
+
+# Direct SMTP/message construction; no Action Mailer, database or job queue.
+gem "mail", "~> 2.9"

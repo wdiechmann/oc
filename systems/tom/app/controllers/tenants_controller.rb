@@ -34,6 +34,6 @@ class TenantsController < ApplicationController
   private
 
   def page_options
-    { key: @key, last_tenant_id: session[:last_tenant_id] }.compact
+    { key: @key, last_tenant_id: session[:last_tenant_id], workspaces: ep.workspaces }.compact
   end
 end

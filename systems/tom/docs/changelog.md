@@ -21,3 +21,8 @@ Added explicit recruitment opening and closure, published campaign/policy fields
 ## 2026-10-23
 
 Clarified the application boundary: EP returns invitations/authentication challenge delivery material to an authorized calling backend through its API (potentially MCP later); TOM or another application delivers its messages. No separate delivery-acknowledgment or queue contract is required. EP-side mailboxes/delivery workers are explicitly documented as temporary existing code requiring refactoring; runtime behavior has not changed.
+
+
+Refactored the delivery contract into runtime behavior: EP now returns protected, backend-bound magic challenges and invitation delivery material through API responses; its delivery adapters/workers are removed and obsolete pending jobs are cancelled by migration. TOM owns SMTP/private file delivery, clickable scanner-safe sign-in confirmation, invitation return paths and safe invitation-send retries. Added current-grant workspace navigation for returning admins, with no database or mail queue in TOM. All seven requested admin flows were verified through the API and browser, using TOM's own development transport. Production SMTP connectivity remains operator-configured.
+
+Final validation: 65 EP tests and 33 TOM tests pass; all seven flows were exercised through TOM-owned mailbox links in an isolated browser/database setup. Private development backend credentials were provisioned separately for each app and are excluded from version control.

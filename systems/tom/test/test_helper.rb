@@ -13,3 +13,7 @@ end
 
 require "webmock/minitest"
 WebMock.disable_net_connect!(allow_localhost: false)
+
+class ActiveSupport::TestCase
+  setup { Mail::TestMailer.deliveries.clear }
+end

@@ -34,6 +34,7 @@ defmodule EpWeb.InvitationControllerTest do
 
     foreign =
       build_conn()
+      |> put_req_header("x-ep-backend-token", String.duplicate("b", 48))
       |> put_req_header("authorization", "Bearer " <> wrong.token)
       |> put_req_header("idempotency-key", "wrong")
 
@@ -46,6 +47,7 @@ defmodule EpWeb.InvitationControllerTest do
 
     recipient =
       build_conn()
+      |> put_req_header("x-ep-backend-token", String.duplicate("b", 48))
       |> put_req_header("authorization", "Bearer " <> prospect.token)
       |> put_req_header("idempotency-key", "accept")
 

@@ -23,3 +23,7 @@
 - The API response is EP's contract with application backends: an authorized invitation/challenge request returns the result and necessary delivery material to its calling backend. A future MCP interface preserves these same rules.
 - TOM owns rendering and delivering its invitation/authentication messages, including provider handling; EP owns scoped state, verification, expiry, revocation and command idempotency. No shared mailbox, mandatory delivery queue or separate acknowledgment protocol is required.
 - Raw authentication secrets must not enter ordinary events, MVs or logs. Returning delivery material is restricted to authorized backend callers and does not weaken recipient verification or anti-enumeration controls.
+
+- EP issuance/redemption and invitation creation delivery responses are restricted by an operator-provisioned backend API credential, in addition to applicable user authority. Authentication secrets are bound to their issuing backend.
+- TOM constructs clickable messages from its configured public origin and sends using its own SMTP/file provider. Magic-link GET requests only stage confirmation; redemption requires a CSRF-protected POST.
+- A failed invitation send retains its command key for safe retry. A later sign-in rediscovers current tenant/occasion navigation without creating new identities or grants.

@@ -97,10 +97,7 @@ defmodule Ep.InvitationsTest do
     assert {:error, :invitation_unavailable} =
              Ep.Invitations.accept(prospect.principal, c.tenant_id, r["invitation_id"], "accept")
 
-    assert :ok =
-             Ep.Invitations.DeliveryWorker.perform(%Oban.Job{
-               args: %{"invitation_id" => r["invitation_id"]}
-             })
+    assert :skip = Ep.Invitations.notification(r["invitation_id"])
 
     assert Repo.aggregate(Access, :count) == 1
   end
@@ -191,6 +188,6 @@ defmodule Ep.InvitationsTest do
     payload = Repo.get!(Details, event.id).payload
     refute Map.has_key?(payload, "email")
     assert event.actor_identity_id == c.owner.principal.identity_id
-    assert %{success: 1, failure: 0} = Oban.drain_queue(queue: :default)
+    assert %{success: 0, failure: 0} = Oban.drain_queue(queue: :default)
   end
 end

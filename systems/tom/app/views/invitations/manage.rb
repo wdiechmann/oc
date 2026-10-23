@@ -21,7 +21,7 @@ class Views::Invitations::Manage < Views::Base
         p(class: "mt-3 text-xs text-stone-500") { "Invitations expire after seven days and may be revoked before acceptance." }
         f.submit(@occasion_id ? "Invite occasion admin" : "Invite tenant admin", class: BUTTON)
       end
-      p(class: "mt-4 text-xs text-stone-500") { "Development messages are saved privately in EP’s tmp/admin_invitations mailbox. Real email delivery is not configured." } if Rails.env.development?
+      p(class: "mt-4 text-xs text-stone-500") { "TOM delivers invitations. Development messages are saved privately in TOM’s tmp/outbox unless SMTP is configured." } if Rails.env.development?
     end
     section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8") do
       h2(class: "text-xl font-semibold") { "Recent invitations" }

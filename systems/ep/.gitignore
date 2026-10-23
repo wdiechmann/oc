@@ -31,3 +31,5 @@ ep-*.tar
 .env.*
 !.env.example
 /.elixir_ls/
+
+/config/backend_api_token

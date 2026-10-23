@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::Base
   layout false
   before_action :private_response
+  rescue_from Notifications::Delivery::Error, with: :delivery_unavailable
   rescue_from Ep::Client::Unavailable, with: :backend_unavailable
   rescue_from Ep::Client::Error, with: :backend_error
 
@@ -14,7 +15,9 @@ class ApplicationController < ActionController::Base
 
   def require_session
     return if session[:ep_token].present? && session[:expires_at].to_i > Time.current.to_i
+    return_to = request.get? && request.path == invitations_path ? invitations_path : nil
     reset_session
+    session[:sign_in_return_to] = return_to if return_to
     redirect_to new_session_path
   end
 
@@ -25,6 +28,10 @@ class ApplicationController < ActionController::Base
   end
 
   def page_options = {}
+
+  def delivery_unavailable
+    render Views::Error.new(message: "Message delivery failed. Please try again; invitation retries reuse the same invitation.", signed_in: session[:ep_token].present?), status: :service_unavailable
+  end
 
   def backend_unavailable
     render Views::Error.new(message: "EP is temporarily unavailable. Please try again.", signed_in: session[:ep_token].present?), status: :service_unavailable

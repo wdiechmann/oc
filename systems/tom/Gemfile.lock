@@ -290,6 +290,7 @@ DEPENDENCIES
   brakeman
   bundler-audit
   debug
+  mail (~> 2.9)
   phlex-rails (~> 2.4)
   propshaft
   puma (>= 5.0)

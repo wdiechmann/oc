@@ -33,6 +33,10 @@ defmodule EpWeb.ConnCase do
 
   setup tags do
     Ep.DataCase.setup_sandbox(tags)
-    {:ok, conn: Phoenix.ConnTest.build_conn()}
+
+    {:ok,
+     conn:
+       Phoenix.ConnTest.build_conn()
+       |> Plug.Conn.put_req_header("x-ep-backend-token", String.duplicate("b", 48))}
   end
 end

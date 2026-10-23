@@ -23,7 +23,7 @@ class Views::Sessions::New < Views::Base
         div(class: "mt-8 border-t border-stone-200 pt-7") do
           h3(class: "font-medium") { "Already have your sign-in token?" }
           p(class: "mt-2 text-sm leading-relaxed text-stone-500") { "Enter the single-use token from your sign-in message." }
-          p(class: "mt-2 text-xs text-stone-500") { "Local development: find the token in EP’s private tmp/magic_links mailbox." } if Rails.env.development?
+          p(class: "mt-2 text-xs text-stone-500") { "Local development: open the sign-in link in TOM’s private tmp/outbox message." } if Rails.env.development?
           form_with(url: session_path) do |f|
             div(class: "mt-4") do
               f.label(:token, "Sign-in token", class: "text-sm font-medium")

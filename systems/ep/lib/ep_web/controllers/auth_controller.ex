@@ -1,21 +1,25 @@
 defmodule EpWeb.AuthController do
   use EpWeb, :controller
 
+  plug EpWeb.Plugs.Backend
+
   def request_link(conn, params) do
-    case Ep.Auth.request_magic_link(params["email"]) do
-      :ok ->
-        conn |> put_status(:accepted) |> json(%{status: "check_your_email"})
+    conn = put_resp_header(conn, "cache-control", "no-store")
+
+    case Ep.Auth.request_magic_link(params["email"], conn.assigns.backend_id) do
+      {:ok, result} ->
+        conn |> put_status(:accepted) |> json(result)
 
       {:error, :invalid_email} ->
         conn |> put_status(:unprocessable_entity) |> json(%{error: "invalid_email"})
 
       _ ->
-        conn |> put_status(:service_unavailable) |> json(%{error: "delivery_unavailable"})
+        conn |> put_status(:service_unavailable) |> json(%{error: "unavailable"})
     end
   end
 
   def verify(conn, params) do
-    case Ep.Auth.verify_magic_link(params["token"]) do
+    case Ep.Auth.verify_magic_link(params["token"], conn.assigns.backend_id) do
       {:ok, result} ->
         conn
         |> put_resp_header("cache-control", "no-store")
