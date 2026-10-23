@@ -22,6 +22,13 @@ defmodule EpWeb.Router do
     post "/magic-links/verify", AuthController, :verify
   end
 
+  scope "/api/v1/monitoring", EpWeb do
+    pipe_through :api
+    post "/observations", MonitoringController, :record
+    post "/delivery-outcomes", MonitoringController, :delivery
+    get "/catalogue", MonitoringController, :catalogue
+  end
+
   scope "/api/v1/recruitment", EpWeb do
     pipe_through :api
     get "/:tenant_id/:slug", RecruitmentController, :landing
@@ -47,6 +54,13 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/me/commands", MonitoringController, :command
+    get "/me/commands/:id", MonitoringController, :command
+    get "/tenants/:tenant_id/monitoring/issues", MonitoringController, :issues
+    get "/tenants/:tenant_id/monitoring/timeline", MonitoringController, :timeline
+    get "/tenants/:tenant_id/monitoring/observations", MonitoringController, :observations
+    get "/tenants/:tenant_id/monitoring/issues/:id", MonitoringController, :detail
+    post "/tenants/:tenant_id/monitoring/issues/:id/actions", MonitoringController, :update_issue
     get "/me/workspaces", WorkspaceController, :index
     get "/me/occasion-admin-invitations", OccasionInvitationController, :incoming
 

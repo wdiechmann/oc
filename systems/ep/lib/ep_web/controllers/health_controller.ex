@@ -4,7 +4,7 @@ defmodule EpWeb.HealthController do
   @required_tables ~w(public.oban_jobs public.party public.identity public.magic_link
     public.identity_session public.tenant public.tenant_access public.command_receipt
     public.stream_head public.event public.event_details public.outbox public.consumer_inbox
-    public.mv_control public.tenant_directory public.occasion public.occasion_admin public.occasion_directory public.tenant_admin_invitation public.recruitment_application)
+    public.mv_control public.tenant_directory public.occasion public.occasion_admin public.occasion_directory public.tenant_admin_invitation public.recruitment_application public.monitoring_source public.monitoring_issue public.monitoring_pending public.monitoring_view)
 
   @doc "Liveness does not depend on PostgreSQL or any external service."
   def live(conn, _params), do: json(conn, %{status: "ok"})

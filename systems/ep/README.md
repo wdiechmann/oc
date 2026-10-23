@@ -78,3 +78,13 @@ mix precommit
 ```
 
 Tests include backend-only issuance, backend-bound single-use verification, all seven signup/admin invitation/sign-in flows, preserved canonical identity/grants, no delivery jobs/material in events or receipts, current scoped navigation, idempotency, projection failures, and independent-connection invite/close/intake races. This is still a development slice, not a production security/privacy compliance claim.
+
+## Monitoring backend API
+
+EP now accepts scope-bound monitoring observations and delivery reports, persists them in
+`event`/`event_details`, and serves authorized near-real-time issue/observation/timeline
+views. Operator actions use expected versions and idempotency; private command receipts
+support reconciliation after a client error. See [Monitoring API v1](docs/monitoring-api.md)
+for source provisioning, credentials, routes, JSON examples, freshness and current limits.
+Run `mix ecto.migrate` and restart EP before integrating clients. TOM UI/instrumentation,
+independent probes, alert delivery and retention automation remain separate work.

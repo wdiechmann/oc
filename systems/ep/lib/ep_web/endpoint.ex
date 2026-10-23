@@ -14,5 +14,5 @@ defmodule EpWeb.Endpoint do
     json_decoder: Phoenix.json_library()
 
   plug Plug.Head
-  plug EpWeb.Router
+  plug EpWeb.ApiBoundary
 end

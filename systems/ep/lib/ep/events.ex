@@ -11,6 +11,18 @@ defmodule Ep.Events do
 
   def append!(metadata, facts) do
     unless Repo.in_transaction?(), do: raise("EP appends require a transaction")
+
+    metadata =
+      case Process.get(:ep_correlation_id) do
+        nil ->
+          metadata
+
+        id ->
+          if metadata.stream_type == "monitoring_issue",
+            do: metadata,
+            else: Map.put(metadata, :correlation_id, id)
+      end
+
     key = Map.take(metadata, [:scope_key, :stream_type, :stream_id])
     lock!("stream:" <> Enum.join([key.scope_key, key.stream_type, key.stream_id], ":"))
     head = Repo.get_by(StreamHead, key) || Repo.insert!(struct!(StreamHead, key))

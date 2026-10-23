@@ -127,3 +127,37 @@ env_backend_token =
 if backend_token = if(config_env() != :test, do: env_backend_token || local_backend_token) do
   config :ep, :backend_tokens, %{System.get_env("EP_BACKEND_ID", "tom") => backend_token}
 end
+
+if config_env() != :test do
+  monitoring_source =
+    case System.get_env("EP_MONITORING_SOURCE_ID") do
+      "" -> nil
+      value -> value
+    end
+
+  config :ep, :monitoring_source_id, monitoring_source
+end
+
+# Independent credentials for additional application backends. Never expose this map in APIs/logs.
+if config_env() != :test && System.get_env("EP_BACKEND_TOKENS_JSON") do
+  tokens = Jason.decode!(System.fetch_env!("EP_BACKEND_TOKENS_JSON"))
+
+  unless is_map(tokens) &&
+           Enum.all?(tokens, fn {id, token} ->
+             is_binary(id) && Regex.match?(~r/^[a-z0-9_-]{1,64}$/, id) && is_binary(token) &&
+               byte_size(token) >= 32
+           end),
+         do: raise("Invalid EP_BACKEND_TOKENS_JSON configuration")
+
+  config :ep,
+         :backend_tokens,
+         Map.merge(
+           if(env_backend_token || local_backend_token,
+             do: %{
+               System.get_env("EP_BACKEND_ID", "tom") => env_backend_token || local_backend_token
+             },
+             else: %{}
+           ),
+           tokens
+         )
+end

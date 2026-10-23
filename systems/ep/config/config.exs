@@ -15,7 +15,7 @@ config :ep, :session_lifetime_seconds, 43_200
 
 config :ep, Oban,
   repo: Ep.Repo,
-  queues: [default: 5, projections: 5]
+  queues: [default: 5, projections: 5, monitoring: 2]
 
 # Configure the endpoint
 config :ep, EpWeb.Endpoint,
@@ -30,20 +30,14 @@ config :ep, EpWeb.Endpoint,
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
-  metadata: [:request_id]
+  metadata: [:request_id, :correlation_id, :monitoring_code]
 
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Do not log credential-bearing authentication parameters.
-config :phoenix, :filter_parameters, [
-  "password",
-  "token",
-  "code",
-  "secret",
-  "authorization",
-  "x-ep-backend-token"
-]
+# Monitoring rejects arbitrary input, but Phoenix logs parameters before validation.
+# Filter every parameter value, including unexpected secret-bearing fields.
+config :phoenix, :filter_parameters, {:keep, []}
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
