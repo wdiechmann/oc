@@ -490,4 +490,40 @@ defmodule EpWeb.MonitoringControllerTest do
     assert data["state"] == "open"
     assert data["count"] == 2
   end
+
+  test "platform issue acknowledgment uses global authority and accepts no tenant parameter", c do
+    source =
+      Repo.insert!(%Source{
+        backend_id: "test-backend",
+        identity_id: c.auth.principal.identity_id,
+        status: "active"
+      })
+
+    accepted =
+      json_response(
+        post(
+          c.api,
+          "/api/v1/monitoring/observations",
+          observation(source, "dependency.unavailable")
+        ),
+        201
+      )
+
+    path = "/api/v1/monitoring/platform/issues/#{accepted["issue_id"]}/actions"
+    action = %{"action" => "acknowledge", "expected_version" => accepted["stream_version"]}
+    request = put_req_header(c.api, "idempotency-key", "global-acknowledge")
+    assert json_response(post(request, path, action), 404)["error"] == "not_found"
+
+    Repo.insert!(%Ep.Monitoring.Permission{
+      identity_id: c.auth.principal.identity_id,
+      scope_key: "global",
+      permission: "platform_monitor",
+      status: "active"
+    })
+
+    result = json_response(post(request, path, action), 200)
+    assert result["stream_version"] > accepted["stream_version"]
+    assert json_response(post(request, path, action), 200)["replayed"]
+    assert Repo.get!(Ep.Monitoring.Issue, accepted["issue_id"]).data["state"] == "acknowledged"
+  end
 end

@@ -24,7 +24,9 @@ defmodule EpWeb.MonitoringController do
   def command(conn, params),
     do: reply(conn, Ep.Monitoring.Queries.command(conn.assigns.current_principal, params))
 
-  def update_issue(conn, %{"tenant_id" => tid, "id" => id} = params) do
+  def update_issue(conn, %{"id" => id} = params) do
+    tid = params["tenant_id"]
+
     key =
       case get_req_header(conn, "idempotency-key") do
         [value] -> value
