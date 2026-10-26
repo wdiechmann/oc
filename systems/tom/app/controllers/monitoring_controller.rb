@@ -8,7 +8,7 @@ class MonitoringController < ApplicationController
 
   def index
     kind = params[:view] == "observations" ? "observations" : "issues"
-    filters = params.permit(*FILTERS).to_h.reject { |_k, v| v.blank? }
+    filters = params.slice(*FILTERS).permit(*FILTERS).to_h.reject { |_k, v| v.blank? }
     filters["state"] = "open" if kind == "issues" && !params.key?(:state)
     data = ep.monitoring_list(params[:tenant_id], kind, filters)
     options = { tenant_id: params[:tenant_id], kind: kind, filters: filters, data: data }

@@ -169,4 +169,15 @@ class MonitoringTest < ActionDispatch::IntegrationTest
   ensure
     Rails.application.config.x.monitoring_sources = nil
   end
+  test "monitoring filter submissions do not warn about route and form parameters" do
+    sign_in
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/monitoring/issues").with(query: { severity: "error" }).to_return(status: 200, body: { items: [], freshness: {} }.to_json)
+    notices = []
+    subscriber = ->(*args) { notices << args.last[:keys] }
+    ActiveSupport::Notifications.subscribed(subscriber, "unpermitted_parameters.action_controller") do
+      get tenant_monitoring_path(TENANT), params: { view: "issues", severity: "error", state: "", commit: "Apply filters" }, headers: STREAM
+    end
+    assert_response :success
+    assert_empty notices
+  end
 end
