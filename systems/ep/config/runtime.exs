@@ -161,3 +161,13 @@ if config_env() != :test && System.get_env("EP_BACKEND_TOKENS_JSON") do
            tokens
          )
 end
+
+if config_env() != :test do
+  config :ep,
+    monitoring_recovery_enabled: true,
+    monitoring_retention_enabled: System.get_env("EP_MONITOR_RETENTION") == "true",
+    monitoring_observer_enabled: System.get_env("EP_MONITOR_OBSERVER") == "true",
+    monitoring_spool_dir: System.get_env("EP_MONITOR_SPOOL_DIR"),
+    monitoring_spool_key: System.get_env("EP_MONITOR_SPOOL_KEY"),
+    monitoring_privacy_key: System.get_env("EP_MONITOR_PRIVACY_KEY")
+end

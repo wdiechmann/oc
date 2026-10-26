@@ -1,14 +1,15 @@
 class Components::MonitoringDetail < Components::Base
   include Phlex::Rails::Helpers::FormWith
-  def initialize(tenant_id:, id:, occasion_id:, data:, timeline:, key:)
+  def initialize(tenant_id:, id:, occasion_id:, data:, timeline:, key:, assignees: [])
+    @assignees = assignees
     @tenant, @id, @occasion, @data, @timeline, @key = tenant_id, id, occasion_id, data, timeline, key
   end
 
   def view_template
-    a(href: tenant_monitoring_path(@tenant, occasion_id: @occasion), class: "font-semibold text-emerald-800 underline") { "← Monitoring list" }
+    a(href: monitoring_list_path(@tenant, occasion_id: @occasion), class: "font-semibold text-emerald-800 underline") { "← Monitoring list" }
     h1(class: "mt-6 text-3xl font-semibold") { "Issue details" }
     p(class: "mt-3 break-all font-mono text-xs") { @id }
-    a(href: tenant_monitoring_issue_path(@tenant, @id, occasion_id: @occasion), class: "mt-5 inline-block font-semibold text-emerald-800 underline", data: { turbo_stream: true }) { "Refresh issue" }
+    a(href: monitoring_issue_path(@tenant, @id, occasion_id: @occasion), class: "mt-5 inline-block font-semibold text-emerald-800 underline", data: { turbo_stream: true }) { "Refresh issue" }
     p(role: "status", class: "mt-5 rounded-lg bg-amber-50 p-4") { "The view is updating. Accepted version: #{@data['expected_version']}." } if @data["status"] == "pending"
     row = @data["issue"]
     return unless row
@@ -23,14 +24,14 @@ class Components::MonitoringDetail < Components::Base
     end
     section(class: "mt-6 grid gap-4 sm:grid-cols-2") do
       %w[acknowledge assign resolve reopen].each do |action|
-        form_with(url: tenant_monitoring_issue_action_path(@tenant, @id), class: "rounded-xl border border-stone-200 bg-white p-5") do |f|
+        form_with(url: monitoring_issue_action_path(@tenant, @id), class: "rounded-xl border border-stone-200 bg-white p-5") do |f|
           f.hidden_field(:idempotency_key, value: @key)
           f.hidden_field(:action_name, value: action)
           f.hidden_field(:expected_version, value: @data["expected_version"])
           h2(class: "font-semibold") { action.capitalize }
           if action == "assign"
-            f.label(:owner_identity_id, "Current administrator identity ID", class: "mt-3 block text-xs")
-            f.text_field(:owner_identity_id, required: true, class: Views::Base::FIELD)
+            f.label(:owner_identity_id, "Administrator", class: "mt-3 block text-xs")
+            f.select(:owner_identity_id, @assignees.map { |a| [ a.fetch("label"), a.fetch("identity_id") ] }, { prompt: "Choose an administrator" }, required: true, class: Views::Base::FIELD)
           elsif action == "resolve"
             f.label(:reason, "Resolution reason", class: "mt-3 block text-xs")
             f.select(:reason, [ [ "Corrected", "corrected" ], [ "Duplicate", "duplicate" ], [ "Accepted risk", "accepted_risk" ] ], {}, class: Views::Base::FIELD)
@@ -49,11 +50,15 @@ class Components::MonitoringDetail < Components::Base
             p(class: "font-semibold") { details["event_type"] || details["code"] }
             p(class: "mt-1 text-stone-500") { "Version #{entry['source_version']} · #{details['received_at'] || entry['updated_at']}" }
             p { details["safe_message"] }
+            if details["event_type"] == "MonitoringObservationRecorded"
+              url = @tenant ? tenant_monitoring_diagnostic_path(@tenant, entry.fetch("id")) : platform_monitoring_diagnostic_path(entry.fetch("id"))
+              a(href: url, class: "mt-2 inline-block text-xs underline") { "Restricted diagnostics (additional permission required)" }
+            end
           end
         end
       end
       if @timeline["next_cursor"]
-        a(href: tenant_monitoring_issue_path(@tenant, @id, occasion_id: @occasion, timeline_cursor: @timeline["next_cursor"]), class: "mt-5 inline-block font-semibold text-emerald-800 underline", data: { turbo_stream: true }) { "Older timeline entries →" }
+        a(href: monitoring_issue_path(@tenant, @id, occasion_id: @occasion, timeline_cursor: @timeline["next_cursor"]), class: "mt-5 inline-block font-semibold text-emerald-800 underline", data: { turbo_stream: true }) { "Older timeline entries →" }
       end
     end
   end

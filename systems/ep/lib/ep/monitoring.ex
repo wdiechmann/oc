@@ -7,11 +7,12 @@ defmodule Ep.Monitoring do
 
   require Logger
 
-  @input ~w(source_id source_observation_id code correlation_id observed_at related duration_ms occurrence_count)
+  @input ~w(diagnostic component release source_id source_observation_id code correlation_id observed_at related duration_ms occurrence_count)
   @related ~w(business_command_id event_id delivery_attempt_id job_id)
 
   def record(backend_id, params, delivery_only \\ false) do
     with {:ok, input} <- validate(params),
+         :ok <- Ep.Monitoring.Diagnostics.validate(params["diagnostic"]),
          {:ok, entry} <- catalogue(input["code"], delivery_only),
          :ok <- delivery_evidence(input, entry) do
       Repo.transaction(
@@ -52,6 +53,8 @@ defmodule Ep.Monitoring do
               data =
                 Map.merge(Map.new(entry, fn {k, v} -> {Atom.to_string(k), v} end), %{
                   "code" => input["code"],
+                  "component" => input["component"],
+                  "release" => input["release"],
                   "application" => source.backend_id,
                   "source_id" => source.id,
                   "observed_at" => input["observed_at"],
@@ -64,7 +67,7 @@ defmodule Ep.Monitoring do
                 })
 
               state =
-                if issue && issue.data["state"] != "resolved",
+                if issue && !issue.data["privacy_erased"] && issue.data["state"] != "resolved",
                   do: issue.data["state"],
                   else: "open"
 
@@ -72,7 +75,7 @@ defmodule Ep.Monitoring do
                 Map.merge(data, %{
                   "state" => state,
                   "owner_identity_id" => issue && issue.data["owner_identity_id"],
-                  "first_seen" => if(issue, do: issue.data["first_seen"], else: now),
+                  "first_seen" => if(issue, do: issue.data["first_seen"] || now, else: now),
                   "last_seen" => now,
                   "count" =>
                     if(issue, do: issue.data["count"], else: 0) + input["occurrence_count"]
@@ -87,11 +90,15 @@ defmodule Ep.Monitoring do
                     data: snapshot
                   })
 
+              diagnostic_payload =
+                if input["diagnostic"], do: %{"diagnostic" => input["diagnostic"]}, else: %{}
+
               types = [
                 {if(entry.category == "delivery",
                    do: "DeliveryOutcomeRecorded",
                    else: "MonitoringObservationRecorded"
-                 ), %{"observation" => data, "snapshot" => snapshot}}
+                 ),
+                 Map.merge(%{"observation" => data, "snapshot" => snapshot}, diagnostic_payload)}
               ]
 
               types =
@@ -104,15 +111,30 @@ defmodule Ep.Monitoring do
                   do: types ++ [{"MonitoringIssueReopened", %{"snapshot" => snapshot}}],
                   else: types
 
-              append!(
-                source,
-                issue,
-                source.identity_id,
-                command_id,
-                input["correlation_id"],
-                types,
-                snapshot
-              )
+              result =
+                append!(
+                  source,
+                  issue,
+                  source.identity_id,
+                  command_id,
+                  input["correlation_id"],
+                  types,
+                  snapshot
+                )
+
+              event_id = hd(result["event_ids"])
+
+              if input["diagnostic"] && !Ep.Monitoring.Privacy.erased?(event_id),
+                do:
+                  Repo.insert!(%Ep.Monitoring.Diagnostic{
+                    event_id: event_id,
+                    payload: input["diagnostic"]
+                  })
+
+              unless Ep.Monitoring.Privacy.erased?(event_id),
+                do: Ep.Monitoring.Alerts.consider!(source, issue.id, event_id, data)
+
+              result
             end
           )
         end,
@@ -123,32 +145,34 @@ defmodule Ep.Monitoring do
   end
 
   @doc "Safe EP-internal failure capture. No recursive ingestion and no raw exception text."
-  def capture_exception(correlation_id, reporting_failure \\ false) do
-    Logger.error("ep_request_failed",
-      correlation_id: correlation_id,
-      monitoring_code: "application.exception"
-    )
+  def capture_exception(correlation_id, reporting_failure \\ false, diagnostic \\ nil) do
+    Logger.error(fn ->
+      Jason.encode!(%{
+        code: "ep_request_failed",
+        correlation_id: correlation_id,
+        diagnostic: diagnostic
+      })
+    end)
 
     source_id = Application.get_env(:ep, :monitoring_source_id)
 
     if source_id && !reporting_failure && !Repo.in_transaction?() do
-      try do
-        result =
-          record("ep", %{
-            "source_id" => source_id,
-            "source_observation_id" => Ecto.UUID.generate(),
-            "correlation_id" => correlation_id,
-            "code" => "application.exception",
-            "observed_at" => DateTime.to_iso8601(DateTime.utc_now())
-          })
+      input = %{
+        "source_id" => source_id,
+        "source_observation_id" => Ecto.UUID.generate(),
+        "correlation_id" => correlation_id,
+        "code" => "application.exception",
+        "observed_at" => DateTime.to_iso8601(DateTime.utc_now())
+      }
 
-        unless match?({:ok, _}, result),
-          do: Logger.warning("monitoring_capture_unavailable", correlation_id: correlation_id)
+      input = if diagnostic, do: Map.put(input, "diagnostic", diagnostic), else: input
+
+      try do
+        unless match?({:ok, _}, record("ep", input)), do: Ep.Monitoring.Spool.enqueue(input)
       rescue
-        _ -> Logger.warning("monitoring_capture_unavailable", correlation_id: correlation_id)
+        _ -> Ep.Monitoring.Spool.enqueue(input)
       catch
-        :exit, _ ->
-          Logger.warning("monitoring_capture_unavailable", correlation_id: correlation_id)
+        :exit, _ -> Ep.Monitoring.Spool.enqueue(input)
       end
     end
 
@@ -156,7 +180,7 @@ defmodule Ep.Monitoring do
   end
 
   def action(principal, tid, id, params, key) do
-    with {:ok, tid} <- uuid(tid),
+    with {:ok, tid} <- Ep.Monitoring.Configuration.optional_uuid(tid),
          {:ok, id} <- uuid(id),
          :ok <- valid_action(params),
          :ok <- key(key) do
@@ -164,7 +188,7 @@ defmodule Ep.Monitoring do
         Auth.lock_principal!(principal)
         issue = Repo.get(Issue, id) || Repo.rollback(:not_found)
         source = Repo.get!(Source, issue.source_id)
-        authorize!(principal, tid, source.occasion_id)
+        Ep.Monitoring.Configuration.authorize!(principal, tid, source.occasion_id)
         unless source.tenant_id == tid, do: Repo.rollback(:not_found)
 
         command(principal.identity_id, "MonitoringAction:" <> id, key, params, fn command_id ->
@@ -285,7 +309,7 @@ defmodule Ep.Monitoring do
     source
   end
 
-  defp append!(source, issue, actor, command_id, correlation_id, facts, snapshot) do
+  def append!(source, issue, actor, command_id, correlation_id, facts, snapshot) do
     scope =
       cond do
         source.occasion_id -> "occasion"
@@ -317,6 +341,12 @@ defmodule Ep.Monitoring do
       )
 
     last = List.last(events)
+
+    snapshot =
+      if Ep.Monitoring.Privacy.erased?(last.id),
+        do: Ep.Monitoring.Privacy.placeholder(),
+        else: snapshot
+
     Repo.update!(Ecto.Changeset.change(issue, version: last.stream_version, data: snapshot))
 
     Enum.each(events, fn event ->
@@ -364,6 +394,11 @@ defmodule Ep.Monitoring do
 
   defp validate(p) when is_map(p) do
     with true <- Enum.all?(Map.keys(p), &(&1 in @input)),
+         true <-
+           Enum.all?([p["component"], p["release"]], fn v ->
+             is_nil(v) ||
+               (is_binary(v) && byte_size(v) in 1..80 && Regex.match?(~r/^[A-Za-z0-9_.-]+$/, v))
+           end),
          {:ok, sid} <- uuid(p["source_id"]),
          {:ok, oid} <- uuid(p["source_observation_id"]),
          {:ok, cid} <- uuid(p["correlation_id"]),
@@ -437,6 +472,12 @@ defmodule Ep.Monitoring do
 
   defp valid_action(_), do: :error
 
+  defp action_changes!(_, nil, _, %{"action" => "assign", "owner_identity_id" => owner}) do
+    eligible = Ep.Monitoring.Configuration.eligible!(nil, nil)
+    unless Enum.any?(eligible, &(&1.identity_id == owner)), do: Repo.rollback(:invalid_action)
+    {"MonitoringIssueAssigned", %{"owner_identity_id" => owner}}
+  end
+
   defp action_changes!(_principal, tid, source, %{
          "action" => "assign",
          "owner_identity_id" => owner
@@ -455,6 +496,8 @@ defmodule Ep.Monitoring do
       )
 
     unless owner_identity, do: Repo.rollback(:invalid_action)
+
+    if Ep.Monitoring.Privacy.subject_erased?(owner), do: Repo.rollback(:invalid_action)
 
     tenant_owner =
       Repo.one(

@@ -1,6 +1,14 @@
 defmodule Ep.Monitoring.Catalogue do
   @moduledoc "Versioned, safe observation vocabulary. Arbitrary diagnostic text is not accepted."
   @entries %{
+    "database.unavailable" =>
+      {"error", "infrastructure", "failed", "The database is unavailable."},
+    "database.saturated" =>
+      {"warning", "infrastructure", "pending", "Database pool waiting time is above its limit."},
+    "request.error_rate" =>
+      {"error", "code", "failed", "Unexpected request failures exceeded the threshold."},
+    "request.latency_high" =>
+      {"warning", "infrastructure", "pending", "Request latency exceeded the threshold."},
     "application.exception" =>
       {"error", "code", "failed", "The application could not complete its response."},
     "application.contract_invalid" =>

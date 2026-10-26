@@ -29,7 +29,8 @@ defmodule EpWeb.ApiBoundary do
 
         Ep.Monitoring.capture_exception(
           id,
-          String.starts_with?(conn.request_path, "/api/v1/monitoring")
+          String.starts_with?(conn.request_path, "/api/v1/monitoring"),
+          safe_diagnostic(error, __STACKTRACE__)
         )
 
         conn
@@ -44,5 +45,32 @@ defmodule EpWeb.ApiBoundary do
         do: Process.put(:ep_correlation_id, previous),
         else: Process.delete(:ep_correlation_id)
     end
+  end
+
+  defp safe_diagnostic(error, stack) do
+    {reason, stack} =
+      case error do
+        %Plug.Conn.WrapperError{reason: reason, stack: wrapped} -> {reason, wrapped}
+        _ -> {error, stack}
+      end
+
+    name = if is_struct(reason), do: Atom.to_string(reason.__struct__), else: "UnhandledError"
+
+    clean = fn value ->
+      value |> to_string() |> String.replace(~r/[^A-Za-z0-9_.:?!-]/, "_") |> String.slice(0, 120)
+    end
+
+    frames =
+      stack
+      |> Enum.take(10)
+      |> Enum.map(fn {module, function, _args, info} ->
+        %{
+          "file" => clean.(Path.basename(to_string(info[:file] || "unknown"))),
+          "line" => info[:line] || 0,
+          "label" => clean.(Atom.to_string(module) <> "." <> Atom.to_string(function))
+        }
+      end)
+
+    %{"exception_class" => clean.(name), "frames" => frames}
   end
 end

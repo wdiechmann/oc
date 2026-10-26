@@ -17,3 +17,8 @@
 
 15. [x] EP-backed monitoring sources/capture, scoped lists/timelines/actions and Turbo error/completion feedback.
 16. [ ] Configure deployed monitoring sources, verify desktop/mobile Turbo in Playwright and add independent collection/probes, durable reporting and alert delivery.
+
+## Monitoring operations (local implementation)
+
+- Implemented locally: monitoring source/rule administration, named assignment, restricted diagnostics, explicit platform view, encrypted transport buffering and alert delivery worker.
+- Deployment pending: independent collector hosts/paging, provider callbacks, browser matrix, approved retention/holds and representative capacity evidence; see ../../../pending_details.md.

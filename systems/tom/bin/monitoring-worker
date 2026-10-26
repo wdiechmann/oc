@@ -1,0 +1,16 @@
+#!/usr/bin/env ruby
+require_relative "../config/environment"
+if ARGV.include?("--once")
+  puts JSON.generate(processed: Monitoring::Dispatcher.tick)
+else
+  running = true
+  Signal.trap("TERM") { running = false }; Signal.trap("INT") { running = false }
+  while running
+    begin
+      Monitoring::Dispatcher.tick
+    rescue StandardError
+      Rails.logger.warn({code: "monitoring.alert_worker_unavailable"}.to_json)
+    end
+    sleep 5
+  end
+end

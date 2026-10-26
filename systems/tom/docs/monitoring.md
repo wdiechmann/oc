@@ -1,10 +1,10 @@
 # Monitoring and in-context feedback
 
-TOM uses [EP Monitoring API v1](../../ep/docs/monitoring-api.md) for monitoring persistence, lists, issue timelines/actions and accepted-command reconciliation. It has no monitoring database, cache, durable reporting queue, Action Cable channel or direct EP SQL access. Turbo is served locally through Propshaft; no JavaScript bundler or Node runtime is needed to run TOM.
+TOM uses [EP Monitoring API v1](../../ep/docs/monitoring-api.md) for monitoring persistence, lists, issue timelines/actions and accepted-command reconciliation. It has no monitoring database, Action Cable channel or direct EP SQL access. Its encrypted bounded spool is temporary transport and source discovery caches operational IDs only. Turbo is served locally through Propshaft; no JavaScript bundler or Node runtime is needed to run TOM.
 
 ## Enable persisted TOM reporting
 
-First ensure EP's monitoring migration is applied and both applications use the same backend credential. Register reporting sources with EP's **operator CLI**, outside TOM's runtime:
+First ensure EP's monitoring migration is applied and both applications use the same backend credential. Prefer TOM’s governed Sources and alert rules settings for tenant/occasion registration; EP bindings discovery configures reporting automatically. A trusted operator can bootstrap sources with the CLI:
 
 ```sh
 cd systems/ep
@@ -14,15 +14,15 @@ mix ep.monitoring.source tom TENANT_UUID
 mix ep.monitoring.source tom TENANT_UUID OCCASION_UUID
 ```
 
-Each command prints a non-secret source UUID. Export the mapping in TOM's shell/deployment configuration, replacing placeholders with those IDs, then restart TOM:
+Each bootstrap command prints a non-secret source UUID. Discovery normally needs no mapping. For an explicit override, export the mapping in TOM’s shell/deployment configuration and restart TOM:
 
 ```sh
 export TOM_MONITORING_SOURCES_JSON='{"global":"GLOBAL_SOURCE_UUID","tenant:TENANT_UUID":"TENANT_SOURCE_UUID","tenant:TENANT_UUID:occasion:OCCASION_UUID":"OCCASION_SOURCE_UUID"}'
 ```
 
-Use canonical lowercase UUIDs. The backend ID `tom` must match EP's credential binding; provision separate scopes for every tenant/occasion TOM may report for. A global source covers pre-login failures and failures without established scope; it does not make global records visible to tenant administrators. EP currently has no platform-global monitoring query UI. Do not use a tenant source as the global fallback.
+Use canonical lowercase UUIDs. The backend ID `tom` must match EP's credential binding; provision separate scopes for every tenant/occasion TOM may report for. A global source covers pre-login failures and failures without established scope; it does not make global records visible to tenant administrators. Explicit platform operators have a separate platform monitoring view. Do not use a tenant source as the global fallback.
 
-Without a matching source (or with invalid configuration), TOM still logs sanitized evidence and can read existing authorized EP monitoring records, but new observations are not persisted to EP. The scope selector explains when reporting is unconfigured. Retrying, spooling and eventual recovery of failed reporting are not implemented: ingestion timeout/failure produces a separate local `monitoring.capture_unavailable` marker, and unconfigured persistence emits `monitoring.persistence_unconfigured`. An independent collector/probe remains necessary for process/node failures or sustained EP outages.
+Without a matching source (or with invalid configuration), TOM still logs sanitized evidence and can read existing authorized EP monitoring records, but new observations are not persisted to EP. The scope selector explains when reporting is unconfigured. Reporting now queues encrypted transport records before fast ingestion and uses an independent collector for eventual recovery; unavailable/unconfigured persistence still emits safe local markers. An independent collector/probe remains necessary for process/node failures or sustained EP outages.
 
 ## Capture and correlation
 
@@ -50,7 +50,7 @@ Turbo uses same-origin external scripts, no page snapshot caching or link prefet
 
 - **Monitoring** in navigation (`/monitoring`) lists current authorized tenants and occasions from EP workspaces. The tenant and occasion overviews link directly to their scope.
 - `/tenants/:tenant_id/monitoring` lists issues (default state `open`) or observations, with severity/state/application/code/correlation filters, cursor pagination and scoped freshness/pending counts. EP v1 provides exact severity filters and insertion-time order, so the first slice does not promise severity-ranked or time-range queries.
-- A row opens `/tenants/:tenant_id/monitoring/issues/:id`, with a safe summary, outcome, counts, owner, versions and paginated timeline. Occasion-only lists explicitly carry their occasion scope; EP rechecks it at every request. No global/raw-security diagnostic listing or raw payload export is offered.
+- A row opens `/tenants/:tenant_id/monitoring/issues/:id`, with a safe summary, outcome, counts, owner, versions and paginated timeline. Occasion-only lists explicitly carry their occasion scope; EP rechecks it at every request. Platform monitoring requires an explicit EP grant; diagnostic reads additionally require the exact-scope diagnostic grant. No raw payload export is offered.
 - Acknowledge, assign, resolve and reopen use a session-bound form key plus the current expected version. Assignment currently takes the ID of an existing authorized administrator because EP has no scoped administrator picker contract yet. Resolution uses approved reasons rather than free text. None of these actions retries a business operation or proves technical recovery.
 - Actions and explicit list/detail refreshes return in-context Turbo Streams. Filters are retained in refreshed results and focus is restored where possible. A stale version produces guidance to refresh; stopped/unavailable views and revoked access replace the protected monitoring region with an unavailable state. They never serve a stale view as successful current data.
 
@@ -66,4 +66,12 @@ Run `bin/rails test`, `node --test test/javascript/monitoring_test.mjs`, `bundle
 
 An isolated PostgreSQL/EP smoke test verified real sign-in, a controlled TOM view exception, scoped observation persistence, MV list/detail/timeline, versioned acknowledgment and streamed list refresh. The planted sensitive exception message was absent from EP details. No real external email was sent. The Playwright connector was unavailable for this implementation, so desktop/mobile visual and real-browser Turbo behavior still need verification; automated request and client-logic tests do not replace that check.
 
-Independent collection/probes, a durable bounded spool, automatic alert delivery, configurable aggregation, reporting-source administration, a human-friendly assignee directory, richer restricted diagnostics, retention/erasure/backup automation and production load validation remain pending under [monitoring_plan.md](../../../monitoring_plan.md).
+Local collection/probes, durable spooling, scoped source/rule administration, a current-admin assignee picker, restricted diagnostics, explicit platform monitoring and an alert delivery worker are implemented. Production rollout, provider callbacks, browser/device checks and representative load validation remain in [pending_details.md](../../../pending_details.md).
+
+## Operational controls and worker
+
+Monitoring → **Sources and alert rules** lists registered sources, supports approved-backend registration/revocation, threshold/window/cooldown rules, current eligible recipients, rule enable/disable and 24-hour maintenance suppression. The page includes recent alert outcomes; actions use EP idempotency and expected versions. Detail assignment uses named eligible administrators rather than manually entered UUIDs. A separately authorized diagnostic link shows only approved structured frames. EP grants determine whether the scope selector offers **Platform monitoring**.
+
+`bin/monitoring-worker` claims one alert per tick (five-second loop, `--once` for local checks), delivers through Notifications::Delivery and acknowledges its attempt. The development file sink is explicitly `test_accepted`; SMTP success is `provider_accepted`. Ambiguous attempts never automatically resend. A buffered acknowledgment can be retried without redoing delivery. `/up/monitoring` is ready only while the worker heartbeat is within 30 seconds. Supervise the worker separately; starting Rails alone does not start it.
+
+TOM discovers reporting sources through EP's backend-only bindings API, caching operational IDs for 60 seconds; explicit `TOM_MONITORING_SOURCES_JSON` remains an override. Cached bindings confer no authority and EP checks revocation on ingestion. The encrypted transport queue shares the collector's file protocol. In development a private stable key is generated in ignored `config/monitoring_spool_key`; directory defaults to `tmp/monitoring-spool`. Production requires `TOM_MONITOR_SPOOL_DIR` and `TOM_MONITOR_SPOOL_KEY`. Run an accompanying collector with that same key and directory; never discard the key while buffered evidence remains. See the [collector runbook](../../monitor/README.md).

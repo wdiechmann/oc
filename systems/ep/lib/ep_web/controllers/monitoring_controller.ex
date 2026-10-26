@@ -79,6 +79,7 @@ defmodule EpWeb.MonitoringController do
         :rate_limited -> 429
         :unauthenticated -> 401
         :not_found -> 404
+        :privacy_cleanup_pending -> 503
         :view_stopped -> 503
         r when r in [:idempotency_conflict, :version_conflict] -> 409
         _ -> 422

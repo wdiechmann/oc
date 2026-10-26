@@ -3,7 +3,7 @@ class MonitoringController < ApplicationController
   FILTERS = %w[occasion_id code severity state application correlation_id cursor cutoff].freeze
 
   def scopes
-    render Views::Monitoring::Scopes.new(workspaces: ep.workspaces, signed_in: true)
+    render Views::Monitoring::Scopes.new(workspaces: ep.workspaces, platform: ep.monitoring_access["platform_monitor"], signed_in: true)
   end
 
   def index
@@ -24,7 +24,7 @@ class MonitoringController < ApplicationController
     oid = data.dig("issue", "occasion_id") || params[:occasion_id]
     timeline = data["issue"] ? ep.monitoring_list(params[:tenant_id], "timeline", { issue_id: params[:id], occasion_id: oid, cursor: params[:timeline_cursor].presence }.compact) : { "items" => [] }
     prepare_key
-    options = { tenant_id: params[:tenant_id], id: params[:id], occasion_id: oid, data: data, timeline: timeline, key: session[:monitoring_key] }
+    options = { tenant_id: params[:tenant_id], id: params[:id], occasion_id: oid, data: data, timeline: timeline, key: session[:monitoring_key], assignees: ep.monitoring_assignees(params[:tenant_id], occasion_id: oid).fetch("assignees") }
     if stream_request?
       render Components::UpdateStream.new(target: "monitoring-detail", operation_id: request.headers["X-TOM-Operation-ID"].present? ? Monitoring::Current.operation_id : nil, component: Components::MonitoringDetail.new(**options)), content_type: "text/vnd.turbo-stream.html"
     else
@@ -48,8 +48,13 @@ class MonitoringController < ApplicationController
     if stream_request?
       render_feedback("Action recorded at version #{result['stream_version']}. Refresh the issue to see its updated view.", status: 200, outcome: "accepted")
     else
-      redirect_to tenant_monitoring_issue_path(params[:tenant_id], params[:id]), notice: "Action recorded. The view may still be updating.", status: :see_other
+      redirect_to monitoring_issue_path(params[:tenant_id], params[:id]), notice: "Action recorded. The view may still be updating.", status: :see_other
     end
+  end
+
+  def diagnostic
+    data = ep.monitoring_diagnostic(params[:tenant_id], params[:id])
+    render Views::Monitoring::Diagnostic.new(data: data, signed_in: true)
   end
 
   private

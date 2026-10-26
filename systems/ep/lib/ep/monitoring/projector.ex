@@ -69,8 +69,16 @@ defmodule Ep.Monitoring.Projector do
   end
 
   def recover do
-    ids = Repo.all(from p in Pending, distinct: p.issue_id, select: p.issue_id)
-    Enum.each(ids, fn id -> Oban.insert!(Ep.Monitoring.Worker.new(%{issue_id: id})) end)
+    ids = Repo.all(from p in Pending, distinct: p.issue_id, select: p.issue_id, limit: 500)
+
+    Enum.each(ids, fn id ->
+      Oban.insert!(
+        Ep.Monitoring.Worker.new(%{issue_id: id},
+          unique: [period: 60, states: [:available, :scheduled, :retryable]]
+        )
+      )
+    end)
+
     length(ids)
   end
 

@@ -31,3 +31,7 @@
 - Capture safe code/input/dependency/delivery outcomes through EP's monitoring API with request correlation and EP-verified reporting scope; local evidence remains available if persistence fails.
 - Provide authorized tenant/occasion monitoring lists, freshness, issue timelines and idempotent versioned operator actions without a TOM database.
 - Use Turbo Streams for in-context failures/status updates, preserve ordinary input and reconcile uncertain accepted commands without automatically repeating them; keep credentials and raw diagnostic text out of feedback.
+
+## Monitoring operations (local implementation)
+
+Local monitoring must survive EP outages through a bounded encrypted transport queue, with independent probes and explicit loss accounting. Scope administrators manage reporting sources and alert rules through EP; restricted diagnostics/platform access require explicit grants. Alert delivery belongs to a separately supervised TOM worker with terminal outcome acknowledgments and no automatic resend of ambiguous attempts.

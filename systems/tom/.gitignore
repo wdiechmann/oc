@@ -16,3 +16,5 @@
 /graphify-out
 
 /config/ep_backend_token
+
+/config/monitoring_spool_key

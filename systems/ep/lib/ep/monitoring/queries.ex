@@ -7,15 +7,21 @@ defmodule Ep.Monitoring.Queries do
   @filters ~w(issue_id occasion_id code severity state application correlation_id limit cursor cutoff)
 
   def list(principal, tid, kind, params) do
-    with {:ok, tid} <- Monitoring.uuid(tid), {:ok, opts} <- options(params) do
+    with {:ok, tid} <- Ep.Monitoring.Configuration.optional_uuid(tid),
+         {:ok, opts} <- options(params) do
       Repo.transaction(fn ->
-        Monitoring.authorize!(principal, tid, opts.occasion_id)
+        if tid,
+          do: Monitoring.authorize!(principal, tid, opts.occasion_id),
+          else: Ep.Monitoring.Access.platform!(principal)
+
         control!(tid)
+        Ep.Monitoring.Privacy.serving!()
 
         query =
           from v in View,
+            as: :monitoring_view,
             where:
-              v.tenant_id == ^tid and
+              fragment("? IS NOT DISTINCT FROM ?::uuid", v.tenant_id, type(^tid, :binary_id)) and
                 v.kind in ^if(kind == "timeline", do: ["observation", "lifecycle"], else: [kind]) and
                 v.inserted_at <= ^opts.cutoff
 
@@ -26,6 +32,15 @@ defmodule Ep.Monitoring.Queries do
           if opts.occasion_id,
             do: from(v in query, where: v.occasion_id == ^opts.occasion_id),
             else: query
+
+        cutoff = DateTime.add(DateTime.utc_now(), -90 * 86_400, :second)
+
+        query =
+          from(v in query,
+            where: v.updated_at > ^cutoff and is_nil(fragment("?->>'privacy_erased'", v.data))
+          )
+
+        query = Ep.Monitoring.Privacy.suppress(query)
 
         query =
           Enum.reduce(opts.filters, query, fn {key, value}, q ->
@@ -67,19 +82,42 @@ defmodule Ep.Monitoring.Queries do
   end
 
   def detail(principal, tid, id) do
-    with {:ok, tid} <- Monitoring.uuid(tid), {:ok, id} <- Monitoring.uuid(id) do
+    with {:ok, tid} <- Ep.Monitoring.Configuration.optional_uuid(tid),
+         {:ok, id} <- Monitoring.uuid(id) do
       Repo.transaction(fn ->
         issue = Repo.get(Issue, id) || Repo.rollback(:not_found)
         source = Repo.get!(Source, issue.source_id)
         unless source.tenant_id == tid, do: Repo.rollback(:not_found)
-        Monitoring.authorize!(principal, tid, source.occasion_id)
+        if issue.data["privacy_erased"], do: Repo.rollback(:not_found)
+
+        if tid,
+          do: Monitoring.authorize!(principal, tid, source.occasion_id),
+          else: Ep.Monitoring.Access.platform!(principal)
+
         control!(tid)
+        Ep.Monitoring.Privacy.serving!()
 
         case Repo.get(View, id) do
           nil ->
             %{status: "pending", issue_id: id, expected_version: issue.version}
 
           row ->
+            latest_event =
+              Repo.one(
+                from e in Ep.Events.Event,
+                  where:
+                    e.stream_id == ^id and e.stream_version == ^row.source_version and
+                      e.stream_type == "monitoring_issue",
+                  select: e.id
+              )
+
+            if latest_event && Ep.Monitoring.Privacy.erased?(latest_event),
+              do: Repo.rollback(:not_found)
+
+            if row.data["privacy_erased"] ||
+                 DateTime.diff(DateTime.utc_now(), row.updated_at) > 90 * 86_400,
+               do: Repo.rollback(:not_found)
+
             %{
               status: if(row.source_version == issue.version, do: "ready", else: "pending"),
               issue: serialize(row),
@@ -141,6 +179,8 @@ defmodule Ep.Monitoring.Queries do
     end)
   end
 
+  defp control!(nil), do: :ok
+
   defp control!(tid) do
     row =
       Repo.one(
@@ -157,7 +197,7 @@ defmodule Ep.Monitoring.Queries do
       from p in Pending,
         join: e in Ep.Events.Event,
         on: e.id == p.event_id,
-        where: e.tenant_id == ^tid
+        where: fragment("? IS NOT DISTINCT FROM ?::uuid", e.tenant_id, type(^tid, :binary_id))
 
     pending = if oid, do: from([p, e] in pending, where: e.occasion_id == ^oid), else: pending
 

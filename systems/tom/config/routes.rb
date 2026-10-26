@@ -8,6 +8,16 @@ Rails.application.routes.draw do
   get "recruitment/received", to: "recruitment_intake#received", as: :recruitment_received
   get "recruitment/:tenant_id/:slug", to: "recruitment_intake#show", as: :recruitment
   post "recruitment/:tenant_id/:slug/applications", to: "recruitment_intake#create", as: :recruitment_applications
+  get "monitoring/platform", to: "monitoring#index", as: :platform_monitoring
+  get "monitoring/platform/issues/:id", to: "monitoring#show", as: :platform_monitoring_issue
+  post "monitoring/platform/issues/:id/actions", to: "monitoring#update", as: :platform_monitoring_issue_action
+  get "tenants/:tenant_id/monitoring/settings", to: "monitoring_settings#index", as: :tenant_monitoring_settings
+  post "tenants/:tenant_id/monitoring/settings", to: "monitoring_settings#update"
+  get "monitoring/platform/settings", to: "monitoring_settings#index", as: :platform_monitoring_settings
+  post "monitoring/platform/settings", to: "monitoring_settings#update"
+  get "tenants/:tenant_id/monitoring/observations/:id/diagnostic", to: "monitoring#diagnostic", as: :tenant_monitoring_diagnostic
+  get "monitoring/platform/observations/:id/diagnostic", to: "monitoring#diagnostic", as: :platform_monitoring_diagnostic
+  get "up/monitoring", to: "monitoring_health#show"
   resources :invitations, only: :index
   resource :session, only: %i[new create destroy] do
     get :verify

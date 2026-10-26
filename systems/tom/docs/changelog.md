@@ -30,3 +30,7 @@ Final validation: 65 EP tests and 33 TOM tests pass; all seven flows were exerci
 ## 2026-10-26
 
 Added EP-backed monitoring capture and tenant/occasion list/detail/timeline/action screens. Added locally served Turbo, in-context safe failure/status streams, operation ordering guards and bounded session-bound accepted-command reconciliation without command replay. Added redacted local evidence, verified-scope source bindings, optional EP delivery-attempt/provider-outcome reporting, CSP style nonces and no browser snapshot caching. Verified isolated real-EP persistence and issue acknowledgment; no real external messages were sent. Source configuration and Playwright visual verification remain deployment/verification work; independent collection, alerts and retention remain planned.
+
+## Monitoring operations (local implementation)
+
+2026-10-26: Added local operational monitoring controls, current-administrator assignment picker, scoped restricted diagnostic views, explicit platform scope, backend source discovery, encrypted durable transport buffering and independently supervised alert delivery with heartbeat. Verified against a synthetic local EP instance; production rollout and browser/device rehearsal remain pending.

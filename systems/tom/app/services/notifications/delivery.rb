@@ -30,6 +30,24 @@ module Notifications
       raise Error, "Invalid invitation delivery material", cause: nil
     end
 
+    def self.monitoring_alert(material)
+      ids = %w[alert_id attempt_id issue_id]
+      raise Error, "Invalid alert material" unless ids.all? { |key| material[key].to_s.match?(Monitoring::Reporter::UUID) }
+      recipients = material.fetch("recipients")
+      raise Error, "Invalid alert recipients" unless recipients.is_a?(Array) && recipients.length.between?(1, 10) && recipients.all? { |r| r.is_a?(String) && r.match?(/\A[^\s@]+@[^\s@]+\.[^\s@]+\z/) }
+      link = if material["tenant_id"]
+        raise Error, "Invalid tenant" unless material["tenant_id"].match?(Monitoring::Reporter::UUID)
+        "#{public_origin}/tenants/#{material['tenant_id']}/monitoring/issues/#{material['issue_id']}"
+      else
+        "#{public_origin}/monitoring/platform/issues/#{material['issue_id']}"
+      end
+      text = "#{material.fetch('code')}\n#{material.fetch('safe_message')}\n\nReview with your current access: #{link}\nProvider acceptance is not proof of delivery."
+      recipients.each { |recipient| send_message(recipient, "TOM monitoring alert", text, "alert-#{material.fetch('attempt_id')}-#{Digest::SHA256.hexdigest(recipient)[0, 16]}", report: false) }
+      Rails.env.test? || ENV.fetch("TOM_DELIVERY_METHOD", Rails.env.development? ? "file" : "smtp") == "file" ? "test_accepted" : "provider_accepted"
+    rescue KeyError, ArgumentError
+      raise Error, "Invalid alert material", cause: nil
+    end
+
     def self.public_origin
       origin = ENV.fetch("TOM_PUBLIC_BASE_URL", Rails.env.test? ? "http://www.example.com" : "http://localhost:3000")
       uri = URI.parse(origin)
@@ -39,7 +57,7 @@ module Notifications
       origin.delete_suffix("/")
     end
 
-    def self.send_message(recipient, subject, text, id)
+    def self.send_message(recipient, subject, text, id, report: true)
       method = Rails.env.test? ? "test" : ENV.fetch("TOM_DELIVERY_METHOD", Rails.env.development? ? "file" : "smtp")
       from = ENV.fetch("TOM_MAIL_FROM", Rails.env.production? ? "" : "tom@localhost")
       raise Error, "TOM_MAIL_FROM is required" if from.empty?
@@ -52,7 +70,7 @@ module Notifications
       related = { delivery_attempt_id: attempt }
       command_id = Monitoring::Current.command&.dig(:command_id)
       related[:business_command_id] = command_id if command_id
-      Monitoring::Reporter.record("delivery.attempted", related: related, delivery: true)
+      Monitoring::Reporter.record("delivery.attempted", related: related, delivery: true) if report
       case method
       when "file"
         raise Error, "File delivery is development-only" unless Rails.env.development?
@@ -76,10 +94,10 @@ module Notifications
       else
         raise Error, "Unknown delivery method"
       end
-      Monitoring::Reporter.record("delivery.provider_accepted", related: related, delivery: true) if method == "smtp"
+      Monitoring::Reporter.record("delivery.provider_accepted", related: related, delivery: true) if method == "smtp" && report
       true
     rescue StandardError => error
-      if attempt
+      if attempt && report
         code = error.is_a?(Net::SMTPFatalError) ? "delivery.rejected" : "delivery.unknown"
         Monitoring::Reporter.record(code, related: related, delivery: true)
       end

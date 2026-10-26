@@ -179,3 +179,26 @@ and occasion reads/actions. Correlation headers and private accepted-command loo
 client-side reconciliation and in-context streamed feedback. This is the backend foundation;
 TOM now supplies the initial scoped monitoring UI, capture and in-context Turbo feedback;
 independent outage collection, alerts and privacy lifecycle automation remain planned in [monitoring_plan.md](monitoring_plan.md).
+
+## Monitoring operations
+
+```mermaid
+flowchart LR
+  TOM[TOM request handling] --> BUF[Private encrypted bounded transport queue]
+  OBS[EP telemetry aggregation] --> E[EP monitoring ingestion]
+  OBS -. EP database unavailable .-> EBUF[EP encrypted transport queue]
+  PROBE[Independent collector and fixed probes] --> E
+  BUF --> PROBE
+  EBUF --> PROBE
+  PROBE -. EP unavailable .-> NOTICE[Independent local notices and loss counters]
+  E --> FACT[event and event_details]
+  FACT --> MV[Monitoring publication queue and materialized views]
+  E --> RULE[Rule evaluation on new ingestion only]
+  RULE --> INTENT[Claimable alert intent]
+  INTENT --> WORKER[TOM delivery worker]
+  WORKER --> SINK[Development sink or configured delivery adapter]
+  WORKER --> ACK[Idempotent terminal outcome in EP]
+  MV --> UI[TOM scoped list and drill-down]
+```
+
+Control tables enforce current source/permission/rule state, claims, subject suppression and publication progress. Events remain authoritative; queues are temporary transport. Restricted diagnostics require an additional explicit grant; global operators are separate from tenant administrators. Monitoring-only restore cleanup keeps local sandboxes unpublished; original/offline backup retirement and broader domain cleanup remain pending. See [runbook](systems/monitor/README.md) and [deployment details](pending_details.md).

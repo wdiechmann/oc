@@ -8,9 +8,12 @@ defmodule Ep.Application do
   @impl true
   def start(_type, _args) do
     children = [
+      Ep.Monitoring.Spool,
+      Ep.Monitoring.Observer,
       EpWeb.Telemetry,
       Ep.Repo,
       {Oban, Application.fetch_env!(:ep, Oban)},
+      Ep.Monitoring.Maintenance,
       {DNSCluster, query: Application.get_env(:ep, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Ep.PubSub},
       # Start a worker by calling: Ep.Worker.start_link(arg)

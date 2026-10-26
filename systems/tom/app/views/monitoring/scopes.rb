@@ -1,7 +1,7 @@
 class Views::Monitoring::Scopes < Views::Base
-  def initialize(workspaces:, **options)
+  def initialize(workspaces:, platform: false, **options)
     super(**options)
-    @workspaces = workspaces
+    @workspaces, @platform = workspaces, platform
   end
   def view_template
     h1(class: "text-3xl font-semibold") { "Monitoring" }
@@ -9,6 +9,7 @@ class Views::Monitoring::Scopes < Views::Base
     if Monitoring::Reporter.sources.empty?
       p(class: "mt-5 rounded-lg bg-amber-50 p-4 text-sm") { "TOM reporting is not enabled. Ask a platform administrator to enable it; existing monitoring records remain available." }
     end
+    a(href: platform_monitoring_path, class: "mt-5 block font-semibold text-emerald-800 underline") { "Platform monitoring (restricted)" } if @platform
     ul(class: "mt-8 space-y-4") do
       @workspaces.fetch("tenants", []).each do |tenant|
         li { a(href: tenant_monitoring_path(tenant.fetch("tenant_id")), class: "font-semibold text-emerald-800 underline") { tenant.fetch("name") } }

@@ -15,6 +15,7 @@ config :ep, :session_lifetime_seconds, 43_200
 
 config :ep, Oban,
   repo: Ep.Repo,
+  lifeline: [rescue_after: {5, :minutes}, interval: 30_000],
   queues: [default: 5, projections: 5, monitoring: 2]
 
 # Configure the endpoint

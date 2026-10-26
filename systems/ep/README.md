@@ -88,3 +88,7 @@ support reconciliation after a client error. See [Monitoring API v1](docs/monito
 for source provisioning, credentials, routes, JSON examples, freshness and current limits.
 Run `mix ecto.migrate` and restart EP before integrating clients. TOM UI/instrumentation,
 independent probes, alert delivery and retention automation remain separate work.
+
+## Local monitoring operations
+
+The [monitoring API](docs/monitoring-api.md) now includes governed source administration, alert rules/claims/outcomes, explicit platform access and restricted diagnostics. Apply migrations before starting the new code. EP telemetry and retention are opt-in; an independent collector is required for durable outage visibility. See [operational runbook](../monitor/README.md), [local evidence](../monitor/local_rehearsal.md) and [pending deployment decisions](../../pending_details.md). Monitoring cleanup/restore does not yet erase all business-domain or third-party data.

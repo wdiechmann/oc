@@ -130,6 +130,7 @@ defmodule Ep.MonitoringConcurrencyTest do
       Repo.delete_all(from j in Oban.Job, where: fragment("?->>'issue_id'", j.args) in ^ids)
       Repo.delete_all(from v in View, where: v.issue_id in ^ids)
       Repo.delete_all(from p in Pending, where: p.issue_id in ^ids)
+      Repo.delete_all(from s in Ep.Monitoring.Subject, where: s.event_id in ^event_ids)
       Repo.delete_all(from d in Ep.Events.Details, where: d.event_id in ^event_ids)
       Repo.delete_all(from e in Ep.Events.Event, where: e.id in ^event_ids)
       Repo.delete_all(from h in Ep.Events.StreamHead, where: h.stream_id in ^ids)

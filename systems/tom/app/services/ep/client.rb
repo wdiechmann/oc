@@ -101,28 +101,65 @@ module Ep
       request(:get, "/recruitment/#{tenant_id}/#{slug}")
     end
 
+    def monitoring_access = request(:get, "/me/monitoring-access")
+    def monitoring_assignees(tenant_id, occasion_id: nil) = request(:get, "#{monitoring_root(tenant_id)}/assignees", query: { occasion_id: occasion_id }.compact)
+    def monitoring_sources(tenant_id, occasion_id: nil) = request(:get, "#{monitoring_root(tenant_id)}/sources", query: { occasion_id: occasion_id }.compact)
+    def monitoring_alerts(tenant_id, occasion_id: nil) = request(:get, "#{monitoring_root(tenant_id)}/alerts", query: { occasion_id: occasion_id }.compact)
+    def monitoring_rules(tenant_id, occasion_id: nil) = request(:get, "#{monitoring_root(tenant_id)}/rules", query: { occasion_id: occasion_id }.compact)
+    def monitoring_catalogue
+      backend!
+      request(:get, "/monitoring/catalogue")
+    end
+    def monitoring_configuration(tenant_id, action, attributes, key, id: nil)
+      suffix = case action
+      when "register" then "/sources"
+      when "revoke" then uuid!(id); "/sources/#{id}/revoke"
+      when "rule" then "/rules"
+      when "suppression" then uuid!(id); "/rules/#{id}/suppression"
+      when "rule_state" then uuid!(id); "/rules/#{id}/state"
+      else raise ArgumentError
+      end
+      track_command({ "register"=>"MonitoringSourceRegister", "revoke"=>"MonitoringSourceRevoke", "rule"=>"MonitoringRuleConfigure", "suppression"=>"MonitoringSuppressionChange", "rule_state"=>"MonitoringRuleState" }.fetch(action), key)
+      result = request(:post, "#{monitoring_root(tenant_id)}#{suffix}", body: attributes, key: key)
+      Monitoring::Reporter.invalidate_bindings
+      result
+    end
+    def monitoring_diagnostic(tenant_id, id)
+      uuid!(id)
+      request(:get, "#{monitoring_root(tenant_id)}/observations/#{id}/diagnostic")
+    end
+    def monitoring_bindings
+      backend!
+      request(:get, "/monitoring/bindings")
+    end
+    def claim_monitoring_alerts(request_id)
+      backend!
+      request(:post, "/monitoring/alerts/claim", body: { request_id: request_id })
+    end
+    def monitoring_alert_outcome(id, attempt_id, status)
+      backend!
+      uuid!(id)
+      request(:post, "/monitoring/alerts/#{id}/outcome", body: { attempt_id: attempt_id, status: status })
+    end
     def report_observation(attributes, delivery: false)
       backend!
       request(:post, delivery ? "/monitoring/delivery-outcomes" : "/monitoring/observations", body: attributes)
     end
 
     def monitoring_list(tenant_id, kind, filters = {})
-      uuid!(tenant_id)
       raise ArgumentError unless %w[issues observations timeline].include?(kind)
-      request(:get, "/tenants/#{tenant_id}/monitoring/#{kind}", query: filters)
+      request(:get, "#{monitoring_root(tenant_id)}/#{kind}", query: filters)
     end
 
     def monitoring_issue(tenant_id, id)
-      uuid!(tenant_id)
       uuid!(id)
-      request(:get, "/tenants/#{tenant_id}/monitoring/issues/#{id}")
+      request(:get, "#{monitoring_root(tenant_id)}/issues/#{id}")
     end
 
     def monitoring_action(tenant_id, id, attributes, key)
-      uuid!(tenant_id)
       uuid!(id)
       track_command("MonitoringAction:#{id}", key)
-      request(:post, "/tenants/#{tenant_id}/monitoring/issues/#{id}/actions", body: attributes, key: key)
+      request(:post, "#{monitoring_root(tenant_id)}/issues/#{id}/actions", body: attributes, key: key)
     end
 
     def command_status(type, key)
@@ -130,6 +167,12 @@ module Ep
     end
 
     private
+
+    def monitoring_root(tenant_id)
+      return "/monitoring/platform" if tenant_id.nil?
+      uuid!(tenant_id)
+      "/tenants/#{tenant_id}/monitoring"
+    end
 
     def track_command(type, key)
       Monitoring::Current.command = { type: type, key: key, accepted: false } if @instrument && Monitoring::Current.correlation_id

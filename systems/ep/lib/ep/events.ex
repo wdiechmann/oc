@@ -34,6 +34,13 @@ defmodule Ep.Events do
         attrs = Map.merge(metadata, %{stream_version: version, event_type: type})
         event = Repo.insert!(struct!(Event, attrs))
         Repo.insert!(%Details{event_id: event.id, payload: payload})
+
+        if String.starts_with?(event.stream_type, "monitoring_"),
+          do: Ep.Monitoring.Privacy.index!(event, payload)
+
+        if String.starts_with?(event.stream_type, "monitoring_"),
+          do: Ep.Monitoring.Privacy.on_append!(event)
+
         event
       end)
 

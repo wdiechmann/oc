@@ -7,6 +7,8 @@ class MonitoringTest < ActionDispatch::IntegrationTest
   STREAM = { "Accept" => "text/vnd.turbo-stream.html" }
 
   def sign_in
+    stub_request(:get, "#{EP}/me/monitoring-access").to_return(status: 200, body: { platform_monitor: false }.to_json)
+    stub_request(:get, "#{EP}/tenants/#{TENANT}/monitoring/assignees").to_return(status: 200, body: { assignees: [] }.to_json)
     stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 200, body: { token: "private-bearer", expires_at: 1.hour.from_now.iso8601 }.to_json)
     post session_path, params: { token: "one-use-token" }
   end

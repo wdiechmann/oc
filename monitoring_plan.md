@@ -187,7 +187,7 @@ A stopped monitoring MV returns unavailable/stopped, never a stale successful-lo
 | `GET /api/v1/tenants/:tenant_id/monitoring/issues/:id` | Current issue summary and authorized paginated timeline; sensitive fields explicitly omitted. |
 | `POST /api/v1/tenants/:tenant_id/monitoring/issues/:id/actions` | Allowlisted action, current authority, expected lifecycle version and idempotency key; emits lifecycle facts. |
 
-The initial routes are implemented in [Monitoring API v1](systems/ep/docs/monitoring-api.md); that document and its OpenAPI contract define the supported payloads, pagination and current limitations. Platform/global access still needs separate operator endpoints and credentials. All reads enforce current identity, scope, purpose, token and MV controls before serving data, including counts, references and exports. TOM uses only EP's API; no direct PostgreSQL queries, shared mailbox or independent monitoring store.
+The initial routes are implemented in [Monitoring API v1](systems/ep/docs/monitoring-api.md); that document and its OpenAPI contract define the supported payloads, pagination and current limitations. Platform/global access now has separate endpoints and explicit operator grants; see the local implementation status below. All reads enforce current identity, scope, purpose, token and MV controls before serving data, including counts, references and exports. TOM uses only EP's API; no direct PostgreSQL queries, shared mailbox or independent monitoring store.
 
 ## Privacy, retention and operational ownership
 
@@ -211,3 +211,11 @@ Digital Platform owns capture contracts, EP persistence, monitoring queues/MVs a
 | 6 | Retention/erasure, capacity, recovery and operational rehearsal | Demonstrate deletion across source/derived/log/artifact paths and safe restore/rebuild; measure ingestion/lag/query impact under representative concurrency and failure storms. |
 
 Priorities 1–4 establish the first usable monitoring slice; independent outage detection is required before calling it operational. Build/release integration, richer external-provider evidence and specialized analytics can extend it without replacing the core event contract. No monitoring implementation should be described as production-ready until its isolation, failure, privacy, capacity and responder ownership checks pass.
+
+## Local implementation status — 2026-10-26
+
+Implemented the remaining local operational slice: independent loopback probes/collector, encrypted bounded queues shared by EP/TOM, automatic opt-in EP telemetry aggregation, scoped source registration/revocation, configurable threshold/window/cooldown alerts and suppression, TOM alert worker, current-admin assignment, explicitly granted platform/diagnostic access, monitoring retention/erasure suppression, snapshot-consistent encrypted backup inventory and unpublished local restore sanitation.
+
+The [runbook](systems/monitor/README.md) documents processes, credentials and safety boundaries; [local rehearsal evidence](systems/monitor/local_rehearsal.md) records actual results. Supporting control/work/subject tables do not replace `event`/`event_details` as fact storage. Rebuilds and durable acknowledgment retries never send external messages.
+
+This completes the locally implemented controls, not all production acceptance criteria above. In particular, local `.notices` provides independent outage visibility but has no production paging adapter; retention holds, all-domain/third-party erasure, immutable/offline original retirement, provider delivery callbacks, real-browser/accessibility checks and representative peak-load/failure-storm evidence remain open. [pending_details.md](pending_details.md) is the deployment decision/evidence register. Do not describe backup erasure as complete merely because monitoring content was sanitized.

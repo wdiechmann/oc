@@ -1,5 +1,6 @@
 class ApplicationController < ActionController::Base
   layout false
+  include Monitoring::Paths
   before_action :private_response
   rescue_from StandardError, with: :unexpected_error
   rescue_from Notifications::Delivery::Error, with: :delivery_unavailable
@@ -32,7 +33,7 @@ class ApplicationController < ActionController::Base
 
   def report_failure(code, exception: nil)
     Monitoring::Current.reported = true
-    if controller_name.in?(%w[monitoring operations])
+    if controller_name.start_with?("monitoring") || controller_name == "operations"
       Rails.logger.warn({ code: code, correlation_id: Monitoring::Current.correlation_id }.to_json)
     else
       Monitoring::Reporter.record(code, exception: exception)

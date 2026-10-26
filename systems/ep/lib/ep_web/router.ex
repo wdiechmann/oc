@@ -27,6 +27,9 @@ defmodule EpWeb.Router do
     post "/observations", MonitoringController, :record
     post "/delivery-outcomes", MonitoringController, :delivery
     get "/catalogue", MonitoringController, :catalogue
+    get "/bindings", MonitoringOperationsController, :bindings
+    post "/alerts/claim", MonitoringOperationsController, :claim
+    post "/alerts/:id/outcome", MonitoringOperationsController, :outcome
   end
 
   scope "/api/v1/recruitment", EpWeb do
@@ -54,6 +57,55 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/me/monitoring-access", MonitoringOperationsController, :access
+    get "/tenants/:tenant_id/monitoring/sources", MonitoringOperationsController, :sources
+    post "/tenants/:tenant_id/monitoring/sources", MonitoringOperationsController, :register
+
+    post "/tenants/:tenant_id/monitoring/sources/:id/revoke",
+         MonitoringOperationsController,
+         :revoke
+
+    get "/tenants/:tenant_id/monitoring/assignees", MonitoringOperationsController, :assignees
+    get "/tenants/:tenant_id/monitoring/alerts", MonitoringOperationsController, :alerts
+
+    post "/tenants/:tenant_id/monitoring/rules/:id/state",
+         MonitoringOperationsController,
+         :rule_state
+
+    get "/tenants/:tenant_id/monitoring/rules", MonitoringOperationsController, :rules
+    post "/tenants/:tenant_id/monitoring/rules", MonitoringOperationsController, :configure
+
+    post "/tenants/:tenant_id/monitoring/rules/:id/suppression",
+         MonitoringOperationsController,
+         :suppress
+
+    get "/tenants/:tenant_id/monitoring/observations/:id/diagnostic",
+        MonitoringOperationsController,
+        :diagnostic
+
+    get "/monitoring/platform/sources", MonitoringOperationsController, :sources
+    post "/monitoring/platform/sources", MonitoringOperationsController, :register
+    post "/monitoring/platform/sources/:id/revoke", MonitoringOperationsController, :revoke
+    get "/monitoring/platform/assignees", MonitoringOperationsController, :assignees
+    get "/monitoring/platform/alerts", MonitoringOperationsController, :alerts
+    post "/monitoring/platform/rules/:id/state", MonitoringOperationsController, :rule_state
+    get "/monitoring/platform/rules", MonitoringOperationsController, :rules
+    post "/monitoring/platform/rules", MonitoringOperationsController, :configure
+    post "/monitoring/platform/rules/:id/suppression", MonitoringOperationsController, :suppress
+
+    get "/monitoring/platform/observations/:id/diagnostic",
+        MonitoringOperationsController,
+        :diagnostic
+
+    get "/monitoring/platform/issues", MonitoringOperationsController, :platform_issues
+    get "/monitoring/platform/issues/:id", MonitoringOperationsController, :platform_detail
+
+    get "/monitoring/platform/observations",
+        MonitoringOperationsController,
+        :platform_observations
+
+    post "/monitoring/platform/issues/:id/actions", MonitoringController, :update_issue
+    get "/monitoring/platform/timeline", MonitoringOperationsController, :platform_timeline
     get "/me/commands", MonitoringController, :command
     get "/me/commands/:id", MonitoringController, :command
     get "/tenants/:tenant_id/monitoring/issues", MonitoringController, :issues

@@ -21,7 +21,7 @@ Development defaults to `TOM_DELIVERY_METHOD=file`: TOM writes mode-0600 JSON me
 
 For email set `TOM_DELIVERY_METHOD=smtp`, `TOM_MAIL_FROM`, `TOM_SMTP_HOST`, and optionally `TOM_SMTP_PORT` (587), `TOM_SMTP_USERNAME`, `TOM_SMTP_PASSWORD` and `TOM_SMTP_SSL=true` for implicit TLS (465). Otherwise STARTTLS is required. Configure actual provider credentials yourself; no production provider has been connected or externally tested. Production cannot fall back to file delivery. Tests force Mail's in-memory test provider and never send email externally.
 
-SMTP/file delivery is synchronous in TOM; no database or EP acknowledgment/queue protocol is introduced. A failed invitation send retains its idempotency key. Retrying asks EP for the same still-live invitation and sends it again, with a stable Message-ID; this cannot guarantee exactly-once SMTP delivery. A failed/lost magic-link issuance requires an explicit new request, invalidating the previous challenge for this backend. TOM does not automatically retry issuance. Throttled responses remain generic to the browser and generate no message.
+Magic-link/invitation SMTP/file delivery is synchronous in TOM. Monitoring alerts separately use the EP intent/acknowledgment protocol and TOM worker described below. A failed invitation send retains its idempotency key. Retrying asks EP for the same still-live invitation and sends it again, with a stable Message-ID; this cannot guarantee exactly-once SMTP delivery. A failed/lost magic-link issuance requires an explicit new request, invalidating the previous challenge for this backend. TOM does not automatically retry issuance. Throttled responses remain generic to the browser and generate no message.
 
 ## Seven administration flows
 
@@ -68,3 +68,7 @@ for EP source provisioning and `TOM_MONITORING_SOURCES_JSON`. Without a source, 
 remains in local logs; existing EP monitoring records can still be queried. Run `bundle install`
 and restart TOM to load the new dependency/configuration. Independent collectors, alerts,
 retention automation and Playwright visual verification remain pending.
+
+## Monitoring worker and collector
+
+After migrating EP, use Monitoring → Sources and alert rules for scope administration. Run `bin/monitoring-worker` separately for alert delivery and supervise its `/up/monitoring` heartbeat. The development delivery sink sends no external mail. Run an [independent collector](../monitor/README.md) with TOM's private spool/key for outage recovery; see [monitoring UI/API behavior](docs/monitoring.md) and [pending deployment decisions](../../pending_details.md).

@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+require_relative "../lib/ep_monitor/vault"
+operation,input,output = ARGV
+raise "Expected encrypt|decrypt INPUT OUTPUT" unless %w[encrypt decrypt].include?(operation) && input && output
+EpMonitor::Vault.new(ENV.fetch("EP_MONITOR_BACKUP_KEY")).public_send(operation,input,output)

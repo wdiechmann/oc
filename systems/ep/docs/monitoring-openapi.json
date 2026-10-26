@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EP Monitoring and Reconciliation API",
-    "version": "1.0.0",
-    "description": "Backend foundation. See monitoring-api.md for scope, source provisioning, reported evidence, pending views, failure semantics and current limitations. All responses are no-store. X-Correlation-ID accepts/returns a UUID. Absence of an accepted command receipt means unknown, never failed."
+    "version": "1.1.0",
+    "description": "Scoped event-backed monitoring, source/rule administration, restricted diagnostics, platform operations and backend alert handoff. All responses no-store. See monitoring-api.md for precise payloads, authorization, outcome ambiguity and deployment limits."
   },
   "servers": [
     {
@@ -1388,6 +1388,2110 @@
           }
         ]
       }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/sources": {
+      "get": {
+        "operationId": "getApiV1TenantsTenantIdMonitoringSources",
+        "description": "List scoped reporting sources and approved backend IDs.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "occasion_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postApiV1TenantsTenantIdMonitoringSources",
+        "description": "Register/reuse a reporting source and append a governed fact.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceRegistration"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/sources/{id}/revoke": {
+      "post": {
+        "operationId": "postApiV1TenantsTenantIdMonitoringSourcesIdRevoke",
+        "description": "Revoke source reporting authority.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/assignees": {
+      "get": {
+        "operationId": "getApiV1TenantsTenantIdMonitoringAssignees",
+        "description": "Current eligible administrators: identity_id and label.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "occasion_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/rules": {
+      "get": {
+        "operationId": "getApiV1TenantsTenantIdMonitoringRules",
+        "description": "List scoped alert rule configuration.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "occasion_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postApiV1TenantsTenantIdMonitoringRules",
+        "description": "Create a scoped alert rule; current recipients and approved backend required.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertRule"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/rules/{id}/state": {
+      "post": {
+        "operationId": "postApiV1TenantsTenantIdMonitoringRulesIdState",
+        "description": "Enable/disable using expected version.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleState"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/rules/{id}/suppression": {
+      "post": {
+        "operationId": "postApiV1TenantsTenantIdMonitoringRulesIdSuppression",
+        "description": "Suppress new notifications while continuing observations.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Suppression"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/alerts": {
+      "get": {
+        "operationId": "getApiV1TenantsTenantIdMonitoringAlerts",
+        "description": "Latest 100 scoped delivery outcome summaries, without addresses.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "occasion_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/monitoring/observations/{id}/diagnostic": {
+      "get": {
+        "operationId": "getApiV1TenantsTenantIdMonitoringObservationsIdDiagnostic",
+        "description": "Requires normal scope authority plus applicable diagnostics grant; 30-day/erasure gate.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/sources": {
+      "get": {
+        "operationId": "getApiV1MonitoringPlatformSources",
+        "description": "List scoped reporting sources and approved backend IDs.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postApiV1MonitoringPlatformSources",
+        "description": "Register/reuse a reporting source and append a governed fact.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceRegistration"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/sources/{id}/revoke": {
+      "post": {
+        "operationId": "postApiV1MonitoringPlatformSourcesIdRevoke",
+        "description": "Revoke source reporting authority.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/assignees": {
+      "get": {
+        "operationId": "getApiV1MonitoringPlatformAssignees",
+        "description": "Current eligible administrators: identity_id and label.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/rules": {
+      "get": {
+        "operationId": "getApiV1MonitoringPlatformRules",
+        "description": "List scoped alert rule configuration.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postApiV1MonitoringPlatformRules",
+        "description": "Create a scoped alert rule; current recipients and approved backend required.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertRule"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/rules/{id}/state": {
+      "post": {
+        "operationId": "postApiV1MonitoringPlatformRulesIdState",
+        "description": "Enable/disable using expected version.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleState"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/rules/{id}/suppression": {
+      "post": {
+        "operationId": "postApiV1MonitoringPlatformRulesIdSuppression",
+        "description": "Suppress new notifications while continuing observations.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Suppression"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/alerts": {
+      "get": {
+        "operationId": "getApiV1MonitoringPlatformAlerts",
+        "description": "Latest 100 scoped delivery outcome summaries, without addresses.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/observations/{id}/diagnostic": {
+      "get": {
+        "operationId": "getApiV1MonitoringPlatformObservationsIdDiagnostic",
+        "description": "Requires normal scope authority plus applicable diagnostics grant; 30-day/erasure gate.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/platform/issues": {
+      "get": {
+        "operationId": "platformListMonitoringIssues",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No accessible record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Source rate limited; Retry-After: 60",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; business outcome unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable or view stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "application",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cutoff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "description": "Explicit global platform_monitor required. "
+      }
+    },
+    "/api/v1/monitoring/platform/observations": {
+      "get": {
+        "operationId": "platformListMonitoringObservations",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No accessible record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Source rate limited; Retry-After: 60",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; business outcome unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable or view stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "application",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cutoff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "description": "Explicit global platform_monitor required. "
+      }
+    },
+    "/api/v1/monitoring/platform/timeline": {
+      "get": {
+        "operationId": "platformListMonitoringTimeline",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/List"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No accessible record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Source rate limited; Retry-After: 60",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; business outcome unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable or view stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "issue_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "severity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "application",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "correlation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cutoff",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        ],
+        "description": "Explicit global platform_monitor required. "
+      }
+    },
+    "/api/v1/monitoring/platform/issues/{id}": {
+      "get": {
+        "operationId": "platformMonitoringIssueDetail",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Detail"
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Projection pending; Retry-After: 1",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Detail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No accessible record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Source rate limited; Retry-After: 60",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; business outcome unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable or view stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Explicit global platform_monitor required. "
+      }
+    },
+    "/api/v1/monitoring/platform/issues/{id}/actions": {
+      "post": {
+        "operationId": "platformActOnMonitoringIssue",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Acceptance"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No accessible record",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Version or idempotency conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Source rate limited; Retry-After: 60",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected failure; business outcome unknown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable or view stopped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Action"
+              }
+            }
+          }
+        },
+        "description": "Explicit global platform_monitor required. "
+      }
+    },
+    "/api/v1/me/monitoring-access": {
+      "get": {
+        "operationId": "getApiV1MeMonitoringAccess",
+        "description": "Returns current user explicit platform_monitor capability only.",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/bindings": {
+      "get": {
+        "operationId": "getApiV1MonitoringBindings",
+        "description": "Backend-bound active source UUID map keyed by scope; no business/user data.",
+        "security": [
+          {
+            "BackendToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/alerts/claim": {
+      "post": {
+        "operationId": "postApiV1MonitoringAlertsClaim",
+        "description": "Claim at most one intent for this delivery backend. Same request within 300-second lease returns same material; expired claims become unknown and never resend. Protected response contains attempt_id, alert_id, safe summary and eligible recipient emails.",
+        "security": [
+          {
+            "BackendToken": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertClaim"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/monitoring/alerts/{id}/outcome": {
+      "post": {
+        "operationId": "postApiV1MonitoringAlertsIdOutcome",
+        "description": "Record terminal delivery outcome for a backend-bound claimed attempt, idempotently; never triggers sending.",
+        "security": [
+          {
+            "BackendToken": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized result; all responses Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/expired credential"
+          },
+          "404": {
+            "description": "Inaccessible scope or record"
+          },
+          "409": {
+            "description": "Idempotency/version conflict"
+          },
+          "422": {
+            "description": "Invalid configuration"
+          },
+          "503": {
+            "description": "Stopped view or privacy cleanup pending"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AlertOutcome"
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1432,7 +3536,11 @@
               "delivery.bounced",
               "delivery.rejected",
               "delivery.unknown",
-              "condition.recovered"
+              "condition.recovered",
+              "database.unavailable",
+              "database.saturated",
+              "request.error_rate",
+              "request.latency_high"
             ]
           },
           "correlation_id": {
@@ -1475,12 +3583,20 @@
                 "format": "uuid"
               }
             },
-            "required": [
-              "business_command_id",
-              "event_id",
-              "delivery_attempt_id",
-              "job_id"
-            ]
+            "required": []
+          },
+          "diagnostic": {
+            "$ref": "#/components/schemas/Diagnostic"
+          },
+          "component": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_.-]+$"
+          },
+          "release": {
+            "type": "string",
+            "maxLength": 80,
+            "pattern": "^[A-Za-z0-9_.-]+$"
           }
         },
         "required": [
@@ -1837,6 +3953,200 @@
         "required": [
           "schema_version",
           "codes"
+        ]
+      },
+      "Diagnostic": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "exception_class": {
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9_.:?!-]+$"
+          },
+          "frames": {
+            "type": "array",
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "file": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[A-Za-z0-9_.:?!-]+$"
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 120,
+                  "pattern": "^[A-Za-z0-9_.:?!-]+$"
+                },
+                "line": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                }
+              },
+              "required": [
+                "file",
+                "label",
+                "line"
+              ]
+            }
+          }
+        },
+        "required": [
+          "exception_class",
+          "frames"
+        ]
+      },
+      "SourceRegistration": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "backend_id": {
+            "type": "string",
+            "description": "An operator-approved backend ID returned by source listing."
+          },
+          "occasion_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "backend_id"
+        ]
+      },
+      "AlertRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "description": "Approved catalogue code"
+          },
+          "threshold": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000
+          },
+          "window_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 3600
+          },
+          "cooldown_seconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 86400
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "recipient_ids": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "delivery_backend_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "code",
+          "threshold",
+          "window_seconds",
+          "cooldown_seconds",
+          "enabled",
+          "recipient_ids",
+          "delivery_backend_id"
+        ]
+      },
+      "RuleState": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "enabled",
+          "expected_version"
+        ]
+      },
+      "Suppression": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "enum": [
+              "maintenance",
+              "investigation"
+            ]
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Future UTC instant, no more than 24 hours away"
+          }
+        },
+        "required": [
+          "expected_version",
+          "reason",
+          "until"
+        ]
+      },
+      "AlertClaim": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      },
+      "AlertOutcome": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "attempt_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "enum": [
+              "provider_accepted",
+              "test_accepted",
+              "rejected",
+              "unknown"
+            ]
+          }
+        },
+        "required": [
+          "attempt_id",
+          "status"
         ]
       }
     }

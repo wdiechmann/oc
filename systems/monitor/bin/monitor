@@ -1,0 +1,27 @@
+#!/usr/bin/env ruby
+require "time"
+require_relative "../lib/ep_monitor/agent"
+require_relative "../lib/ep_monitor/server"
+path = ENV.fetch("EP_MONITOR_CONFIG")
+raise "Config must be a private regular file" unless File.file?(path) && !File.lstat(path).symlink? && File.stat(path).mode & 0o077 == 0
+config = JSON.parse(File.read(path))
+spool = EpMonitor::Spool.new(directory: config.fetch("spool_dir"),key: ENV.fetch(config.fetch("key_env")),max_files: config.fetch("max_files",10_000),max_bytes: config.fetch("max_bytes",64*1024*1024),max_age: config.fetch("max_age",86_400))
+client = EpMonitor::Client.new(origin: config.fetch("ep_origin"),token: ENV.fetch(config.fetch("credential_env")))
+agent = EpMonitor::Agent.new(spool: spool,client: client,probes: config.fetch("probes",[]))
+if ARGV.include?("--once")
+  puts JSON.generate(agent.tick)
+else
+  server = EpMonitor::Server.new(agent,port: config.fetch("port",9910)); server.run
+  running = true
+  Signal.trap("TERM") { running = false }; Signal.trap("INT") { running = false }
+  begin
+    while running
+      begin
+        agent.tick
+      rescue StandardError
+        warn JSON.generate(code: "monitor.tick_failed")
+      end
+      sleep config.fetch("interval",15)
+    end
+  ensure server.stop end
+end
