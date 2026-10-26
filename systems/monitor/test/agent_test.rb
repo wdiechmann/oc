@@ -53,4 +53,12 @@ class AgentTest < Minitest::Test
     assert @agent.statistics[:ready]
   end
 
+  def test_configuration_error_identifies_placeholder_without_echoing_values
+    error = assert_raises(ArgumentError) do
+      EpMonitor::Agent.new(spool: @spool,client: @client,probes: [{"name"=>"ep-readiness","source_id"=>"REPLACE_WITH_REGISTERED_GLOBAL_SOURCE_UUID","failures"=>3}])
+    end
+    assert_includes error.message, "Probe 1: source_id"
+    refute_includes error.message, "REPLACE_WITH_REGISTERED_GLOBAL_SOURCE_UUID"
+  end
+
 end

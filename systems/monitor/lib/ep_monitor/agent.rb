@@ -13,8 +13,13 @@ module EpMonitor
       @last_tick, @last_delivery = 0, nil
       @probe_file = File.join(spool.directory,".probe-state")
       @state = JSON.parse(File.read(@probe_file)) if File.file?(@probe_file)
-      probes.each do |p|
-        raise ArgumentError, "Invalid probe" unless p["name"].to_s.match?(/\A[A-Za-z0-9_.-]{1,80}\z/) && p["source_id"].to_s.match?(Spool::UUID) && p["failures"].to_i.between?(1,10)
+      probes.each_with_index do |p, index|
+        prefix = "Probe #{index + 1}"
+        raise ArgumentError, "#{prefix}: expected a configuration object" unless p.is_a?(Hash)
+        raise ArgumentError, "#{prefix}: name must use 1–80 letters, digits, dots, underscores or hyphens" unless p["name"].to_s.match?(/\A[A-Za-z0-9_.-]{1,80}\z/)
+        raise ArgumentError, "#{prefix}: source_id must be a registered reporting source UUID; replace the example placeholder" unless p["source_id"].to_s.match?(Spool::UUID)
+        raise ArgumentError, "#{prefix}: failures must be an integer from 1 to 10" unless p["failures"].is_a?(Integer) && p["failures"].between?(1,10)
+        raise ArgumentError, "#{prefix}: recoveries must be an integer from 1 to 10" unless p.fetch("recoveries",3).is_a?(Integer) && p.fetch("recoveries",3).between?(1,10)
       end
     end
 
