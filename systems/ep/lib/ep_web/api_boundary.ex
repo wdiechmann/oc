@@ -1,9 +1,12 @@
 defmodule EpWeb.ApiBoundary do
-  @moduledoc "Bounded correlation context and safe unexpected-failure capture around the router."
+  @moduledoc "Bounded correlation context and safe unexpected-failure capture around all request processing."
   import Plug.Conn
-  def init(opts), do: EpWeb.Router.init(opts)
+  def init(opts), do: EpWeb.RequestPipeline.init(opts)
 
-  def call(conn, opts) do
+  def call(conn, opts), do: protect(conn, fn conn -> EpWeb.RequestPipeline.call(conn, opts) end)
+
+  @doc false
+  def protect(conn, dispatch) do
     supplied =
       case get_req_header(conn, "x-correlation-id") do
         [value] -> value
@@ -21,7 +24,7 @@ defmodule EpWeb.ApiBoundary do
     conn = conn |> assign(:correlation_id, id) |> put_resp_header("x-correlation-id", id)
 
     try do
-      EpWeb.Router.call(conn, opts)
+      dispatch.(conn)
     rescue
       error ->
         # Expected HTTP exceptions preserve their normal status and framework handling.

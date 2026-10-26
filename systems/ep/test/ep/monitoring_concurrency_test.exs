@@ -97,6 +97,27 @@ defmodule Ep.MonitoringConcurrencyTest do
         issue = Repo.get_by!(Issue, source_id: source.id)
         assert issue.data["count"] == 1
         assert issue.data["correlation_id"] == correlation
+
+        conn =
+          Plug.Test.conn(:get, "/health/ready")
+          |> Plug.Conn.put_req_header("x-correlation-id", correlation)
+
+        response = EpWeb.ApiBoundary.protect(conn, fn _ -> raise "PrivateConfigErrorMarker" end)
+        assert response.status == 500
+        assert Jason.decode!(response.resp_body)["correlation_id"] == correlation
+        refute response.resp_body =~ "PrivateConfigErrorMarker"
+        assert Repo.get!(Issue, issue.id).data["count"] == 2
+
+        details =
+          Repo.all(
+            from d in Ep.Events.Details,
+              join: e in Ep.Events.Event,
+              on: e.id == d.event_id,
+              where: e.stream_id == ^issue.id,
+              select: d.payload
+          )
+
+        refute Jason.encode!(details) =~ "PrivateConfigErrorMarker"
       end)
     end)
   end
@@ -131,6 +152,7 @@ defmodule Ep.MonitoringConcurrencyTest do
       Repo.delete_all(from v in View, where: v.issue_id in ^ids)
       Repo.delete_all(from p in Pending, where: p.issue_id in ^ids)
       Repo.delete_all(from s in Ep.Monitoring.Subject, where: s.event_id in ^event_ids)
+      Repo.delete_all(from d in Ep.Monitoring.Diagnostic, where: d.event_id in ^event_ids)
       Repo.delete_all(from d in Ep.Events.Details, where: d.event_id in ^event_ids)
       Repo.delete_all(from e in Ep.Events.Event, where: e.id in ^event_ids)
       Repo.delete_all(from h in Ep.Events.StreamHead, where: h.stream_id in ^ids)

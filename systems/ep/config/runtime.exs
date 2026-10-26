@@ -135,7 +135,15 @@ if config_env() != :test do
       value -> value
     end
 
-  config :ep, :monitoring_source_id, monitoring_source
+  local_monitoring_source =
+    if config_env() == :dev do
+      case File.read(Path.expand("monitoring_source_id", __DIR__)) do
+        {:ok, value} -> String.trim(value)
+        _ -> nil
+      end
+    end
+
+  config :ep, :monitoring_source_id, monitoring_source || local_monitoring_source
 end
 
 # Independent credentials for additional application backends. Never expose this map in APIs/logs.
