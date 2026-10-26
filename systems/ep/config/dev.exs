@@ -2,11 +2,11 @@ import Config
 
 # Configure your database
 config :ep, Ep.Repo,
-  username: "ep",
-  password: "ep",
+  username: System.get_env("USER") || "postgres",
+  password: nil,
   hostname: "127.0.0.1",
-  port: 55432,
-  database: "ep_dev",
+  port: 5432,
+  database: "sl2030_ep_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: false,
   pool_size: 10

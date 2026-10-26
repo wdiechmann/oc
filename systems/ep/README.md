@@ -92,3 +92,5 @@ independent probes, alert delivery and retention automation remain separate work
 ## Local monitoring operations
 
 The [monitoring API](docs/monitoring-api.md) now includes governed source administration, alert rules/claims/outcomes, explicit platform access and restricted diagnostics. Apply migrations before starting the new code. EP telemetry and retention are opt-in; an independent collector is required for durable outage visibility. See [operational runbook](../monitor/README.md), [local evidence](../monitor/local_rehearsal.md) and [pending deployment decisions](../../pending_details.md). Monitoring cleanup/restore does not yet erase all business-domain or third-party data.
+
+Development and test default to the current OS username, no password, localhost port 5432, and `sl2030_ep_dev` / `sl2030_ep_test`. The same development default applies to operator Mix commands in a new shell; `DATABASE_URL` remains an explicit override. Port 55432 is only for the optional Compose database.
