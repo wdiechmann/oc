@@ -47,3 +47,6 @@ end
 
 # Direct SMTP/message construction; no Action Mailer, database or job queue.
 gem "mail", "~> 2.9"
+
+# In-context server-rendered feedback; no Action Cable or persistent session store.
+gem "turbo-rails", "~> 2.0"

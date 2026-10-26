@@ -4,9 +4,9 @@
 
 Monitor code failures, infrastructure, user input, user-visible results, message delivery and asynchronous processing across EP, TOM and subsequent applications. Persist governed monitoring observations and their lifecycle as facts in EP's existing **`event` and `event_details` tables**. TOM provides an authorized, searchable list with drill-down into those facts through EP APIs; it has no monitoring database of its own.
 
-This is a proposed implementation plan, not a description of completed monitoring. It builds on [architecture.md](architecture.md), [suggested-data-store.md](suggested-data-store.md), [system_1_plan.md](system_1_plan.md), [gdpr.md](gdpr.md) and [TOM's architecture](systems/tom/docs/architecture.md). The existing table is singular `event`; no parallel `events` table is proposed. An occasion remains the camp context, never an alternative name for a protocol event.
+This plan distinguishes the implemented monitoring foundation from the remaining operational requirements. It builds on [architecture.md](architecture.md), [suggested-data-store.md](suggested-data-store.md), [system_1_plan.md](system_1_plan.md), [gdpr.md](gdpr.md) and [TOM's architecture](systems/tom/docs/architecture.md). The existing table is singular `event`; no parallel `events` table is proposed. An occasion remains the camp context, never an alternative name for a protocol event.
 
-Existing foundations now include EP's initial [monitoring backend API](systems/ep/docs/monitoring-api.md): registered sources, safe catalogue-based observations/delivery reports in `event`/`event_details`, dedicated incremental monitoring projections, scoped list/detail/timeline APIs, versioned issue actions, correlation headers and private accepted-command reconciliation. EP also has a safe router-failure boundary with optional internal capture. This implements the first backend slice, not all requirements below: TOM capture/streamed UI, independent collection/probes, richer diagnostics, alert execution, source administration and retention/erasure automation remain to be built. See the API document for precise current limitations and payloads.
+Existing foundations now include EP's initial [monitoring backend API](systems/ep/docs/monitoring-api.md): registered sources, safe catalogue-based observations/delivery reports in `event`/`event_details`, dedicated incremental monitoring projections, scoped list/detail/timeline APIs, versioned issue actions, correlation headers and private accepted-command reconciliation. EP also has a safe router-failure boundary with optional internal capture. This implements the first backend slice, not all requirements below: TOM now implements [capture, scoped list/detail/timeline/action screens and in-context Turbo feedback](systems/tom/docs/monitoring.md), with bounded command-status checks and operator-provisioned reporting sources. Independent collection/probes, richer diagnostics, alert execution, source administration and retention/erasure automation remain to be built. See the API document for precise current limitations and payloads.
 
 ## What is monitored
 
@@ -176,7 +176,7 @@ Use server-rendered Phlex/Tailwind views, accessible severity text alongside col
 
 A stopped monitoring MV returns unavailable/stopped, never a stale successful-looking list. Newly acknowledged items can show EP's accepted version plus “updating list” until the MV catches up. Empty results, forbidden access and unavailable monitoring are distinct safe states. Exports are permission-gated, scope-filtered, bounded, audited and expiring; no bulk raw-detail export by default.
 
-## Proposed API surface
+## API surface
 
 | Operation | Contract |
 |---|---|
@@ -187,7 +187,7 @@ A stopped monitoring MV returns unavailable/stopped, never a stale successful-lo
 | `GET /api/v1/tenants/:tenant_id/monitoring/issues/:id` | Current issue summary and authorized paginated timeline; sensitive fields explicitly omitted. |
 | `POST /api/v1/tenants/:tenant_id/monitoring/issues/:id/actions` | Allowlisted action, current authority, expected lifecycle version and idempotency key; emits lifecycle facts. |
 
-These are proposed routes, not existing endpoints. Platform/global access needs separate operator endpoints and credentials. All reads enforce current identity, scope, purpose, token and MV controls before serving data, including counts, references and exports. TOM uses only EP's API; no direct PostgreSQL queries, shared mailbox or independent monitoring store.
+The initial routes are implemented in [Monitoring API v1](systems/ep/docs/monitoring-api.md); that document and its OpenAPI contract define the supported payloads, pagination and current limitations. Platform/global access still needs separate operator endpoints and credentials. All reads enforce current identity, scope, purpose, token and MV controls before serving data, including counts, references and exports. TOM uses only EP's API; no direct PostgreSQL queries, shared mailbox or independent monitoring store.
 
 ## Privacy, retention and operational ownership
 

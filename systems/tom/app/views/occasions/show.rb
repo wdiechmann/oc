@@ -6,6 +6,7 @@ class Views::Occasions::Show < Views::Base
 
   def view_template
     a(href: @occasion["can_manage_admins"] ? tenant_path(@tenant_id) : invitations_path, class: "text-sm font-medium text-emerald-800 hover:underline") { @occasion["can_manage_admins"] ? "← Tenant overview" : "← Your invitations" }
+    a(href: tenant_monitoring_path(@tenant_id, occasion_id: @occasion_id), class: "mt-5 block font-semibold text-emerald-800 underline") { "Monitoring →" }
     section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8 md:p-12") do
       p(class: "text-xs font-bold uppercase tracking-widest text-emerald-800") { "Occasion overview" }
       h1(class: "mt-4 text-4xl font-semibold tracking-tight") { @occasion["status"] == "pending" ? "Preparing your occasion" : @occasion["name"] }

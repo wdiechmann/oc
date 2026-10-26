@@ -56,3 +56,9 @@ The browser talks to TOM; TOM's backend requests an invitation or authentication
 `GET /session/verify?token=…` stages the magic-link token in TOM's encrypted HttpOnly session and redirects to `/session/confirm`; it does not redeem the token. The explicit confirmation POST calls EP using the backend credential. Sign-in from an invitation returns to the inbox for explicit acceptance; recruitment sign-in retains its application-page return path. A normal later sign-in returns home, where **Your administration** lists currently authorized tenants and occasions from EP `/api/v1/me/workspaces`.
 
 All seven admin signup/send/accept/re-sign-in flows were browser-verified using TOM's own file delivery. Real SMTP provider connectivity requires operator configuration and has not been externally verified.
+
+## Monitoring and in-context errors
+
+Navigation now includes **Monitoring**, an EP-authorized tenant/occasion scope selector, filtered issue/observation lists with freshness and pagination, and issue details with timelines and acknowledge/assign/resolve/reopen actions. Explicit refreshes and actions update the existing monitoring region using Turbo Streams. Stopped views and access loss clear the protected region and show unavailable status.
+
+Submitted-form errors update an accessible inline feedback region while preserving ordinary input. A correlation reference accompanies errors; uncertain receipted operations offer a signed completion-check link and up to three automatic GET checks. Accepted commands are never automatically resubmitted, and provider acceptance is never presented as delivery. See [monitoring.md](monitoring.md) for source configuration, user flows, fallbacks and current limitations. Real-API request verification passed; Playwright browser verification was unavailable in this session.

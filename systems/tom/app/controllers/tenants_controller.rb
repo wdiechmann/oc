@@ -9,7 +9,7 @@ class TenantsController < ApplicationController
   def create
     key = session[:create_tenant_key]
     unless key.present? && ActiveSupport::SecurityUtils.secure_compare(params[:idempotency_key].to_s, key)
-      redirect_to root_path, alert: "Open a new tenant form and try again."
+      reject_form(root_path, "Open a new tenant form and try again.")
       return
     end
     result = ep.create_tenant(params[:name].to_s.strip, key)

@@ -7,6 +7,7 @@ class Views::Tenants::Show < Views::Base
 
   def view_template
     a(href: root_path, class: "text-sm font-medium text-emerald-800 hover:underline") { "← Your tenants" }
+    a(href: tenant_monitoring_path(@tenant["tenant_id"]), class: "mt-5 block font-semibold text-emerald-800 underline") { "Monitoring →" }
     section(class: "mt-8 rounded-2xl border border-stone-200 bg-white p-8 md:p-12") do
       p(class: "text-xs font-bold uppercase tracking-widest text-emerald-800") { "Tenant overview" }
       h1(class: "mt-4 text-4xl font-semibold tracking-tight") { @tenant["status"] == "pending" ? "Preparing your tenant" : @tenant["name"] }

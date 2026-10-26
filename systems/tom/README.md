@@ -53,7 +53,18 @@ Backend secrets, development message files and their backups need appropriate op
 PARALLEL_WORKERS=1 bin/rails test
 bundle exec rubocop -a
 bin/rails zeitwerk:check
+node --test test/javascript/monitoring_test.mjs
 bundle exec brakeman --no-pager
 ```
 
 Tests stub EP HTTP, block external network and use Mail::TestMailer, with no PostgreSQL. See docs/architecture.md, docs/roadmap.md and docs/ui.md.
+
+## Monitoring
+
+TOM now captures safe errors/outcomes through EP and provides scoped monitoring lists,
+issue timelines and versioned actions. Turbo keeps form errors/status feedback in place;
+uncertain commands are checked rather than replayed. See [monitoring setup and behavior](docs/monitoring.md)
+for EP source provisioning and `TOM_MONITORING_SOURCES_JSON`. Without a source, reporting
+remains in local logs; existing EP monitoring records can still be queried. Run `bundle install`
+and restart TOM to load the new dependency/configuration. Independent collectors, alerts,
+retention automation and Playwright visual verification remain pending.

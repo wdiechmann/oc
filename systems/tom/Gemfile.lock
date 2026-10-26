@@ -261,6 +261,9 @@ GEM
     thruster (0.1.27-arm64-darwin)
     timeout (0.6.1)
     tsort (0.2.0)
+    turbo-rails (2.0.23)
+      actionpack (>= 7.1.0)
+      railties (>= 7.1.0)
     tzinfo (2.0.6)
       concurrent-ruby (~> 1.0)
     unicode-display_width (3.3.0)
@@ -298,6 +301,7 @@ DEPENDENCIES
   rubocop-rails-omakase
   tailwindcss-rails
   thruster
+  turbo-rails (~> 2.0)
   tzinfo-data
   web-console
   webmock
@@ -395,6 +399,7 @@ CHECKSUMS
   thruster (0.1.27-arm64-darwin)
   timeout (0.6.1)
   tsort (0.2.0)
+  turbo-rails (2.0.23)
   tzinfo (2.0.6)
   unicode-display_width (3.3.0)
   unicode-emoji (4.3.0)

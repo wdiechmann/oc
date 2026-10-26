@@ -1,4 +1,5 @@
 require "mail"
+require "net/smtp"
 require "uri"
 require "json"
 require "fileutils"
@@ -47,6 +48,11 @@ module Notifications
       message = Mail.new
       message.from, message.to, message.subject, message.body = from, recipient, subject, text
       message.message_id = "#{id}@#{URI.parse(public_origin).host}"
+      attempt = SecureRandom.uuid
+      related = { delivery_attempt_id: attempt }
+      command_id = Monitoring::Current.command&.dig(:command_id)
+      related[:business_command_id] = command_id if command_id
+      Monitoring::Reporter.record("delivery.attempted", related: related, delivery: true)
       case method
       when "file"
         raise Error, "File delivery is development-only" unless Rails.env.development?
@@ -70,8 +76,13 @@ module Notifications
       else
         raise Error, "Unknown delivery method"
       end
+      Monitoring::Reporter.record("delivery.provider_accepted", related: related, delivery: true) if method == "smtp"
       true
-    rescue StandardError
+    rescue StandardError => error
+      if attempt
+        code = error.is_a?(Net::SMTPFatalError) ? "delivery.rejected" : "delivery.unknown"
+        Monitoring::Reporter.record(code, related: related, delivery: true)
+      end
       # Do not propagate SMTP/provider exceptions containing recipient or credential details.
       raise Error, "Message delivery failed", cause: nil
     end

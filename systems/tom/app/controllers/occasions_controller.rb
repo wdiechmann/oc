@@ -9,7 +9,7 @@ class OccasionsController < ApplicationController
 
   def create
     unless session[:occasion_form_tenant] == params[:tenant_id] && session[:occasion_form_key].present? && ActiveSupport::SecurityUtils.secure_compare(session[:occasion_form_key], params[:idempotency_key].to_s)
-      redirect_to new_tenant_occasion_path(params[:tenant_id]), alert: "Open a new occasion form and try again."
+      reject_form(new_tenant_occasion_path(params[:tenant_id]), "Open a new occasion form and try again.")
       return
     end
     begin
@@ -44,13 +44,14 @@ class OccasionsController < ApplicationController
       "invalid_expiry" => "Choose a future expiry review date."
     }
     if action_name == "create" && messages.key?(error.code)
-      render_form(alert: messages.fetch(error.code), status: error.status)
+      stream_request? ? render_feedback(messages.fetch(error.code), status: error.status) : render_form(alert: messages.fetch(error.code), status: error.status)
     else
       super
     end
   end
 
   def render_form(alert: flash[:alert], status: :ok)
+    return render_feedback(alert, status: status) if stream_request? && alert
     if session[:occasion_form_tenant] != params[:tenant_id] || session[:occasion_form_key].blank?
       session[:occasion_form_tenant] = params[:tenant_id]
       session[:occasion_form_key] = SecureRandom.uuid

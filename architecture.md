@@ -177,5 +177,5 @@ scope. Validated observations/delivery reports and issue actions persist in `eve
 without extending tenant/occasion business streams. Current user authority gates all tenant
 and occasion reads/actions. Correlation headers and private accepted-command lookup support
 client-side reconciliation and in-context streamed feedback. This is the backend foundation;
-client UI, independent outage collection, alerts and privacy lifecycle automation remain
-planned in [monitoring_plan.md](monitoring_plan.md).
+TOM now supplies the initial scoped monitoring UI, capture and in-context Turbo feedback;
+independent outage collection, alerts and privacy lifecycle automation remain planned in [monitoring_plan.md](monitoring_plan.md).

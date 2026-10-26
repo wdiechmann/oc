@@ -14,3 +14,6 @@
 12. [ ] Application review, vouching/qualification/safeguarding evidence and membership acceptance.
 13. [ ] Expiry-review WorkItems, retirement and personal-data cleanup.
 14. [ ] Application registration, scope enforcement and production operational validation.
+
+15. [x] EP-backed monitoring sources/capture, scoped lists/timelines/actions and Turbo error/completion feedback.
+16. [ ] Configure deployed monitoring sources, verify desktop/mobile Turbo in Playwright and add independent collection/probes, durable reporting and alert delivery.

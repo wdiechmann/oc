@@ -27,7 +27,7 @@ class RecruitmentController < ApplicationController
   def scope = "#{params[:tenant_id]}/#{params[:occasion_id]}"
   def valid_form?(action)
     valid = session[:recruitment_scope] == scope && session[:recruitment_action] == action && session[:recruitment_key].present? && ActiveSupport::SecurityUtils.secure_compare(session[:recruitment_key], params[:idempotency_key].to_s)
-    redirect_to(target, alert: "Refresh the recruitment form and try again.") unless valid
+    reject_form(target, "Refresh the recruitment form and try again.") unless valid
     valid
   end
   def completed(message)
@@ -53,7 +53,7 @@ class RecruitmentController < ApplicationController
       "occasion_expired" => "This occasion has reached its expiry review deadline. Recruitment cannot be opened."
     }
     if messages.key?(error.code)
-      render_management(alert: messages.fetch(error.code), status: error.status)
+      stream_request? ? render_feedback(messages.fetch(error.code), status: error.status) : render_management(alert: messages.fetch(error.code), status: error.status)
     else
       super
     end

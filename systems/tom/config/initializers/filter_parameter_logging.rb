@@ -6,3 +6,6 @@
 Rails.application.config.filter_parameters += [
   :passw, :email, :secret, :token, :_key, :crypt, :salt, :certificate, :otp, :ssn, :cvv, :cvc
 ]
+
+# Operational evidence uses allowlisted fields; do not log arbitrary form input.
+Rails.application.config.filter_parameters << /.*/

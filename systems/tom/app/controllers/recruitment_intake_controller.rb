@@ -14,7 +14,7 @@ class RecruitmentIntakeController < ApplicationController
 
   def create
     unless session[:intake_scope] == scope && session[:intake_key].present? && ActiveSupport::SecurityUtils.secure_compare(session[:intake_key], params[:idempotency_key].to_s)
-      redirect_to recruitment_path(params[:tenant_id], params[:slug]), alert: "Refresh the application form and try again."
+      reject_form(recruitment_path(params[:tenant_id], params[:slug]), "Refresh the application form and try again.")
       return
     end
     data = ep.recruitment_landing(params[:tenant_id], params[:slug])
@@ -47,6 +47,7 @@ class RecruitmentIntakeController < ApplicationController
       "notice_acknowledgment_required" => "Read and acknowledge the recruitment privacy notice before applying."
     }[error.code]
     if message
+      return render_feedback(message, status: error.status) if stream_request?
       render Views::Error.new(message: message, signed_in: session[:ep_token].present?), status: error.status
     else
       super

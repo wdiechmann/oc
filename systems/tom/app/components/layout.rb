@@ -2,6 +2,7 @@ class Components::Layout < Components::Base
   include Phlex::Rails::Helpers::CSRFMetaTags
   include Phlex::Rails::Helpers::CSPMetaTag
   include Phlex::Rails::Helpers::StylesheetLinkTag
+  include Phlex::Rails::Helpers::JavascriptIncludeTag
   include Phlex::Rails::Helpers::FormWith
 
   def initialize(signed_in: false, notice: nil, alert: nil)
@@ -17,6 +18,10 @@ class Components::Layout < Components::Base
         meta(name: "viewport", content: "width=device-width,initial-scale=1")
         csrf_meta_tags
         csp_meta_tag
+        meta(name: "turbo-cache-control", content: "no-cache")
+        meta(name: "turbo-prefetch", content: "false")
+        javascript_include_tag "turbo", type: "module", defer: true
+        javascript_include_tag "monitoring", type: "module", defer: true
         stylesheet_link_tag "tailwind", "application"
       end
       body(class: "min-h-screen bg-stone-50 text-stone-900 antialiased") do
@@ -28,6 +33,7 @@ class Components::Layout < Components::Base
               span(class: "hidden text-sm font-normal text-stone-500 sm:inline") { "Tenant & Occasion Management" }
             end
             if @signed_in
+              a(href: monitoring_path, class: "text-sm font-medium text-emerald-800 hover:underline") { "Monitoring" }
               a(href: invitations_path, class: "text-sm font-medium text-emerald-800 hover:underline") { "Invitations" }
               form_with(url: session_path, method: :delete) { |f| f.submit("Sign out", class: "cursor-pointer text-sm font-medium text-stone-600 hover:text-emerald-800") }
             end
@@ -36,7 +42,8 @@ class Components::Layout < Components::Base
         main(class: "mx-auto max-w-6xl px-6 py-12 md:py-20") do
           p(role: "status", class: "mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900") { @notice } if @notice
           p(role: "alert", class: "mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert
-          yield
+          div(id: "tom-feedback", aria_live: "polite", aria_atomic: "true")
+          div(id: "tom-content") { yield }
         end
         footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") { "A shared foundation for every occasion." }
       end

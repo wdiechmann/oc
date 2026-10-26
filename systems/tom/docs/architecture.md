@@ -15,7 +15,7 @@ Browser → TOM (Rails / Phlex / Tailwind) → EP (Phoenix) → EP PostgreSQL.
 
 TOM is a backend for its browser UI. Its only application integration is EP's JSON API. It has no Active Record, database configuration, SQL gems, workers or business-data cache. Local logs, assets and the encrypted session cookie are operational state, not independent authoritative data.
 
-`Ep::Client` owns a fixed configured HTTP(S) origin, explicit API operations, bounded timeouts and sanitized failures. `SessionsController` requests verification through EP and resets the session before saving its Bearer token. Controllers use `layout false`; `Views::Base#around_template` wraps each Phlex view in `Components::Layout`. Phlex forms use Rails form builders and CSRF tokens without ERB or JavaScript.
+`Ep::Client` owns a fixed configured HTTP(S) origin, explicit API operations, bounded timeouts and sanitized failures. `SessionsController` requests verification through EP and resets the session before saving its Bearer token. Controllers use `layout false`; `Views::Base#around_template` wraps each Phlex view in `Components::Layout`. Phlex forms use Rails form builders and CSRF tokens without ERB. Locally served Turbo and a small native JavaScript module provide in-context feedback; HTML fallbacks remain available.
 
 EP alone validates identity, permissions, tenant membership and idempotent commands. Tenant views always query EP; they do not store or reconstruct domain facts. No generic proxy or direct database access exists. Navigation supports authorized tenant IDs until EP supplies an access-filtered list. No role is guessed from a successful request.
 
@@ -47,3 +47,9 @@ Authentication challenge issuance and redemption now require `X-EP-Backend-Token
 Invitation API responses include current delivery material outside event/receipt persistence. An uncertain/failed invitation send retains the caller's idempotency key; retry returns the same invitation if still live. Magic-link issuance instead explicitly creates a fresh challenge and invalidates the preceding one for that backend, so it is never silently retried. SMTP errors are sanitized and tokens/provider secrets stay out of browser HTML/logs. Backend misconfiguration is a service failure rather than a user-session revocation.
 
 Returning-admin navigation comes from current grant-filtered, running tenant/occasion projections. A new sign-in preserves the canonical identity and does not repeat tenant/occasion admin grants. EP still authorizes every subsequent operation.
+
+## Monitoring and streamed feedback
+
+[Monitoring implementation and setup](monitoring.md) documents the EP-only persistence boundary, source bindings and safe evidence. Request-local correlation passes to EP; tenant/occasion reporting context is established only by successful authorized EP calls. Monitoring writes use independent backend-only requests with short timeouts and recursion guards. Failures remain in local sanitized logs when no source is configured or EP is unavailable; no unbounded queue or database is added.
+
+Turbo response streams update a dedicated feedback region without replacing forms. Signed, expiring, session-bound command-check tokens carry only original command references and support at most three automatic GET checks; they never replay commands. Monitoring list/detail refreshes and issue action results are streamed on request. Current EP grants, MV controls, expected versions and idempotency remain authoritative. No Action Cable/EP browser subscription, browser business-data cache, automatic provider delivery confirmation or production retention automation is introduced.

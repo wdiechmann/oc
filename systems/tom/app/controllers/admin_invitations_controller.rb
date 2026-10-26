@@ -7,7 +7,7 @@ class AdminInvitationsController < ApplicationController
 
   def create
     unless session[:admin_invitation_tenant] == params[:tenant_id] && session[:admin_invitation_occasion] == params[:occasion_id] && session[:admin_invitation_key].present? && ActiveSupport::SecurityUtils.secure_compare(session[:admin_invitation_key], params[:idempotency_key].to_s)
-      redirect_to management_path, alert: "Open a new invitation form and try again."
+      reject_form(management_path, "Open a new invitation form and try again.")
       return
     end
     result = ep.invite_admin(params[:tenant_id], params[:email].to_s.strip, session[:admin_invitation_key], occasion_id: params[:occasion_id])
@@ -40,8 +40,9 @@ class AdminInvitationsController < ApplicationController
       "invalid_email" => "Enter a valid email address."
     }
     if action_name == "create" && messages.key?(error.code)
-      render_list(alert: messages.fetch(error.code), status: error.status)
+      stream_request? ? render_feedback(messages.fetch(error.code), status: error.status) : render_list(alert: messages.fetch(error.code), status: error.status)
     elsif error.code == "invitation_unavailable"
+      return render_feedback("This invitation has expired, been revoked or already been used.", status: 409) if stream_request?
       render Views::Error.new(message: "This invitation has expired, been revoked or already been used.", signed_in: true), status: :conflict
     else
       super
