@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+set -eu
+cd "$(dirname "$0")/.."
+bin/rails tailwindcss:watch &
+css_pid=$!
+trap 'kill "$css_pid" 2>/dev/null || true' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+bin/rails server -b 127.0.0.1 -p "${PORT:-3001}" "$@"
