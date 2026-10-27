@@ -1,0 +1,17 @@
+#!/usr/bin/env ruby
+# Explicit operator setup only: each runtime reads only its own configuration.
+require "json"
+require "securerandom"
+ep_path = File.expand_path("../../ep/config/backend_api_tokens.json",__dir__)
+vera_path = File.expand_path("../config/ep_backend_token",__dir__)
+configuration = File.file?(ep_path) ? JSON.parse(File.read(ep_path)) : {}
+abort "Invalid EP backend configuration" unless configuration.is_a?(Hash)
+values = [configuration["vera"],File.file?(vera_path) ? File.read(vera_path).strip : nil].compact
+abort "VERA credentials differ; resolve them explicitly." if values.uniq.length > 1
+secret = values.first || SecureRandom.urlsafe_base64(48)
+abort "VERA credential must be at least 32 characters" unless secret.is_a?(String) && secret.bytesize >= 32
+configuration["vera"] = secret
+[ [ep_path,JSON.pretty_generate(configuration)+"\n"],[vera_path,secret+"\n"] ].each do |path,content|
+  File.open(path,File::WRONLY|File::CREAT|File::TRUNC,0o600) { |f| f.chmod(0o600);f.write(content);f.flush;f.fsync }
+end
+puts "VERA's private development credential is ready. Restart EP to load the backend registration."

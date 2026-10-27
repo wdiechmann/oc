@@ -19,6 +19,8 @@ defmodule EpWeb.Router do
   scope "/api/v1/auth", EpWeb do
     pipe_through :api
     post "/magic-links", AuthController, :request_link
+    post "/sign-in-links", AuthController, :request_sign_in
+    delete "/session", AuthController, :sign_out
     post "/magic-links/verify", AuthController, :verify
   end
 

@@ -45,3 +45,6 @@ gem "turbo-rails", "~> 2.0"
 group :test do
   gem "webmock"
 end
+
+# Thin sign-in message delivery; identity administration remains in TOM.
+gem "mail", "~> 2.9"

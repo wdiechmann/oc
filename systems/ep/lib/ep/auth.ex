@@ -5,6 +5,12 @@ defmodule Ep.Auth do
   alias Ep.{Events, Repo}
 
   def request_magic_link(email, backend_id \\ "internal") do
+    issue_magic_link(email, backend_id, false)
+  end
+
+  def request_sign_in_link(email, backend_id), do: issue_magic_link(email, backend_id, true)
+
+  defp issue_magic_link(email, backend_id, existing_only) do
     with {:ok, email} <- normalize_email(email) do
       token = new_token()
       now = DateTime.utc_now()
@@ -19,7 +25,15 @@ defmodule Ep.Auth do
             :count
           )
 
-        if count < 3 do
+        identity =
+          if existing_only,
+            do:
+              Repo.one(
+                from i in Identity,
+                  where: i.email == ^email and i.status == "active" and not is_nil(i.verified_at)
+              )
+
+        if count < 3 && (!existing_only || identity) do
           pending =
             from(m in MagicLink,
               where: m.email == ^email and m.backend_id == ^backend_id and is_nil(m.consumed_at)
@@ -32,6 +46,7 @@ defmodule Ep.Auth do
           Repo.insert!(%MagicLink{
             email: email,
             backend_id: backend_id,
+            existing_identity_id: identity && identity.id,
             token_hash: hash(token),
             expires_at: expires_at
           })
@@ -67,7 +82,19 @@ defmodule Ep.Auth do
         Repo.rollback(:invalid_token)
       end
 
-      identity = get_or_establish_identity!(link.email, now)
+      identity =
+        if link.existing_identity_id do
+          Repo.one(
+            from i in Identity,
+              where:
+                i.id == ^link.existing_identity_id and i.email == ^link.email and
+                  i.status == "active" and not is_nil(i.verified_at),
+              lock: "FOR SHARE"
+          ) || Repo.rollback(:invalid_token)
+        else
+          get_or_establish_identity!(link.email, now)
+        end
+
       unless identity.status == "active", do: Repo.rollback(:invalid_token)
       Repo.update!(Ecto.Changeset.change(link, consumed_at: now))
 
@@ -117,6 +144,17 @@ defmodule Ep.Auth do
       )
 
     Repo.one(query) || Repo.rollback(:unauthenticated)
+  end
+
+  def revoke_session(%Principal{} = principal) do
+    query =
+      from s in Session,
+        where:
+          s.id == ^principal.session_id and s.identity_id == ^principal.identity_id and
+            is_nil(s.revoked_at)
+
+    Repo.update_all(query, set: [revoked_at: DateTime.utc_now()])
+    :ok
   end
 
   defp session_query(token_hash, now) do

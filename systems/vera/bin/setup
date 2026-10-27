@@ -15,6 +15,11 @@ FileUtils.chdir APP_ROOT do
   puts "== Installing dependencies =="
   system("bundle check") || system!("bundle install")
 
+  if ENV.fetch("RAILS_ENV", "development") == "development"
+    puts "\n== Provisioning VERA's development EP credential =="
+    system! "bin/provision-ep-backend"
+  end
+
   puts "\n== Building styles =="
   system! "bin/rails tailwindcss:build"
 

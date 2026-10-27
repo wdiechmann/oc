@@ -3,6 +3,11 @@ class Components::Layout < Components::Base
   include Phlex::Rails::Helpers::CSPMetaTag
   include Phlex::Rails::Helpers::StylesheetLinkTag
   include Phlex::Rails::Helpers::JavascriptIncludeTag
+  include Phlex::Rails::Helpers::FormWith
+
+  def initialize(signed_in: false, notice: nil, alert: nil)
+    @signed_in, @notice, @alert = signed_in, notice, alert
+  end
 
   def view_template(&block)
     doctype
@@ -25,10 +30,20 @@ class Components::Layout < Components::Base
               span(class: "rounded-xl bg-teal-950 px-3 py-2 text-white") { "V" }
               span { "VERA" }
             end
-            span(class: "text-right text-xs text-stone-500 sm:text-sm") { "Financial control · Accounting · Settlement" }
+            if @signed_in
+              form_with(url: session_path, method: :delete) { |f| f.submit("Sign out", class: "cursor-pointer text-sm font-medium text-teal-900 hover:underline") }
+            else
+              a(href: new_session_path, class: "text-sm font-medium text-teal-900 hover:underline") { "Sign in" }
+            end
           end
         end
-        main(id: "main-content", class: "mx-auto max-w-6xl px-6 py-12 sm:py-20") { yield }
+        main(id: "main-content", class: "mx-auto max-w-6xl px-6 py-12 sm:py-20") do
+          div(id: "vera-feedback", aria_live: "polite", aria_atomic: "true") do
+            p(role: "status", class: "mb-6 rounded-xl border border-teal-200 bg-teal-50 p-4") { @notice } if @notice
+            p(role: "alert", class: "mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert
+          end
+          yield
+        end
         footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") do
           plain "One financial workspace for every occasion."
         end

@@ -1,0 +1,236 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EP Existing Identity Sign-in API",
+    "version": "1.0.0",
+    "description": "See authentication-api.md for anti-enumeration, backend binding, current identity checks, delivery handoff and logout uncertainty. Signup-capable and workspace APIs retain their existing contracts."
+  },
+  "paths": {
+    "/api/v1/auth/sign-in-links": {
+      "post": {
+        "operationId": "requestExistingIdentitySignIn",
+        "security": [
+          {
+            "BackendToken": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Accepted result. Cache-Control: no-store.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Issuance"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid backend, challenge or current user session"
+          },
+          "422": {
+            "description": "Invalid email/input"
+          },
+          "503": {
+            "description": "Authentication infrastructure unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Email"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/magic-links/verify": {
+      "post": {
+        "operationId": "verifySignInChallenge",
+        "security": [
+          {
+            "BackendToken": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted result. Cache-Control: no-store.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid backend, challenge or current user session"
+          },
+          "422": {
+            "description": "Invalid email/input"
+          },
+          "503": {
+            "description": "Authentication infrastructure unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Token"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "delete": {
+        "operationId": "revokeCurrentSession",
+        "security": [
+          {
+            "BackendToken": [],
+            "UserBearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted result. Cache-Control: no-store.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "const": "signed_out"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid backend, challenge or current user session"
+          },
+          "422": {
+            "description": "Invalid email/input"
+          },
+          "503": {
+            "description": "Authentication infrastructure unavailable"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BackendToken": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "UserBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Email": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "Token": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 32,
+            "maxLength": 128
+          }
+        },
+        "required": [
+          "token"
+        ]
+      },
+      "Delivery": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "token": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "email",
+          "token",
+          "expires_at"
+        ]
+      },
+      "Issuance": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "const": "check_your_email"
+          },
+          "delivery": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Delivery"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "delivery"
+        ]
+      },
+      "Session": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "token_type": {
+            "const": "Bearer"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "token",
+          "token_type",
+          "expires_at"
+        ]
+      }
+    }
+  }
+}

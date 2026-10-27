@@ -7,7 +7,7 @@ class Views::Home::Index < Views::Base
     end
     section(class: "mt-10 rounded-2xl border border-teal-200 bg-teal-50 px-6 py-5", aria_label: "Workspace setup") do
       h2(class: "font-semibold text-teal-950") { "Your financial workspace is taking shape" }
-      p(class: "mt-2 text-sm leading-relaxed text-teal-900") { "The application foundation is ready. Sign-in and tenant books are the next step; financial actions are not available yet." }
+      p(class: "mt-2 text-sm leading-relaxed text-teal-900") { "Sign in with your existing identity to see your current tenants and occasions. Book management is the next step; financial actions are not available yet." }
     end
     section(class: "mt-10 grid gap-5 md:grid-cols-3", aria_label: "Planned capabilities") do
       capability("01", "Books and contexts", "Keep occasion books distinct and connect them through a shared hierarchy.")

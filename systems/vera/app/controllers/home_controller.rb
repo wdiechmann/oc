@@ -1,6 +1,10 @@
 class HomeController < ApplicationController
   def index
-    response.headers["Cache-Control"] = "no-store"
-    render Views::Home::Index.new
+    if signed_in?
+      page Views::Home::Workspace, workspaces: ep.workspaces
+    else
+      reset_session if session[:ep_token]
+      page Views::Home::Index
+    end
   end
 end

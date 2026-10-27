@@ -35,3 +35,5 @@ ep-*.tar
 /config/backend_api_token
 
 /config/monitoring_source_id
+
+/config/backend_api_tokens.json
