@@ -9,3 +9,7 @@ Verified five Rails tests (21 assertions), RuboCop, Zeitwerk and Brakeman (zero 
 ## Thin EP sign-in — 2026-10-27
 
 Added existing-identity-only email sign-in, explicit confirmation, private cookie session, current EP workspace overview and independent logout. Identity administration stays in TOM. Local setup provisions a separate VERA credential; EP stores the existing-identity binding and exposes current-session revocation. Submitted form failures stream inline. Browser rehearsal against isolated EP verified link delivery/confirmation, authorized tenant display, logout, mobile layout and EP-down form preservation with one canonical identity and TOM's original session still active.
+
+## 2026-10-28 — Replaced sign-in links
+
+Separated invalid/replaced challenge guidance from session-expiry errors, added newest-VERA-message guidance and cleared stale confirmation state when requesting a replacement or opening a malformed link. Diagnosed a local outbox link invalidated by a subsequent issue; identity and backend bindings remained valid. No challenge lifetime, replay protection or throttle changes. Twelve Rails tests (110 assertions) pass.

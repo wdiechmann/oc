@@ -9,6 +9,7 @@ class Views::Sessions::New < Views::Base
         f.email_field(:email, required: true, autocomplete: "email", class: FIELD)
         f.submit("Send sign-in link", class: BUTTON)
       end
+      p(class: "mt-4 text-xs leading-relaxed text-stone-500") { "A newly issued link replaces earlier VERA links. Open the newest VERA message, not a TOM sign-in link." }
       p(class: "mt-5 text-xs leading-relaxed text-stone-500") { "Invitations, new identities and account recovery are managed in TOM." }
       a(href: Notifications::Delivery.tom_origin, class: "mt-3 inline-block text-sm font-medium text-teal-900 hover:underline", data: { turbo: false }) { "Open TOM" }
       p(class: "mt-4 text-xs text-stone-500") { "Local development: open the sign-in link in VERA’s private tmp/outbox message." } if Rails.env.development?

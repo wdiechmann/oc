@@ -87,4 +87,16 @@ class SignInTest < ActionDispatch::IntegrationTest
     assert_select "a", text: "Sign in"
     assert_not_requested :get, "#{EP}/me/workspaces"
   end
+  test "a replaced sign-in link is explained separately from an expired authenticated session" do
+    get "/session/verify", params: { token: "a"*43 }
+    stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 401, body: { error: "invalid_token" }.to_json)
+    post "/session"
+    assert_redirected_to "/session/new"
+    follow_redirect!
+    assert_includes response.body, "replaced by a newer request"
+    assert_includes response.body, "newest VERA message"
+    assert_not_includes response.body, "Your sign-in has expired"
+    get "/session/confirm"
+    assert_redirected_to "/session/new"
+  end
 end

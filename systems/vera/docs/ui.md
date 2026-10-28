@@ -7,3 +7,5 @@ Request a link, open its VERA URL and press **Continue to VERA**. In development
 After sign-in, the home page lists only the current tenants/occasions returned by EP, or explains that no authorized workspaces are available. These are navigation contexts; no financial authority or book functionality is implied yet. **Sign out** clears VERA and revokes its EP session independently from TOM. If EP cannot confirm revocation, show that fact rather than claim global logout.
 
 Desktop/mobile pages use Phlex/Tailwind, local Turbo, keyboard/touch form controls and status text. Tenant-book UI follows the next package in ../../system_2_plan.md.
+
+A newly issued VERA challenge invalidates earlier VERA links; TOM links are backend-bound and cannot confirm a VERA session. Open the complete URL from the newest VERA message. Challenge rejection now explains replacement/use/expiry separately from an expired authenticated session and clears the rejected pending challenge. Requesting a replacement clears old confirmation state.
