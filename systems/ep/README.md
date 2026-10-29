@@ -98,3 +98,7 @@ Development and test default to the current OS username, no password, localhost 
 ## Client sign-in without registration
 
 VERA uses the [authentication API](docs/authentication-api.md) to sign in existing identities only; TOM retains signup/invitation/recovery administration. Local VERA operator setup provisions its separate credential in ignored `config/backend_api_tokens.json`, merged with the existing TOM entry; environment-supplied entries override local extras. Restart EP after provisioning/configuration changes. Production reads no extra local credential file.
+
+## Tenant book setup
+
+The [book API](docs/books-api.md) implements draft tenant-book metadata and hierarchy with current tenant-admin authorization, event-backed protected state, versioned edits and a near-real-time MV. Apply migrations before serving. Existing outbox recovery includes finance_books; query control is `mv_control` name `finance_books`. This is metadata provisioning, not a posting/payment permission or full finance implementation.

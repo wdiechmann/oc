@@ -1,0 +1,366 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "EP Tenant Book Setup",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books": {
+      "get": {
+        "operationId": "listBooks",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Current tenant-admin authority for draft metadata only. See books-api.md for exact response fields, pending views, immutable setup fields and revision semantics.",
+        "responses": {
+          "200": {
+            "description": "Authorized result or explicit pending query status; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid session"
+          },
+          "404": {
+            "description": "Inaccessible context"
+          },
+          "409": {
+            "description": "Code/version/idempotency/hierarchy conflict"
+          },
+          "422": {
+            "description": "Invalid book, parent or key"
+          },
+          "503": {
+            "description": "Stopped/unavailable query projection"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createBook",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "description": "Current tenant-admin authority for draft metadata only. See books-api.md for exact response fields, pending views, immutable setup fields and revision semantics.",
+        "responses": {
+          "200": {
+            "description": "Authorized result or explicit pending query status; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid session"
+          },
+          "404": {
+            "description": "Inaccessible context"
+          },
+          "409": {
+            "description": "Code/version/idempotency/hierarchy conflict"
+          },
+          "422": {
+            "description": "Invalid book, parent or key"
+          },
+          "503": {
+            "description": "Stopped/unavailable query projection"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBook"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{id}": {
+      "get": {
+        "operationId": "getBook",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "description": "Current tenant-admin authority for draft metadata only. See books-api.md for exact response fields, pending views, immutable setup fields and revision semantics.",
+        "responses": {
+          "200": {
+            "description": "Authorized result or explicit pending query status; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid session"
+          },
+          "404": {
+            "description": "Inaccessible context"
+          },
+          "409": {
+            "description": "Code/version/idempotency/hierarchy conflict"
+          },
+          "422": {
+            "description": "Invalid book, parent or key"
+          },
+          "503": {
+            "description": "Stopped/unavailable query projection"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "reviseBook",
+        "security": [
+          {
+            "UserBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "^[A-Za-z0-9._:-]+$"
+            }
+          }
+        ],
+        "description": "Current tenant-admin authority for draft metadata only. See books-api.md for exact response fields, pending views, immutable setup fields and revision semantics.",
+        "responses": {
+          "200": {
+            "description": "Authorized result or explicit pending query status; Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid session"
+          },
+          "404": {
+            "description": "Inaccessible context"
+          },
+          "409": {
+            "description": "Code/version/idempotency/hierarchy conflict"
+          },
+          "422": {
+            "description": "Invalid book, parent or key"
+          },
+          "503": {
+            "description": "Stopped/unavailable query projection"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviseBook"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "UserBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "CreateBook": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "code": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 40
+          },
+          "base_currency": {
+            "enum": [
+              "DKK",
+              "EUR",
+              "SEK",
+              "NOK",
+              "GBP",
+              "USD"
+            ]
+          },
+          "accounting_authority": {
+            "enum": [
+              "ep",
+              "external"
+            ]
+          },
+          "timezone": {
+            "enum": [
+              "Europe/Copenhagen",
+              "Etc/UTC"
+            ]
+          },
+          "fiscal_year_start_month": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12
+          },
+          "parent_book_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "name",
+          "code",
+          "base_currency",
+          "accounting_authority",
+          "timezone",
+          "fiscal_year_start_month"
+        ]
+      },
+      "ReviseBook": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "parent_book_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": [
+          "expected_version"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "name"
+            ]
+          },
+          {
+            "required": [
+              "parent_book_id"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

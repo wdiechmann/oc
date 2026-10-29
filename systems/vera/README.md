@@ -21,7 +21,7 @@ Open **http://localhost:3001/session/new** and use the email of your existing id
 
 Development defaults to a private message file in **systems/vera/tmp/outbox**, not external email. Open its sign-in URL and confirm. SMTP delivery is configurable through the VERA-prefixed variables in .env.example. App URLs come from trusted configuration, not the incoming Host header. No bearer or magic-link secret is rendered into ordinary pages or event payloads.
 
-After signing in, VERA asks EP for the user's currently authorized tenants/occasions. It does not create new permissions or treat tenant administration as financial posting authority. Book management is next. The signed-out home page and liveness check still work without EP. Failures in submitted forms appear inline through Turbo with safe input preserved.
+After signing in, VERA asks EP for the user's currently authorized tenants/occasions. It does not create new permissions or treat tenant administration as financial posting authority. Tenant administrators can open their book registry as described below. The signed-out home page and liveness check still work without EP. Failures in submitted forms appear inline through Turbo with safe input preserved.
 
 Sign out revokes this EP session and clears VERA's cookie; it does not sign the user out of TOM. If revocation cannot be confirmed, VERA still clears its browser session and explicitly reports the uncertainty; the EP session retains its normal expiry. These apps do not share cookie encryption keys or runtime secret files.
 
@@ -33,7 +33,15 @@ After this feature's initial install, apply EP migrations and **restart both EP 
 
 `VERA_EP_BACKEND_TOKEN` overrides VERA's local credential. In production provision that secret (or EP_BACKEND_TOKEN as a production-only fallback) independently, and register the matching `vera` entry in EP_BACKEND_TOKENS_JSON through the secret manager. The extra JSON file in EP is development-only; environment entries take precedence. Do not reuse TOM's credential or change its registration. Production also needs explicit HTTPS VERA_PUBLIC_BASE_URL/TOM_BASE_URL, SMTP credentials and the normal Rails deployment secrets.
 
-EP owns accepted business records, current authority and query MVs. VERA uses only its API; no local database is introduced. Full finance commands, a general application-capability registry and VERA monitoring ingestion remain subsequent work.
+EP owns accepted business records, current authority and query MVs. VERA uses only its API; no local database is introduced. Monetary finance commands, a general application-capability registry and VERA monitoring ingestion remain subsequent work.
+
+## Tenant books
+
+Sign in, then choose **Open books** on your tenant card. Create a draft book with a tenant-unique code, name, base currency, accounting-authority choice, timezone/year-start month and optional parent. Use the same form/model at every hierarchy level. Open its detail to rename or reparent it; EP protects current versions and rejects hierarchy cycles or foreign-tenant parents.
+
+Apply EP migrations before using this slice (already applied to the local development database in this workspace). No new environment variables or application credentials are needed. Book metadata uses near-real-time query MVs; pending state and **Refresh books/book** distinguish acceptance from projection. A stopped MV is unavailable. A lost save response offers **Check completion**, which queries the original private command receipt without replaying the save.
+
+The first-slice access policy is current tenant-admin authority for book **setup metadata** only. It grants no journal/posting/payment authority. Books stay Draft; no actual accounting period, CoA, opening balance, integration or consolidated total is created. Occasion-only admins do not gain tenant-wide setup access. Book-to-occasion bindings, granular finance roles, CoA/periods and financial operations follow the plan. See the [EP book contract](../ep/docs/books-api.md).
 
 ## Verification
 

@@ -5,6 +5,11 @@ Rails.application.routes.draw do
     get :verify
     get :confirm
   end
+  resources :tenants, only: [] do
+    resources :books, only: %i[index new create show update] do
+      get :completion, on: :collection
+    end
+  end
   get "up" => "rails/health#show", as: :rails_health_check
   get "up/ep", to: "ep_health#show", as: :ep_health
 end

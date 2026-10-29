@@ -4,9 +4,9 @@ require "json"
 module Ep
   class Client
     class Error < StandardError
-      attr_reader :status
-      def initialize(status)
-        @status = status
+      attr_reader :status, :code
+      def initialize(status, code: nil)
+        @status, @code = status, code
         super("EP request failed (#{status})")
       end
     end
@@ -26,6 +26,12 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def books(tid) = request(:get, book_root(tid))
+    def book(tid, id) = request(:get, "#{book_root(tid)}/#{uuid!(id)}")
+    def create_book(tid, attrs, key) = request(:post, book_root(tid), body: attrs, key: key)
+    def revise_book(tid, id, attrs, key) = request(:patch, "#{book_root(tid)}/#{uuid!(id)}", body: attrs, key: key)
+    def book_receipt(type, key) = request(:get, "/me/commands", query: { command_type: type, idempotency_key: key })
+
     # This public EP readiness endpoint needs neither a user session nor a backend token.
     def ready?
       uri = @origin.dup
@@ -42,6 +48,12 @@ module Ep
 
     private
 
+    def uuid!(id)
+      raise Error.new(404) unless id.to_s.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)
+      id
+    end
+    def book_root(tid) = "/tenants/#{uuid!(tid)}/finance/books"
+
     def backend_token
       return Rails.application.config.x.ep_backend_token if Rails.env.test?
       token = ENV["VERA_EP_BACKEND_TOKEN"].presence
@@ -51,23 +63,25 @@ module Ep
       token
     end
 
-    def request(method, path, body: nil)
+    def request(method, path, body: nil, key: nil, query: nil)
       credential = backend_token
       raise Unavailable, "VERA backend credential is missing" unless credential.is_a?(String) && credential.bytesize >= 32
       uri = @origin.dup
       uri.path = "/api/v1#{path}"
-      request = { get: Net::HTTP::Get, post: Net::HTTP::Post, delete: Net::HTTP::Delete }.fetch(method).new(uri)
+      uri.query = URI.encode_www_form(query) if query
+      request = { get: Net::HTTP::Get, post: Net::HTTP::Post, patch: Net::HTTP::Patch, delete: Net::HTTP::Delete }.fetch(method).new(uri)
       request["Accept"] = "application/json"
       request["Content-Type"] = "application/json"
       request["X-EP-Backend-Token"] = credential
       request["Authorization"] = "Bearer #{@token}" if @token
       request["X-Correlation-ID"] = SecureRandom.uuid
+      request["Idempotency-Key"] = key if key
       request.body = JSON.generate(body) if body
       response = connection(uri).request(request)
       payload = JSON.parse(response.body)
       raise Unavailable, "EP returned an invalid response" unless payload.is_a?(Hash)
       raise Unavailable, "EP backend authentication is unavailable" if payload["error"] == "backend_authentication_required"
-      raise Error.new(response.code.to_i) unless response.code.to_i.between?(200, 299)
+      raise Error.new(response.code.to_i, code: payload["error"]) unless response.code.to_i.between?(200, 299)
       payload
     rescue Timeout::Error, IOError, SystemCallError, SocketError, OpenSSL::SSL::SSLError, JSON::ParserError
       raise Unavailable, "EP is unavailable", cause: nil
