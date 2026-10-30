@@ -26,10 +26,16 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def periods(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/periods")
+    def period_command(tid, bid, action, attrs, key)
+      id = attrs[:period_id]
+      suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
+      request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
+    end
     def chart_accounts(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup/accounts", query: query.compact)
     def finance_setup(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup")
     def configure_finance(tid, bid, action, attrs, key)
-      suffix = { "steward"=>"stewards", "binding"=>"bindings", "account_create"=>"accounts", "account_revise"=>"accounts/#{uuid!(attrs[:account_id]) if action == 'account_revise'}" }.fetch(action)
+      suffix = { "reopening_authority"=>"reopening-authority", "steward"=>"stewards", "binding"=>"bindings", "account_create"=>"accounts", "account_revise"=>"accounts/#{uuid!(attrs[:account_id]) if action == 'account_revise'}" }.fetch(action)
       body = attrs.except(:account_id)
       request(action == "account_revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/setup/#{suffix}", body: body, key: key)
     end

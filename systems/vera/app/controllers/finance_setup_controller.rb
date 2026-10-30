@@ -14,8 +14,8 @@ class FinanceSetupController < ApplicationController
     end
     @action = form.fetch("action")
     @attrs = attributes_for(@action, form["account_id"])
-    session[:finance_operation] = { "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>"FinanceSetup:#{@action}", "key"=>form.fetch("key"), "attrs"=>@attrs.stringify_keys, "action"=>@action }
-    result = ep.configure_finance(params[:tenant_id], params[:book_id], @action, @attrs, form.fetch("key"))
+    session[:finance_operation] = { "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>command_type(@action), "key"=>form.fetch("key"), "attrs"=>@attrs.stringify_keys, "action"=>@action }
+    result = execute_command(@action, @attrs, form.fetch("key"))
     session.delete(:finance_operation)
     redirect_to destination(result), notice: "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating.", status: :see_other
   end
@@ -26,7 +26,7 @@ class FinanceSetupController < ApplicationController
       return feedback("Check the original request’s completion before retrying it.", status: 422)
     end
     @action, @attrs = op.fetch("action"), op.fetch("attrs").symbolize_keys
-    result = ep.configure_finance(params[:tenant_id], params[:book_id], @action, @attrs, op.fetch("key"))
+    result = execute_command(@action, @attrs, op.fetch("key"))
     session.delete(:finance_operation)
     redirect_to destination(result), notice: "EP confirms the original request at revision #{result.fetch('stream_version')}.", status: :see_other
   end
@@ -52,6 +52,8 @@ class FinanceSetupController < ApplicationController
     reset_session
     protected_feedback("Your sign-in has expired. Sign in again before continuing.", 401)
   end
+  def command_type(action) = "FinanceSetup:#{action}"
+  def execute_command(action, attrs, key) = ep.configure_finance(params[:tenant_id], params[:book_id], action, attrs, key)
   def destination(_result = nil)
     tenant_book_setup_path(params[:tenant_id], params[:book_id])
   end
@@ -64,6 +66,7 @@ class FinanceSetupController < ApplicationController
     attrs = { expected_version: Integer(params[:expected_version], exception: false) }
     case action
     when "steward" then attrs.merge(identity_id: params[:identity_id].to_s, active: params[:active] == "true")
+    when "reopening_authority" then attrs.merge(identity_id: params[:identity_id].to_s, allow: params[:allow] == "true")
     when "binding" then attrs.merge(occasion_id: params[:occasion_id].to_s, active: params[:active] == "true")
     else
       attrs.merge!(number: params[:number].to_s, name: params[:name].to_s, kind: params[:kind].to_s)
@@ -84,7 +87,9 @@ class FinanceSetupController < ApplicationController
   def completion_url
     op = session[:finance_operation]
     return unless op
-    if op["action"].to_s.start_with?("account_")
+    if op["type"].to_s.start_with?("FinancePeriod:")
+      completion_tenant_book_periods_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("account_")
       completion_tenant_book_chart_path(op["tenant_id"], op["book_id"])
     else
       completion_tenant_book_setup_path(op["tenant_id"], op["book_id"])
@@ -93,7 +98,9 @@ class FinanceSetupController < ApplicationController
   def retry_url
     op = session[:finance_operation]
     return unless op && op["checked"]
-    if op["action"].to_s.start_with?("account_")
+    if op["type"].to_s.start_with?("FinancePeriod:")
+      retry_tenant_book_periods_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("account_")
       retry_tenant_book_chart_path(op["tenant_id"], op["book_id"])
     else
       retry_tenant_book_setup_path(op["tenant_id"], op["book_id"])
@@ -102,13 +109,20 @@ class FinanceSetupController < ApplicationController
   def setup_error(error)
     return unavailable if error.status >= 500
     if [ 401, 403, 404 ].include?(error.status)
-      session.delete(:finance_operation)
+      preserve_receipt = error.status != 401 && session[:finance_operation] && action_name != "update"
+      session.delete(:finance_operation) unless preserve_receipt
       reset_session if error.status == 401
-      return protected_feedback("Setup is not available for your current access.", error.status)
+      message = "Setup is not available for your current access."
+      message += " The original request may already have been accepted; check its completion." if preserve_receipt
+      return protected_feedback(message, error.status)
     end
     return pending_feedback if error.code == "idempotency_conflict"
     session.delete(:finance_operation)
-    message = case error.code
+    message = error_message(error.code)
+    show_setup(status: error.status, message: message)
+  end
+  def error_message(code)
+    case code
     when "version_conflict" then "A newer revision exists. Compare your draft with the accepted row below, then explicitly reapply it."
     when "position_taken" then "That position is already in use. Choose a free integer position."
     when "invalid_formula" then "Check the formula’s account references and arithmetic. Formulas cannot refer to headers or form a cycle."
@@ -116,7 +130,6 @@ class FinanceSetupController < ApplicationController
     when "binding_taken" then "This occasion already belongs to another book. Its steward must unbind it first."
     else "Check the setup fields and try again."
     end
-    show_setup(status: error.status, message: message)
   end
   def unavailable
     if request.get? && action_name != "completion"
@@ -137,9 +150,9 @@ class FinanceSetupController < ApplicationController
   end
   def protected_feedback(message, status)
     if request.format.turbo_stream?
-      render Components::BooksUnavailableStream.new(message: message), content_type: "text/vnd.turbo-stream.html", status: status
+      render Components::BooksUnavailableStream.new(message: message, check_url: completion_url), content_type: "text/vnd.turbo-stream.html", status: status
     else
-      render Views::Books::Unavailable.new(message: message, signed_in: signed_in?), status: status
+      render Views::Books::Unavailable.new(message: message, check_url: completion_url, signed_in: signed_in?), status: status
     end
   end
 end

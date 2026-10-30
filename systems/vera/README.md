@@ -49,7 +49,13 @@ From a book, choose **Roles and occasions**. A tenant administrator explicitly a
 
 Link existing occasions there, then open the separate **Chart of accounts** line editor. Its columns are Type, Number, Name, VAT, Category, Position and Formula, with type-specific fields. Use list-focused Home/End/PgUp/PgDn/↑/↓, Enter to edit/save and Escape to cancel. will_paginate pages progressively append on scroll. Numbers keep leading zeroes and stay reserved after renumbering/deactivation/type changes. Formula text is validated and pinned to stable references; calculated ledger results follow later. Conflicts preserve the draft above the accepted row for explicit reapplication. Lost-response completion checks never repeat a mutation; an explicit retry after checking submits the unchanged original body/key. See the [finance setup contract](../ep/docs/finance-setup-api.md).
 
-Apply the new EP migration (`mix ecto.migrate` in systems/ep; already applied in this local workspace) before using this slice. Restart EP/VERA when running without development code reloading. No credentials or financial grants are created by the migration, and existing tenant admins must explicitly assign their steward role. Accounting periods, batch reorder/rebalancing, configurable tax/category catalogues, reporting/formula results, import/export and monetary operations remain later work.
+Apply the new EP migration (`mix ecto.migrate` in systems/ep; already applied in this local workspace) before using this slice. Restart EP/VERA when running without development code reloading. No credentials or financial grants are created by the migration, and existing tenant admins must explicitly assign their steward role. Batch reorder/rebalancing, configurable tax/category catalogues, reporting/formula results, import/export and monetary operations remain later work.
+
+## Accounting periods
+
+Open **Accounting periods** from the book, setup or chart. Create nonoverlapping inclusive date ranges as Draft, correct their dates before opening, then open/close them explicitly. Name/dates freeze on first opening. Reopening needs a recorded reason and a separate permission assigned to an existing book steward under Roles and occasions; tenant administration alone is insufficient. No reopening permission is assigned automatically.
+
+EP protects current date/status/revisions and publishes the period/history query MV. Pending/stopped states, conflict drafts, private completion checks and exact-original retries follow the other financial setup workflows. The new local migration is already applied; other deployments must run `mix ecto.migrate`. See the [period contract](../ep/docs/periods-api.md). Period setup does not activate a book, post a journal, check balances or operate periods in an external ledger.
 
 ## Verification
 

@@ -15,6 +15,7 @@ class Components::Chart < Components::Base
         end
         a(href: tenant_book_chart_path(@tid, @bid, focus_id: @focus), class: "text-sm font-medium text-teal-900 hover:underline") { "Refresh chart" }
       end
+      a(href: tenant_book_periods_path(@tid, @bid), class: "mt-3 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
       p(class: "mt-4 text-sm text-stone-600", id: "coa-help") { "↑/↓ move · Home/End first/last · PgUp/PgDn page · Enter edit/save · Escape cancel. Tab moves between fields while editing." }
       p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { @message } if @message
       if @check

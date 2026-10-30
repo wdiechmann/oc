@@ -35,3 +35,11 @@ Press Enter to save from a text/position/formula field (Shift+Enter allows a for
 Pages contain 50 rows, with will_paginate links and automatic loading near the end. Infinite scroll appends only matching source revisions. If another user changes the chart, appending stops and asks for refresh, preserving the current list/editor. A pending accepted view refreshes through read-only requests until ready. Narrow screens scroll the chart region horizontally. Conflict drafts stay above the newer accepted row for explicit Reapply.
 
 Formula examples: `[0010] + [0020]` or `([0010] - [0020]) * 0.25`. **Copy ref** copies `[@stable-account-id]`, useful for referencing an unnumbered calculation. Scope/reference/cycle validation runs in EP; displaying computed ledger results is later reporting work. No draft is autosaved across a full reload.
+
+## Accounting periods
+
+Open **Accounting periods** from a book, its roles/occasion setup or its chart. Create a named Draft with inclusive start/end dates. **Correct draft dates** edits a Draft only; after **Open period**, name/dates are frozen. **Close period** closes an Open period. A closed period only offers **Reopen period** to an active steward with separately granted reopening permission, and requires a reason. Tenant administrators grant/revoke that permission for existing stewards under **Roles and occasions**. Reassigning a revoked steward does not restore an old reopening grant.
+
+Expand **Period history** for each accepted creation/revision/open/close/reopen, its dates, actor, backend application, UTC timestamp and reopening reason. Compare a preserved date draft above newer accepted metadata before explicitly reapplying it; if a concurrent opening makes date correction unavailable, the submitted draft remains readable instead of offering an invalid edit. Pending projections disable changes until **Refresh periods** catches up; stopped/revoked views clear the protected surface. Lost responses use **Check completion** and, after an unknown receipt, explicit **Retry original request** with the stored unchanged body/key.
+
+These controls create no journals or balances. For an external-authority book the view explicitly labels its periods as local preparation controls and does not open/close the external accounting system.

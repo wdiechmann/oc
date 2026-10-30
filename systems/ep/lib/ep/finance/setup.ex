@@ -8,12 +8,12 @@ defmodule Ep.Finance.Setup do
 
   @vat_codes ~w(none input output)
   @categories ~w(assets liabilities equity income expenses)
-  @actions ~w(steward binding account_create account_revise)
+  @actions ~w(steward reopening_authority binding account_create account_revise)
 
   def get(principal, tid, bid) do
     with {:ok, tid} <- uuid(tid), {:ok, bid} <- uuid(bid) do
       Repo.transaction(fn ->
-        {book, admin, steward} = access!(principal, tid, bid)
+        {book, admin, steward} = authorize!(principal, tid, bid)
         running!(tid)
         state = Repo.get(SetupState, bid)
         latest = if state, do: state.version, else: 0
@@ -138,8 +138,11 @@ defmodule Ep.Finance.Setup do
          true <- is_map(params),
          true <- is_binary(key) and Regex.match?(~r/^[A-Za-z0-9._:-]{1,128}$/, key) do
       Repo.transaction(fn ->
-        {_book, admin, steward} = access!(principal, tid, bid)
-        unless if(action == "steward", do: admin, else: steward), do: Repo.rollback(:not_found)
+        {_book, admin, steward} = authorize!(principal, tid, bid)
+
+        unless if(action in ~w(steward reopening_authority), do: admin, else: steward),
+          do: Repo.rollback(:not_found)
+
         # All role changes and commands use this same book lock; authority cannot go stale.
         type = "FinanceSetup:" <> action
         Events.lock!("command:" <> principal.identity_id <> ":" <> type <> ":" <> key)
@@ -236,7 +239,8 @@ defmodule Ep.Finance.Setup do
     end
   end
 
-  defp access!(principal, tid, bid) do
+  @doc false
+  def authorize!(principal, tid, bid) do
     Auth.lock_principal!(principal)
 
     tenant =
@@ -295,10 +299,36 @@ defmodule Ep.Finance.Setup do
         })
 
       row ->
-        Repo.update!(Ecto.Changeset.change(row, active: active))
+        Repo.update!(
+          Ecto.Changeset.change(row,
+            active: active,
+            can_reopen_periods: active && row.can_reopen_periods
+          )
+        )
     end
 
     if active, do: "FinanceStewardAssigned", else: "FinanceStewardRevoked"
+  end
+
+  defp mutate!(tid, bid, "reopening_authority", p, _eid, _version, _actor, _app) do
+    fields!(p, ~w(identity_id allow expected_version))
+    identity = uuid!(p["identity_id"])
+    allow = boolean!(p["allow"])
+
+    Repo.one(
+      from i in Ep.Auth.Identity,
+        where:
+          i.id == ^identity and
+            (not (^allow) or (i.status == "active" and not is_nil(i.verified_at))),
+        lock: "FOR SHARE"
+    ) || Repo.rollback(:not_found)
+
+    row =
+      Repo.get_by(Steward, tenant_id: tid, book_id: bid, identity_id: identity, active: true) ||
+        Repo.rollback(:not_found)
+
+    Repo.update!(Ecto.Changeset.change(row, can_reopen_periods: allow))
+    if allow, do: "PeriodReopeningAuthorized", else: "PeriodReopeningRevoked"
   end
 
   defp mutate!(tid, bid, "binding", p, _eid, _version, _actor, _app) do
@@ -515,7 +545,7 @@ defmodule Ep.Finance.Setup do
         from s in Steward,
           where: s.book_id == ^bid and s.active,
           order_by: s.identity_id,
-          select: %{identity_id: s.identity_id}
+          select: %{identity_id: s.identity_id, can_reopen_periods: s.can_reopen_periods}
       )
 
   defp candidates(tid) do

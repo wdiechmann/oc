@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "EP finance setup",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Book-scoped configuration only. See finance-setup-api.md for authority, projection and receipt semantics."
   },
   "security": [
@@ -402,6 +402,70 @@
           }
         }
       }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/setup/reopening-authority": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected setup or accepted command"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision, binding, number or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid setup"
+          },
+          "503": {
+            "description": "View stopped or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReopeningAuthority"
+              }
+            }
+          }
+        },
+        "description": "Current tenant administrators explicitly grant/revoke period reopening for an existing active book steward. Steward revocation clears this permission."
+      }
     }
   },
   "components": {
@@ -603,6 +667,28 @@
           }
         },
         "description": "Type-specific fields: header name/position; calculation name/position/formula; posting number/name/VAT/category/position. Irrelevant fields are cleared. See finance-setup-api.md."
+      },
+      "ReopeningAuthority": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "identity_id",
+          "allow",
+          "expected_version"
+        ],
+        "properties": {
+          "identity_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "allow": {
+            "type": "boolean"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
       }
     }
   }

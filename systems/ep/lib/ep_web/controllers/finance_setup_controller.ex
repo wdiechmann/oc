@@ -19,6 +19,7 @@ defmodule EpWeb.FinanceSetupController do
       )
 
   def steward(conn, p), do: command(conn, p, "steward")
+  def reopening_authority(conn, p), do: command(conn, p, "reopening_authority")
   def binding(conn, p), do: command(conn, p, "binding")
   def create_account(conn, p), do: command(conn, p, "account_create")
   def revise_account(conn, p), do: command(conn, p, "account_revise")

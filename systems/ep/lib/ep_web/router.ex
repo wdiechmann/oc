@@ -59,6 +59,29 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/periods", PeriodController, :index
+    post "/tenants/:tenant_id/finance/books/:book_id/periods", PeriodController, :create
+
+    patch "/tenants/:tenant_id/finance/books/:book_id/periods/:period_id",
+          PeriodController,
+          :revise
+
+    post "/tenants/:tenant_id/finance/books/:book_id/periods/:period_id/open",
+         PeriodController,
+         :open
+
+    post "/tenants/:tenant_id/finance/books/:book_id/periods/:period_id/close",
+         PeriodController,
+         :close
+
+    post "/tenants/:tenant_id/finance/books/:book_id/periods/:period_id/reopen",
+         PeriodController,
+         :reopen
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/reopening-authority",
+         FinanceSetupController,
+         :reopening_authority
+
     get "/tenants/:tenant_id/finance/books/:book_id/setup", FinanceSetupController, :show
 
     post "/tenants/:tenant_id/finance/books/:book_id/setup/stewards",

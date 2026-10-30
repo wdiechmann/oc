@@ -8,6 +8,10 @@ Rails.application.routes.draw do
   resources :tenants, only: [] do
     resources :books, only: %i[index new create show update] do
       get :completion, on: :collection
+      resource :periods, only: %i[show update], controller: "periods" do
+        get :completion
+        post :retry
+      end
       resource :chart, only: %i[show update], controller: "chart_accounts" do
         get :completion
         post :retry

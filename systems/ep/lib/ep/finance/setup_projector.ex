@@ -6,7 +6,7 @@ defmodule Ep.Finance.SetupProjector do
   alias Ep.Finance.{Setup, SetupView, SetupWorker}
   alias Ep.Projections.Inbox
   @consumer "finance_setup:v1"
-  @types ~w(FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountCreated AccountRevised AccountDeactivated AccountReactivated)
+  @types ~w(PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountCreated AccountRevised AccountDeactivated AccountReactivated)
 
   def deliver(tid) do
     Repo.transaction(fn ->

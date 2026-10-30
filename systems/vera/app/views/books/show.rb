@@ -9,6 +9,7 @@ class Views::Books::Show < Views::Base
       a(href: tenant_books_path(tid), class: "text-sm font-medium text-teal-900 hover:underline") { "← Books" }
       a(href: tenant_book_setup_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Roles and occasions" }
       a(href: tenant_book_chart_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Chart of accounts" }
+      a(href: tenant_book_periods_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
       book = @detail["book"]
       h1(class: "mt-6 text-3xl font-semibold") { book ? book.fetch("name") : "Book setup accepted" }
       if @detail["status"] != "ready"
@@ -20,7 +21,7 @@ class Views::Books::Show < Views::Base
             div { dt(class: "text-xs text-stone-500") { label }; dd(class: "mt-1 font-medium") { value } }
           end
         end
-        p(class: "mt-4 text-sm leading-relaxed text-stone-500") { "This is a draft accounting context. No journal, financial period or provider integration has been activated; setup access grants no posting/payment authority." }
+        p(class: "mt-4 text-sm leading-relaxed text-stone-500") { "This is a draft accounting context. Maintain its chart and accounting periods separately; setup access grants no posting/payment authority." }
         h2(class: "mt-8 text-xl font-semibold") { "Name and hierarchy" }
         render Components::BookForm.new(tenant_id: tid, books: @data.fetch("books"), book: book, key: @key)
       end

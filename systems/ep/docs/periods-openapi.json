@@ -1,0 +1,529 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EP accounting periods",
+    "version": "1.0.0",
+    "description": "Governed book-local period control only. See periods-api.md for date, authority, locking and receipt semantics."
+  },
+  "security": [
+    {
+      "backend": [],
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/periods": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Create"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/periods/{period_id}": {
+      "patch": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revise"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/periods/{period_id}/open": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transition"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/periods/{period_id}/close": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Transition"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/periods/{period_id}/reopen": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Projected registry or accepted command"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope/authority unavailable"
+          },
+          "409": {
+            "description": "Version, overlap, transition or idempotency conflict"
+          },
+          "422": {
+            "description": "Invalid period/reason"
+          },
+          "503": {
+            "description": "Projection unavailable/stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Reopen"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "backend": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
+    "schemas": {
+      "Create": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "start_date",
+          "end_date",
+          "expected_version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "Revise": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "start_date",
+          "end_date",
+          "expected_version",
+          "expected_period_version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expected_period_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "Transition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_version",
+          "expected_period_version"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expected_period_version": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      },
+      "Reopen": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "expected_version",
+          "expected_period_version",
+          "reason"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expected_period_version": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      }
+    }
+  }
+}

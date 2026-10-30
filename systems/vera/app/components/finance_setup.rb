@@ -34,6 +34,7 @@ class Components::FinanceSetup < Components::Base
       stewards if @data.dig("permissions", "assign_stewards")
       bindings
       accounts
+      a(href: tenant_book_periods_path(@tid, @bid), class: "ml-4 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
     end
   end
   private
@@ -54,7 +55,7 @@ class Components::FinanceSetup < Components::Base
       p(class: "mt-3 text-sm text-stone-600") { "Tenant administration lets you assign this role explicitly, including to yourself. It does not grant configuration access automatically." }
       @data.fetch("stewards").each do |s|
         label = @data.fetch("candidates").find { |c| c["identity_id"] == s["identity_id"] }&.fetch("label") || s.fetch("identity_id")
-        p(class: "mt-3 text-sm") { label }
+        p(class: "mt-3 text-sm") { "#{label} · Reopen periods: #{s['can_reopen_periods'] ? 'Allowed' : 'Not granted'}" }
       end
       return unless @ready
       setup_form("steward") do |f|
@@ -64,6 +65,19 @@ class Components::FinanceSetup < Components::Base
         field(f, :identity_id, "Existing identity") { f.select(:identity_id, choices, {}, class: FIELD, required: true) }
         field(f, :active, "Role action") { f.select(:active, [ [ "Assign steward", "true" ], [ "Revoke steward", "false" ] ], {}, class: FIELD) }
         f.submit("Save steward assignment", class: BUTTON)
+      end
+      unless @data.fetch("stewards").empty?
+        setup_form("reopening_authority") do |f|
+          hidden(f, "reopening_authority")
+          p(class: "text-sm font-medium") { "Separate permission to reopen closed periods" }
+          choices = @data.fetch("stewards").map do |s|
+            candidate = @data.fetch("candidates").find { |c| c["identity_id"] == s["identity_id"] }
+            [ candidate ? candidate.fetch("label") : s.fetch("identity_id"), s.fetch("identity_id") ]
+          end
+          field(f, :identity_id, "Assigned steward") { f.select(:identity_id, choices, {}, required: true, class: FIELD) }
+          field(f, :allow, "Reopening permission") { f.select(:allow, [ [ "Grant reopening permission", "true" ], [ "Revoke reopening permission", "false" ] ], {}, class: FIELD) }
+          f.submit("Save reopening permission", class: BUTTON)
+        end
       end
     end
   end

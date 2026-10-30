@@ -234,6 +234,147 @@ defmodule Ep.Finance.BookConcurrencyTest do
     assert Enum.count(results, &match?({:error, :binding_taken}, &1)) == 1
   end
 
+  test "the posting-date guard and period closure contend on protected current state" do
+    {owner, tid, bid, pid} =
+      Sandbox.unboxed_run(Repo, fn ->
+        owner = sign_in()
+
+        {:ok, %{result: t}} =
+          Ep.Tenancy.create_tenant(owner.principal, %{"name" => "Period lock race"}, "tenant")
+
+        tid = t["tenant_id"]
+
+        {:ok, b} =
+          Books.create(
+            owner.principal,
+            tid,
+            %{
+              "name" => "Periods",
+              "code" => "PERIODS",
+              "base_currency" => "DKK",
+              "accounting_authority" => "ep",
+              "timezone" => "Europe/Copenhagen",
+              "fiscal_year_start_month" => 1
+            },
+            "book"
+          )
+
+        bid = b["book_id"]
+
+        {:ok, _} =
+          Ep.Finance.Setup.command(
+            owner.principal,
+            tid,
+            bid,
+            "steward",
+            %{
+              "identity_id" => owner.principal.identity_id,
+              "active" => true,
+              "expected_version" => 0
+            },
+            "grant"
+          )
+
+        {:ok, p} =
+          Ep.Finance.Periods.command(
+            owner.principal,
+            tid,
+            bid,
+            "create",
+            %{
+              "name" => "January",
+              "start_date" => "2030-01-01",
+              "end_date" => "2030-01-31",
+              "expected_version" => 0
+            },
+            "create"
+          )
+
+        {:ok, _} =
+          Ep.Finance.Periods.command(
+            owner.principal,
+            tid,
+            bid,
+            "open",
+            %{
+              "period_id" => p["period_id"],
+              "expected_version" => 1,
+              "expected_period_version" => 1
+            },
+            "open"
+          )
+
+        {owner, tid, bid, p["period_id"]}
+      end)
+
+    on_exit(fn -> Sandbox.unboxed_run(Repo, fn -> cleanup(owner, tid) end) end)
+    supervisor = start_supervised!({Task.Supervisor, []})
+    parent = self()
+    release = make_ref()
+
+    guard =
+      Task.Supervisor.async_nolink(supervisor, fn ->
+        Sandbox.unboxed_run(Repo, fn ->
+          Repo.transaction(fn ->
+            Ep.Finance.Periods.lock_open!(tid, bid, "2030-01-15")
+            %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
+            send(parent, {:guard_held, backend})
+
+            receive do
+              ^release -> :guard_completed
+            end
+          end)
+        end)
+      end)
+
+    assert_receive {:guard_held, guard_backend}
+
+    closer =
+      Task.Supervisor.async_nolink(supervisor, fn ->
+        Sandbox.unboxed_run(Repo, fn ->
+          %{rows: [[backend]]} = Repo.query!("SELECT pg_backend_pid()")
+          send(parent, {:closing, backend})
+
+          Ep.Finance.Periods.command(
+            owner.principal,
+            tid,
+            bid,
+            "close",
+            %{"period_id" => pid, "expected_version" => 2, "expected_period_version" => 2},
+            "close"
+          )
+        end)
+      end)
+
+    assert_receive {:closing, close_backend}
+
+    assert Sandbox.unboxed_run(Repo, fn ->
+             blocked_by?(close_backend, guard_backend, System.monotonic_time(:millisecond) + 5000)
+           end)
+
+    send(guard.pid, release)
+    assert {:ok, :guard_completed} = Task.await(guard, 10_000)
+    assert {:ok, _} = Task.await(closer, 10_000)
+
+    Sandbox.unboxed_run(Repo, fn ->
+      assert {:error, :period_not_open} =
+               Repo.transaction(fn -> Ep.Finance.Periods.lock_open!(tid, bid, "2030-01-15") end)
+
+      assert {:ok, %{status: "pending", periods: []}} =
+               Ep.Finance.Periods.list(owner.principal, tid, bid)
+    end)
+  end
+
+  defp blocked_by?(waiting, holder, deadline) do
+    %{rows: [[blockers]]} = Repo.query!("SELECT pg_blocking_pids($1)", [waiting])
+
+    cond do
+      holder in blockers -> true
+      System.monotonic_time(:millisecond) >= deadline -> false
+      true -> blocked_by?(waiting, holder, deadline)
+    end
+  end
+
   defp cleanup(owner, tid) do
     Repo.transaction(fn ->
       ids =
@@ -251,6 +392,9 @@ defmodule Ep.Finance.BookConcurrencyTest do
       Repo.delete_all(from j in Oban.Job, where: fragment("?->>'tenant_id'", j.args) == ^tid)
 
       for schema <- [
+            Ep.Finance.PeriodView,
+            Ep.Finance.Period,
+            Ep.Finance.PeriodState,
             Ep.Finance.SetupView,
             Ep.Finance.Account,
             Ep.Finance.Binding,
