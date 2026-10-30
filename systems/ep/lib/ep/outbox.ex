@@ -28,6 +28,9 @@ defmodule Ep.Outbox do
             )
           )
 
+        if "finance_setup" in types,
+          do: Oban.insert!(Ep.Finance.SetupWorker.new(%{tenant_id: id}))
+
         if "finance_books" in types, do: Oban.insert!(Ep.Finance.BookWorker.new(%{tenant_id: id}))
 
         if "tenant" in types, do: Oban.insert!(Ep.Projections.TenantWorker.new(%{tenant_id: id}))

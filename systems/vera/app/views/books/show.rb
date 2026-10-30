@@ -7,6 +7,7 @@ class Views::Books::Show < Views::Base
     div(id: "vera-book-content", class: "max-w-3xl") do
       tid = @data.fetch("tenant_id")
       a(href: tenant_books_path(tid), class: "text-sm font-medium text-teal-900 hover:underline") { "← Books" }
+      a(href: tenant_book_setup_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Roles, occasions and accounts" }
       book = @detail["book"]
       h1(class: "mt-6 text-3xl font-semibold") { book ? book.fetch("name") : "Book setup accepted" }
       if @detail["status"] != "ready"

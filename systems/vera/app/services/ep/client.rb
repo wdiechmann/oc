@@ -26,6 +26,12 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def finance_setup(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup")
+    def configure_finance(tid, bid, action, attrs, key)
+      suffix = { "steward"=>"stewards", "binding"=>"bindings", "account_create"=>"accounts", "account_revise"=>"accounts/#{uuid!(attrs[:account_id]) if action == 'account_revise'}" }.fetch(action)
+      body = attrs.except(:account_id)
+      request(action == "account_revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/setup/#{suffix}", body: body, key: key)
+    end
     def books(tid) = request(:get, book_root(tid))
     def book(tid, id) = request(:get, "#{book_root(tid)}/#{uuid!(id)}")
     def create_book(tid, attrs, key) = request(:post, book_root(tid), body: attrs, key: key)

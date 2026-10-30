@@ -10,7 +10,14 @@ class Views::Home::Workspace < Views::Base
     section(class: "mt-8 grid gap-4 md:grid-cols-2", aria_label: "Authorized workspaces") do
       @workspaces.fetch("tenants").each { |tenant| workspace(tenant.fetch("name"), "Tenant administrator", tenant["tenant_id"]) }
       @workspaces.fetch("occasions").each { |occasion| workspace(occasion.fetch("name"), "#{occasion.fetch('tenant_name')} · Occasion administrator") }
-      if @workspaces.fetch("tenants").empty? && @workspaces.fetch("occasions").empty?
+      @workspaces.fetch("finance_books", []).each do |book|
+        article(class: "rounded-2xl border border-stone-200 bg-white p-6") do
+          h2(class: "text-xl font-semibold") { book.fetch("name") }
+          p(class: "mt-2 text-sm text-stone-500") { "#{book.fetch('tenant_name')} · Finance configuration steward" }
+          a(href: tenant_book_setup_path(book.fetch("tenant_id"), book.fetch("book_id")), class: "mt-5 inline-block font-medium text-teal-900 hover:underline") { "Configure book" }
+        end
+      end
+      if @workspaces.fetch("tenants").empty? && @workspaces.fetch("occasions").empty? && @workspaces.fetch("finance_books", []).empty?
         p(class: "rounded-xl border border-stone-200 bg-white p-6") { "No authorized workspaces are currently available. Review your invitations or access in TOM." }
       end
     end

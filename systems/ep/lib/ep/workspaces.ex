@@ -49,7 +49,31 @@ defmodule Ep.Workspaces do
           )
         )
 
-      %{tenants: tenants, occasions: occasions}
+      finance_books =
+        Repo.all(
+          from s in Ep.Finance.Steward,
+            join: t in Ep.Tenancy.Tenant,
+            on: t.id == s.tenant_id,
+            join: v in Ep.Finance.BookView,
+            on: v.tenant_id == s.tenant_id and v.book_id == s.book_id,
+            join: c in Ep.Projections.Control,
+            on: c.tenant_id == s.tenant_id and c.name == "finance_books",
+            join: f in Ep.Projections.Control,
+            on: f.tenant_id == s.tenant_id and f.name == "finance_setup",
+            where:
+              s.identity_id == ^i.id and s.active and t.status == "active" and
+                c.state == "running" and f.state == "running",
+            order_by: s.book_id,
+            select: %{
+              tenant_id: s.tenant_id,
+              book_id: s.book_id,
+              name: fragment("?->>'name'", v.data),
+              tenant_name: t.name,
+              role: "finance_configuration_steward"
+            }
+        )
+
+      %{tenants: tenants, occasions: occasions, finance_books: finance_books}
     end)
   end
 end

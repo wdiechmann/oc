@@ -41,7 +41,15 @@ Sign in, then choose **Open books** on your tenant card. Create a draft book wit
 
 Apply EP migrations before using this slice (already applied to the local development database in this workspace). No new environment variables or application credentials are needed. Book metadata uses near-real-time query MVs; pending state and **Refresh books/book** distinguish acceptance from projection. A stopped MV is unavailable. A lost save response offers **Check completion**, which queries the original private command receipt without replaying the save.
 
-The first-slice access policy is current tenant-admin authority for book **setup metadata** only. It grants no journal/posting/payment authority. Books stay Draft; no actual accounting period, CoA, opening balance, integration or consolidated total is created. Occasion-only admins do not gain tenant-wide setup access. Book-to-occasion bindings, granular finance roles, CoA/periods and financial operations follow the plan. See the [EP book contract](../ep/docs/books-api.md).
+The first-slice access policy is current tenant-admin authority for book **setup metadata** only. It grants no journal/posting/payment authority. Books stay Draft; no actual accounting period, CoA, opening balance, integration or consolidated total is created. Occasion-only admins do not gain tenant-wide setup access. Book-scoped configuration roles, occasion bindings and initial CoA editing are described below; periods and financial operations follow the plan. See the [EP book contract](../ep/docs/books-api.md).
+
+## Roles, occasion bindings and accounts
+
+From a book, choose **Roles, occasions and accounts**. A tenant administrator explicitly assigns a configuration steward for that book, including themselves when appropriate. Only assigned stewards can link occasions or edit the chart; roles do not inherit through the book tree and grant no journal/posting/payment authority. Stewards get a direct **Configure book** card on their VERA home page.
+
+Link existing occasions, then add/edit accounts with string numbers (including leading zeroes), names, posting/heading/total kinds and lifecycle status. Numbers stay reserved after renumbering/deactivation. Totals are labels only. Conflicts preserve the draft above the accepted row for explicit reapplication. Lost-response completion checks never repeat a mutation; an explicit retry after checking submits the unchanged original body/key. See the [finance setup contract](../ep/docs/finance-setup-api.md).
+
+Apply the new EP migration (`mix ecto.migrate` in systems/ep; already applied in this local workspace) before using this slice. Restart EP/VERA when running without development code reloading. No credentials or financial grants are created by the migration, and existing tenant admins must explicitly assign their steward role. Accounting periods, account ordering/formulas/rules/import/export and monetary operations remain later work.
 
 ## Verification
 

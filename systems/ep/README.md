@@ -102,3 +102,7 @@ VERA uses the [authentication API](docs/authentication-api.md) to sign in existi
 ## Tenant book setup
 
 The [book API](docs/books-api.md) implements draft tenant-book metadata and hierarchy with current tenant-admin authorization, event-backed protected state, versioned edits and a near-real-time MV. Apply migrations before serving. Existing outbox recovery includes finance_books; query control is `mv_control` name `finance_books`. This is metadata provisioning, not a posting/payment permission or full finance implementation.
+
+## Book-scoped finance setup
+
+See [finance-setup-api.md](docs/finance-setup-api.md) and [finance-setup-openapi.json](docs/finance-setup-openapi.json) for explicit configuration stewardship, occasion bindings and initial account editing. Apply `mix ecto.migrate` before use. This setup authority never grants approval/posting/payment access. Setup MVs have independent `finance_setup` serving controls, ordered outbox recovery and an operator-only `Ep.Finance.SetupProjector.rebuild(tenant_id)` path without financial execution.

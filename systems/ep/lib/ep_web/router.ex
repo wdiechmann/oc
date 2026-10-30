@@ -59,6 +59,24 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/setup", FinanceSetupController, :show
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/stewards",
+         FinanceSetupController,
+         :steward
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/bindings",
+         FinanceSetupController,
+         :binding
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/accounts",
+         FinanceSetupController,
+         :create_account
+
+    patch "/tenants/:tenant_id/finance/books/:book_id/setup/accounts/:account_id",
+          FinanceSetupController,
+          :revise_account
+
     get "/tenants/:tenant_id/finance/books", BookController, :index
     post "/tenants/:tenant_id/finance/books", BookController, :create
     get "/tenants/:tenant_id/finance/books/:id", BookController, :show
