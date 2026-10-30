@@ -6,6 +6,11 @@ defmodule Ep.Finance.Account do
     field :book_id, :binary_id
     field :actor_identity_id, :binary_id
     field :application_id, :string
+    field :vat_code, :string
+    field :category, :string
+    field :position, :integer
+    field :formula, :string
+    field :formula_refs, :map, default: %{}
     field :number, :string
     field :reserved_numbers, {:array, :string}
     field :name, :string

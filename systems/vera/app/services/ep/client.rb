@@ -26,6 +26,7 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def chart_accounts(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup/accounts", query: query.compact)
     def finance_setup(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup")
     def configure_finance(tid, bid, action, attrs, key)
       suffix = { "steward"=>"stewards", "binding"=>"bindings", "account_create"=>"accounts", "account_revise"=>"accounts/#{uuid!(attrs[:account_id]) if action == 'account_revise'}" }.fetch(action)

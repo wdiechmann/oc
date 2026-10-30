@@ -71,7 +71,7 @@ defmodule Ep.Finance.SetupProjector do
         book_id: event.stream_id,
         tenant_id: tid,
         source_version: event.stream_version,
-        data: payload["setup"]
+        data: Map.update!(payload["setup"], "accounts", &Setup.normalize_accounts/1)
       }
 
       if row,

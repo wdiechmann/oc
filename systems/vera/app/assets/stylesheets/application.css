@@ -8,3 +8,33 @@
  *
  * Consider organizing styles into separate files for maintainability.
  */
+
+/* The chart keeps a stable seven-field line; narrow screens scroll this region. */
+.coa-scroll { max-width: 100%; overflow-x: auto; border: 1px solid #d6d3d1; border-radius: .65rem; background: white; }
+.coa-grid { min-width: 1080px; }
+.coa-columns { display: grid; grid-template-columns: 100px 95px minmax(180px, 1.5fr) 90px 110px 85px minmax(160px, 1fr) 170px; align-items: center; gap: 0; }
+.coa-heading { background: #f5f5f4; color: #57534e; font-size: .7rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.coa-heading > div { padding: .65rem .5rem; }
+.coa-row { border-top: 1px solid #e7e5e4; scroll-margin-block: 1rem; }
+.coa-row:focus { outline: 2px solid #0f766e; outline-offset: -2px; background: #f0fdfa; }
+.coa-display { min-height: 42px; font-size: .8rem; }
+.coa-cell { padding: .55rem .5rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.coa-editor-form { background: #f0fdfa; }
+.coa-editor-form .coa-columns > div { padding: .3rem .2rem; min-width: 0; }
+.coa-input { display: block; width: 100%; min-width: 0; height: 34px; padding: .35rem .4rem; border: 1px solid #a8a29e; border-radius: .25rem; background: white; color: #1c1917; font-size: .8rem; }
+textarea.coa-input { min-height: 34px; resize: vertical; }
+.coa-input:focus { outline: 2px solid #0f766e; outline-offset: -1px; }
+.coa-irrelevant { visibility: hidden; }
+.coa-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
+.coa-action { cursor: pointer; padding: .35rem .45rem; font-size: .75rem; font-weight: 600; color: #115e59; border-radius: .25rem; }
+.coa-action:hover { background: #ccfbf1; }
+.coa-save { background: #134e4a; color: white; }
+.coa-save:hover { background: #115e59; }
+.coa-lifecycle { width: 88px; height: 25px; font-size: .65rem; padding: .1rem; }
+.coa-conflict { border-top: 1px dashed #d97706; background: #fffbeb; font-size: .8rem; }
+.coa-pagination .pagination { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; font-size: .8rem; }
+.coa-pagination a, .coa-pagination em, .coa-pagination span { padding: .4rem .65rem; border-radius: .3rem; }
+.coa-pagination a { border: 1px solid #d6d3d1; background: white; color: #115e59; }
+.coa-pagination .current { background: #134e4a; color: white; font-style: normal; }
+.coa-pagination .disabled { color: #a8a29e; }
+[hidden] { display: none !important; }

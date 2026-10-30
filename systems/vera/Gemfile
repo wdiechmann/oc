@@ -48,3 +48,5 @@ end
 
 # Thin sign-in message delivery; identity administration remains in TOM.
 gem "mail", "~> 2.9"
+
+gem "will_paginate", "~> 4.0"

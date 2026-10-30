@@ -283,6 +283,7 @@ GEM
       base64
       websocket-extensions (>= 0.1.0)
     websocket-extensions (0.1.5)
+    will_paginate (4.0.1)
     zeitwerk (2.8.3)
 
 PLATFORMS
@@ -305,6 +306,7 @@ DEPENDENCIES
   tzinfo-data
   web-console
   webmock
+  will_paginate (~> 4.0)
 
 CHECKSUMS
   action_text-trix (2.1.19)
@@ -409,6 +411,7 @@ CHECKSUMS
   webmock (3.25.1)
   websocket-driver (0.8.2)
   websocket-extensions (0.1.5)
+  will_paginate (4.0.1) sha256=107b226ebe1d393d274575956a7c472e1eefdd97d8828e01b72d425d15a875b9
   zeitwerk (2.8.3)
 
 BUNDLED WITH

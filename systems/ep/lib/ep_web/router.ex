@@ -69,6 +69,10 @@ defmodule EpWeb.Router do
          FinanceSetupController,
          :binding
 
+    get "/tenants/:tenant_id/finance/books/:book_id/setup/accounts",
+        FinanceSetupController,
+        :accounts
+
     post "/tenants/:tenant_id/finance/books/:book_id/setup/accounts",
          FinanceSetupController,
          :create_account

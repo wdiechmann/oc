@@ -6,6 +6,18 @@ defmodule EpWeb.FinanceSetupController do
   def show(conn, p),
     do: reply(conn, Setup.get(conn.assigns.current_principal, p["tenant_id"], p["book_id"]))
 
+  def accounts(conn, p),
+    do:
+      reply(
+        conn,
+        Setup.accounts(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          Map.drop(p, ["tenant_id", "book_id"])
+        )
+      )
+
   def steward(conn, p), do: command(conn, p, "steward")
   def binding(conn, p), do: command(conn, p, "binding")
   def create_account(conn, p), do: command(conn, p, "account_create")
@@ -41,7 +53,15 @@ defmodule EpWeb.FinanceSetupController do
         :view_stopped ->
           503
 
-        r when r in [:version_conflict, :number_taken, :binding_taken, :idempotency_conflict] ->
+        r
+        when r in [
+               :version_conflict,
+               :number_taken,
+               :binding_taken,
+               :idempotency_conflict,
+               :position_taken,
+               :chart_changed
+             ] ->
           409
 
         _ ->

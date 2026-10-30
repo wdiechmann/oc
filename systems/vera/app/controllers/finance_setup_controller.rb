@@ -17,7 +17,7 @@ class FinanceSetupController < ApplicationController
     session[:finance_operation] = { "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>"FinanceSetup:#{@action}", "key"=>form.fetch("key"), "attrs"=>@attrs.stringify_keys, "action"=>@action }
     result = ep.configure_finance(params[:tenant_id], params[:book_id], @action, @attrs, form.fetch("key"))
     session.delete(:finance_operation)
-    redirect_to tenant_book_setup_path(params[:tenant_id], params[:book_id]), notice: "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating.", status: :see_other
+    redirect_to destination(result), notice: "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating.", status: :see_other
   end
 
   def retry
@@ -28,7 +28,7 @@ class FinanceSetupController < ApplicationController
     @action, @attrs = op.fetch("action"), op.fetch("attrs").symbolize_keys
     result = ep.configure_finance(params[:tenant_id], params[:book_id], @action, @attrs, op.fetch("key"))
     session.delete(:finance_operation)
-    redirect_to tenant_book_setup_path(params[:tenant_id], params[:book_id]), notice: "EP confirms the original request at revision #{result.fetch('stream_version')}.", status: :see_other
+    redirect_to destination(result), notice: "EP confirms the original request at revision #{result.fetch('stream_version')}.", status: :see_other
   end
 
   def completion
@@ -36,8 +36,9 @@ class FinanceSetupController < ApplicationController
     return feedback("No setup request is available to check.", status: 404) unless op && op["tenant_id"] == params[:tenant_id] && op["book_id"] == params[:book_id]
     result = ep.book_receipt(op.fetch("type"), op.fetch("key"))
     if result["status"] == "accepted"
+      @action, @attrs = op["action"], op.fetch("attrs", {}).symbolize_keys
       session.delete(:finance_operation)
-      redirect_to tenant_book_setup_path(params[:tenant_id], params[:book_id]), notice: "EP confirms your setup request was accepted.", status: :see_other
+      redirect_to destination(result["result"]), notice: "EP confirms your setup request was accepted.", status: :see_other
     else
       session[:finance_operation] = op.merge("checked"=>true)
       pending_feedback
@@ -50,6 +51,9 @@ class FinanceSetupController < ApplicationController
     return if signed_in?
     reset_session
     protected_feedback("Your sign-in has expired. Sign in again before continuing.", 401)
+  end
+  def destination(_result = nil)
+    tenant_book_setup_path(params[:tenant_id], params[:book_id])
   end
   def form_scope = "#{params[:tenant_id]}/#{params[:book_id]}"
   def form_token(action, account_id = nil)
@@ -79,11 +83,21 @@ class FinanceSetupController < ApplicationController
   end
   def completion_url
     op = session[:finance_operation]
-    completion_tenant_book_setup_path(op["tenant_id"], op["book_id"]) if op
+    return unless op
+    if op["action"].to_s.start_with?("account_")
+      completion_tenant_book_chart_path(op["tenant_id"], op["book_id"])
+    else
+      completion_tenant_book_setup_path(op["tenant_id"], op["book_id"])
+    end
   end
   def retry_url
     op = session[:finance_operation]
-    retry_tenant_book_setup_path(op["tenant_id"], op["book_id"]) if op && op["checked"]
+    return unless op && op["checked"]
+    if op["action"].to_s.start_with?("account_")
+      retry_tenant_book_chart_path(op["tenant_id"], op["book_id"])
+    else
+      retry_tenant_book_setup_path(op["tenant_id"], op["book_id"])
+    end
   end
   def setup_error(error)
     return unavailable if error.status >= 500
@@ -96,6 +110,8 @@ class FinanceSetupController < ApplicationController
     session.delete(:finance_operation)
     message = case error.code
     when "version_conflict" then "A newer revision exists. Compare your draft with the accepted row below, then explicitly reapply it."
+    when "position_taken" then "That position is already in use. Choose a free integer position."
+    when "invalid_formula" then "Check the formula’s account references and arithmetic. Formulas cannot refer to headers or form a cycle."
     when "number_taken" then "That account number is reserved in this book. Choose another number."
     when "binding_taken" then "This occasion already belongs to another book. Its steward must unbind it first."
     else "Check the setup fields and try again."

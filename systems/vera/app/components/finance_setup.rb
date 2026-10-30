@@ -13,7 +13,7 @@ class Components::FinanceSetup < Components::Base
       a(href: root_path, class: "text-sm font-medium text-teal-900 hover:underline") { "← Your workspaces" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       h1(class: "mt-3 text-4xl font-semibold tracking-tight") { "Book configuration" }
-      p(class: "mt-4 max-w-3xl leading-relaxed text-stone-600") { "Assign stewards, link occasions and build this book’s chart of accounts. Setup permissions apply to this book only and grant no journal approval, posting or payment authority." }
+      p(class: "mt-4 max-w-3xl leading-relaxed text-stone-600") { "Assign stewards and link occasions. Open the chart of accounts to maintain its rows. Setup permissions apply to this book only and grant no journal approval, posting or payment authority." }
       p(role: "alert", class: "mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4") { @message } if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }
@@ -86,51 +86,6 @@ class Components::FinanceSetup < Components::Base
     end
   end
   def accounts
-    section(class: "mt-10", aria_label: "Chart of accounts") do
-      h2(class: "text-2xl font-semibold") { "Chart of accounts" }
-      p(class: "mt-3 max-w-3xl text-sm text-stone-600") { "Numbers keep leading zeroes and remain reserved after renaming or deactivation. Posting accounts, headings and totals are distinct row types; calculations and posting follow later." }
-      form_with(url: tenant_book_setup_path(@tid, @bid), method: :get, class: "mt-5 flex max-w-xl items-end gap-3") do |f|
-        div(class: "grow") do
-          field(f, :q, "Find an account") { f.search_field(:q, value: @query, class: FIELD) }
-        end
-        f.submit("Search", class: BUTTON)
-      end
-      rows = @data.fetch("accounts").select { |a| @draft&.dig(:attrs, :account_id) == a["id"] || "#{a['number']} #{a['name']}".downcase.include?(@query.downcase) }
-      rows.each { |account| account_row(account) }
-      p(class: "mt-5 text-sm text-stone-500") { "No accounts match this view." } if rows.empty?
-      if @ready && @data.dig("permissions", "configure")
-        h3(class: "mt-7 text-lg font-semibold") { "Add an account" }
-        account_form(nil)
-      elsif !@data.dig("permissions", "configure")
-        p(class: "mt-5 text-sm text-stone-500") { "An assigned configuration steward can edit accounts and link occasions." }
-      end
-    end
-  end
-  def account_row(account)
-    article(id: "account-#{account.fetch('id')}", class: "mt-4 rounded-xl border border-stone-200 bg-white p-5") do
-      if @ready && @data.dig("permissions", "configure")
-        account_form(account)
-      end
-      p(class: "mt-3 font-medium") { "Accepted: #{account['number']} · #{account['name']} · #{account['kind']} · #{account['active'] ? 'Active' : 'Inactive'}" }
-      p(class: "mt-2 text-xs text-stone-500") { "Revision #{account['version']} · Actor #{account['actor_identity_id']} · Application #{account['application_id']}" }
-    end
-  end
-  def account_form(account)
-    action = account ? "account_revise" : "account_create"
-    draft = @draft && @draft[:action] == action && @draft[:attrs][:account_id] == account&.fetch("id") ? @draft[:attrs] : nil
-    values = draft ? draft.stringify_keys : account || { "kind"=>"posting" }
-    setup_form(action, account_id: account && account["id"]) do |f|
-      hidden(f, action, account && account["id"])
-      f.hidden_field(:expected_account_version, value: account.fetch("version")) if account
-      p(class: "text-sm font-semibold text-amber-900") { "Your draft — compare with the accepted row below" } if draft
-      div(class: "grid gap-4 md:grid-cols-3") do
-        div { field(f, :number, "Number") { f.text_field(:number, value: values["number"], required: true, maxlength: 40, pattern: "[A-Za-z0-9](?:[A-Za-z0-9._]|-){0,39}", class: FIELD) } }
-        div { field(f, :name, "Name") { f.text_field(:name, value: values["name"], required: true, maxlength: 120, class: FIELD) } }
-        div { field(f, :kind, "Row type") { f.select(:kind, [ [ "Posting account", "posting" ], [ "Heading", "heading" ], [ "Total (label only)", "total" ] ], { selected: values["kind"] }, class: FIELD) } }
-      end
-      field(f, :active, "Status") { f.select(:active, [ [ "Active", "true" ], [ "Inactive", "false" ] ], { selected: values["active"].to_s }, class: FIELD) } if account
-      f.submit(draft ? "Reapply draft" : account ? "Save account" : "Add account", class: BUTTON)
-      a(href: tenant_book_setup_path(@tid, @bid), class: "ml-5 text-sm text-teal-900 hover:underline") { "Cancel" }
-    end
+    a(href: tenant_book_chart_path(@tid, @bid), class: BUTTON) { "Open chart of accounts" }
   end
 end

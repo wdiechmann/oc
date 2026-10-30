@@ -106,3 +106,5 @@ The [book API](docs/books-api.md) implements draft tenant-book metadata and hier
 ## Book-scoped finance setup
 
 See [finance-setup-api.md](docs/finance-setup-api.md) and [finance-setup-openapi.json](docs/finance-setup-openapi.json) for explicit configuration stewardship, occasion bindings and initial account editing. Apply `mix ecto.migrate` before use. This setup authority never grants approval/posting/payment access. Setup MVs have independent `finance_setup` serving controls, ordered outbox recovery and an operator-only `Ep.Finance.SetupProjector.rebuild(tenant_id)` path without financial execution.
+
+The dedicated CoA endpoint `GET .../setup/accounts` supports bounded canonical-position pages and projection-version fences for infinite scrolling. Account configuration includes header/calculation/posting types, position, VAT/category labels and validated formula references; see the updated setup contract. Apply the `extend_chart_accounts` migration before serving these fields. Legacy chart snapshots remain replayable.

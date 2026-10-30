@@ -6,6 +6,8 @@ defmodule Ep.Finance.Setup do
   alias Ep.Events.{CommandReceipt, Outbox}
   alias Ep.Projections.Control
 
+  @vat_codes ~w(none input output)
+  @categories ~w(assets liabilities equity income expenses)
   @actions ~w(steward binding account_create account_revise)
 
   def get(principal, tid, bid) do
@@ -34,6 +36,98 @@ defmodule Ep.Finance.Setup do
           occasions: if(steward, do: occasions(tid), else: [])
         }
       end)
+    end
+  end
+
+  def accounts(principal, tid, bid, params \\ %{}) do
+    with :ok <- valid_chart_params(params),
+         {:ok, data} <- get(principal, tid, bid),
+         {:ok, page} <- page_number(params["page"], 1),
+         {:ok, size} <- page_number(params["per_page"], 50),
+         :ok <- if(size <= 100, do: :ok, else: {:error, :invalid_setup}),
+         true <-
+           is_nil(params["source_version"]) or
+             (data.status == "ready" and
+                to_string(data.source_version) == to_string(params["source_version"])) do
+      query = String.downcase(String.slice(to_string(params["q"] || ""), 0, 120))
+
+      rows =
+        normalize_accounts(data.accounts)
+        |> Enum.filter(fn a ->
+          String.contains?(String.downcase("#{a["number"]} #{a["name"]}"), query)
+        end)
+
+      focus = params["focus_id"]
+      focused_index = if is_binary(focus), do: Enum.find_index(rows, &(&1["id"] == focus))
+      page = if is_integer(focused_index), do: div(focused_index, size) + 1, else: page
+      total = length(rows)
+      pages = max(1, ceil(total / size))
+      page = min(page, pages)
+
+      {:ok,
+       data
+       |> Map.drop([:stewards, :candidates, :occasions, :bindings])
+       |> Map.merge(%{
+         accounts: Enum.slice(rows, (page - 1) * size, size),
+         pagination: %{page: page, per_page: size, total_entries: total, total_pages: pages},
+         options: %{vat_codes: @vat_codes, categories: @categories}
+       })}
+    else
+      false -> {:error, :chart_changed}
+      error -> error
+    end
+  end
+
+  def normalize_accounts(rows) do
+    rows
+    |> Enum.sort_by(&{&1["position"] || 0, &1["number"] || "", &1["id"]})
+    |> Enum.with_index(1)
+    |> Enum.map(fn {a, index} ->
+      kind =
+        case a["kind"] do
+          "heading" -> "header"
+          "total" -> "calculation"
+          other -> other
+        end
+
+      Map.merge(
+        %{"vat_code" => nil, "category" => nil, "formula" => nil, "position" => index * 100},
+        a
+      )
+      |> Map.put("kind", kind)
+      |> Map.put("number", if(kind == "posting", do: a["number"], else: nil))
+    end)
+    |> Enum.sort_by(&{&1["position"], &1["id"]})
+  end
+
+  defp valid_chart_params(params) when is_map(params) do
+    valid =
+      Enum.all?(params, fn
+        {"q", value} ->
+          is_binary(value)
+
+        {key, value} when key in ~w(page per_page source_version) ->
+          (is_integer(value) && value >= 0) ||
+            (is_binary(value) && Regex.match?(~r/^\d{1,10}$/, value))
+
+        {"focus_id", value} ->
+          match?({:ok, _}, Ecto.UUID.cast(value))
+
+        _ ->
+          false
+      end)
+
+    if valid, do: :ok, else: {:error, :invalid_setup}
+  end
+
+  defp valid_chart_params(_), do: {:error, :invalid_setup}
+
+  defp page_number(nil, default), do: {:ok, default}
+
+  defp page_number(value, _) do
+    case Integer.parse(to_string(value)) do
+      {n, ""} when n > 0 -> {:ok, n}
+      _ -> {:error, :invalid_setup}
     end
   end
 
@@ -237,8 +331,8 @@ defmodule Ep.Finance.Setup do
   end
 
   defp mutate!(tid, bid, "account_create", p, eid, version, actor, app) do
-    fields!(p, ~w(number name kind expected_version))
-    attrs = account_attrs!(p)
+    account_fields!(p, false)
+    attrs = account_attrs!(p, bid, eid, nil)
     reserve!(bid, attrs.number, nil)
 
     Repo.insert!(
@@ -251,7 +345,7 @@ defmodule Ep.Finance.Setup do
           tenant_id: tid,
           book_id: bid,
           version: version,
-          reserved_numbers: [attrs.number]
+          reserved_numbers: if(attrs.number, do: [attrs.number], else: [])
         })
       )
     )
@@ -260,7 +354,7 @@ defmodule Ep.Finance.Setup do
   end
 
   defp mutate!(tid, bid, "account_revise", p, _eid, version, actor, app) do
-    fields!(p, ~w(account_id number name kind active expected_account_version expected_version))
+    account_fields!(p, true)
     id = uuid!(p["account_id"])
 
     account =
@@ -270,7 +364,7 @@ defmodule Ep.Finance.Setup do
              p["expected_account_version"] == account.version,
            do: Repo.rollback(:version_conflict)
 
-    attrs = account_attrs!(p) |> Map.put(:active, boolean!(p["active"]))
+    attrs = account_attrs!(p, bid, id, account) |> Map.put(:active, boolean!(p["active"]))
     reserve!(bid, attrs.number, id)
 
     attrs =
@@ -278,7 +372,8 @@ defmodule Ep.Finance.Setup do
         version: version,
         actor_identity_id: actor,
         application_id: app,
-        reserved_numbers: Enum.uniq([attrs.number | account.reserved_numbers])
+        reserved_numbers:
+          Enum.uniq(Enum.reject([attrs.number | account.reserved_numbers], &is_nil/1))
       })
 
     Repo.update!(Ecto.Changeset.change(account, attrs))
@@ -290,17 +385,87 @@ defmodule Ep.Finance.Setup do
     end
   end
 
-  defp account_attrs!(p) do
-    number = p["number"]
-    name = p["name"]
+  defp account_fields!(p, revise) do
+    required =
+      if revise,
+        do: ~w(account_id name kind active expected_account_version expected_version),
+        else: ~w(name kind expected_version)
 
-    unless is_binary(number) && Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, number) &&
-             is_binary(name) && String.length(String.trim(name)) in 1..120 &&
-             p["kind"] in ~w(posting heading total),
+    allowed = required ++ ~w(number vat_code category position formula)
+
+    unless Enum.all?(required, &Map.has_key?(p, &1)) && Enum.all?(Map.keys(p), &(&1 in allowed)),
+      do: Repo.rollback(:invalid_setup)
+  end
+
+  defp account_attrs!(p, bid, id, previous) do
+    kind =
+      case p["kind"] do
+        "heading" -> "header"
+        "total" -> "calculation"
+        other -> other
+      end
+
+    name = p["name"]
+    rows = Repo.all(from a in Account, where: a.book_id == ^bid)
+
+    position =
+      if Map.has_key?(p, "position") do
+        p["position"]
+      else
+        (previous && previous.position) ||
+          (Enum.map(rows, & &1.position) |> Enum.max(fn -> 0 end)) + 100
+      end
+
+    unless is_binary(name) && String.length(String.trim(name)) in 1..120 &&
+             kind in ~w(header calculation posting) && is_integer(position) &&
+             position in 1..2_147_483_647,
            do: Repo.rollback(:invalid_setup)
 
-    %{number: number, name: String.trim(name), kind: p["kind"]}
+    if Enum.any?(rows, &(&1.id != id && &1.position == position)),
+      do: Repo.rollback(:position_taken)
+
+    number = if kind == "posting", do: p["number"]
+    vat = if kind == "posting", do: p["vat_code"]
+    category = if kind == "posting", do: p["category"]
+
+    unless kind != "posting" ||
+             (is_binary(number) && Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, number) &&
+                (is_nil(vat) || vat in @vat_codes) &&
+                (is_nil(category) || category in @categories)),
+           do: Repo.rollback(:invalid_setup)
+
+    formula = if kind == "calculation", do: p["formula"]
+    candidate = %{id: id, number: number, kind: kind, formula_refs: %{}}
+    chart = [candidate | Enum.reject(rows, &(&1.id == id))]
+
+    refs =
+      if kind == "calculation" do
+        case Ep.Finance.Formula.references(formula, chart, previous) do
+          {:ok, refs} -> refs
+          _ -> Repo.rollback(:invalid_formula)
+        end
+      else
+        %{}
+      end
+
+    unless Ep.Finance.Formula.acyclic?([
+             %{candidate | formula_refs: refs} | Enum.reject(rows, &(&1.id == id))
+           ]),
+           do: Repo.rollback(:invalid_formula)
+
+    %{
+      number: number,
+      name: String.trim(name),
+      kind: kind,
+      position: position,
+      vat_code: vat,
+      category: category,
+      formula: formula,
+      formula_refs: refs
+    }
   end
+
+  defp reserve!(_bid, nil, _self), do: :ok
 
   defp reserve!(bid, number, self) do
     if Repo.exists?(
@@ -313,7 +478,11 @@ defmodule Ep.Finance.Setup do
   end
 
   defp snapshot(bid) do
-    accounts = Repo.all(from a in Account, where: a.book_id == ^bid, order_by: [asc: a.number])
+    accounts =
+      Repo.all(
+        from a in Account, where: a.book_id == ^bid, order_by: [asc: a.position, asc: a.id]
+      )
+
     bindings = Repo.all(from b in Binding, where: b.book_id == ^bid, order_by: b.occasion_id)
 
     %{
@@ -323,6 +492,11 @@ defmodule Ep.Finance.Setup do
           &Map.take(&1, [
             :id,
             :number,
+            :vat_code,
+            :category,
+            :position,
+            :formula,
+            :formula_refs,
             :name,
             :kind,
             :active,

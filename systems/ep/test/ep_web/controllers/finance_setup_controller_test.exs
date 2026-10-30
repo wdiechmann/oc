@@ -84,6 +84,19 @@ defmodule EpWeb.FinanceSetupControllerTest do
     assert row["id"] == hd(account["event_ids"])
     assert row["application_id"] == "test-backend"
 
+    chart =
+      json_response(get(conn, path <> "/accounts", %{"page" => "1", "per_page" => "1"}), 200)
+
+    assert chart["pagination"] == %{
+             "page" => 1,
+             "per_page" => 1,
+             "total_entries" => 1,
+             "total_pages" => 1
+           }
+
+    assert chart["accounts"] |> hd() |> Map.get("number") == "0010"
+    assert chart["options"]["vat_codes"] == ["none", "input", "output"]
+
     revised =
       Map.merge(attrs, %{
         "expected_version" => 2,
