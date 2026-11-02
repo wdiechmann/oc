@@ -1,0 +1,112 @@
+require "test_helper"
+require "stringio"
+
+class ChartImportsTest < ActionDispatch::IntegrationTest
+  EP = "http://localhost:4000/api/v1"
+  TID = "657df2d1-0f99-4007-a914-e26de1d58dc9"
+  BID = "df763842-2538-4ccb-8445-17e232c37d84"
+  IID = "bd763842-2538-4ccb-8445-17e232c37d84"
+  setup do
+    Rails.application.config.x.ep_backend_token = "v"*48
+    stub_request(:post, "#{EP}/auth/magic-links/verify").to_return(status: 200, body: { token: "test-session", expires_at: 1.hour.from_now.iso8601 }.to_json)
+    get "/session/verify", params: { token: "a"*43 }
+    post "/session"
+  end
+  teardown { Rails.application.config.x.ep_backend_token = nil }
+  def path = "/tenants/#{TID}/books/#{BID}/chart_import"
+  def api = "#{EP}/tenants/#{TID}/finance/books/#{BID}"
+  def review
+    { tenant_id: TID, book_id: BID, import_id: IID, row_count: 1, expires_at: 1.hour.from_now.iso8601, columns: %w[type number name position], headers: %w[kind code label order], sample: [ [ "posting", "0010", "Bank", "100" ] ], mapping: { type: "kind", number: "code", name: "label", position: "order" }, expected_version: 2, digest: "review-digest", plan: { valid: true, errors: [], counts: { create: 1 }, rows: [ { line: 2, operation: "create", before: nil, after: { kind: "posting", number: "0010", name: "Bank", position: 100 }, errors: [] } ] } }
+  end
+  def ready_review
+    stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 200, body: review.to_json)
+    get path, params: { import_id: IID }
+    assert_response :success
+    css_select("input[name=form_token]").first["value"]
+  end
+
+  test "codec preserves strings, Unicode, quotes, multiline text and safely escaped formula-like cells" do
+    rows = [ [ "0010", "Æble, \"bank\"\nnext", "=1+2", " -2", "@SUM(1)", "'literal", "'[0010]", "[0010] * 2" ] ]
+    columns = %w[number name danger negative at apostrophe quoted formula]
+    csv = ChartCsv.generate(columns, rows)
+    assert_includes csv, "'=1+2"
+    assert_equal rows, ChartCsv.parse(StringIO.new("\uFEFF" + csv)).fetch(:records)
+    assert_equal columns, ChartCsv.parse(StringIO.new(csv)).fetch(:headers)
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("a,a\n1,2")) }
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("a,b\n1")) }
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("a\n" + "x\n" * 501)) }
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("x" * (ChartCsv::MAX_BYTES + 1))) }
+  end
+
+  test "upload and mapping forward bounded strings without accepting accounts" do
+    upload = stub_request(:post, "#{api}/chart-imports").with(body: { headers: %w[kind code label order], records: [ [ "posting", "0010", "Bank", "100" ] ] }).to_return(status: 200, body: review.to_json)
+    file = Rack::Test::UploadedFile.new(StringIO.new("kind,code,label,order\nposting,0010,Bank,100\n"), "text/csv", original_filename: "chart.csv")
+    post "#{path}/upload", params: { csv: file }
+    assert_redirected_to "#{path}?import_id=#{IID}"
+    assert_requested upload
+    mapping = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping] }).to_return(status: 200, body: review.to_json)
+    post "#{path}/preview", params: { import_id: IID, mapping: review[:mapping].merge(formula: "") }
+    assert_response :success
+    assert_select "input[value='Accept reviewed changes']"
+    assert_select "select[name='mapping[type]'] option[value=kind][selected]"
+    assert_requested mapping
+    assert_not_requested :post, "#{api}/chart-imports/#{IID}/accept"
+  end
+
+  test "acceptance is bound to the signed review rather than hidden replacement parameters" do
+    token = ready_review
+    accept = stub_request(:post, "#{api}/chart-imports/#{IID}/accept").with(body: { digest: "review-digest", expected_version: 2 }, headers: { "Idempotency-Key"=>/\A[0-9a-f-]{36}\z/ }).to_return(status: 200, body: { stream_version: 3 }.to_json)
+    patch path, params: { form_token: token, digest: "tampered", expected_version: 99, import_id: BID }
+    assert_redirected_to "/tenants/#{TID}/books/#{BID}/chart"
+    assert_requested accept
+    patch path, params: { form_token: "tampered" }
+    assert_response :unprocessable_entity
+    assert_requested accept, times: 1
+  end
+
+  test "unknown acceptance checks the receipt then retries only the original small pointer" do
+    token = ready_review
+    key = Rails.application.message_verifier(:finance_setup).verified(token, purpose: :finance_setup).fetch("key")
+    accept = stub_request(:post, "#{api}/chart-imports/#{IID}/accept").with(body: { digest: "review-digest", expected_version: 2 }, headers: { "Idempotency-Key"=>key }).to_timeout
+    patch path, params: { form_token: token }
+    assert_response :service_unavailable
+    assert_select "a[href='#{path}/completion']"
+    post "#{path}/upload", params: {}
+    assert_response :success
+    assert_requested accept, times: 1
+    stub_request(:get, "#{EP}/me/commands").with(query: { command_type: "FinanceChartImport:accept", idempotency_key: key }).to_return(status: 200, body: { status: "unknown" }.to_json)
+    get "#{path}/completion"
+    assert_select "form[action='#{path}/retry']"
+    accept.to_return(status: 200, body: { stream_version: 3 }.to_json)
+    post "#{path}/retry", params: { digest: "replacement" }
+    assert_redirected_to "/tenants/#{TID}/books/#{BID}/chart"
+    assert_requested accept, times: 2
+  end
+
+  test "exports cover the requested snapshot and templates contain no example rows" do
+    stub_request(:get, "#{api}/chart-export").with(query: { q: "Bank", source_version: "2" }).to_return(status: 200, body: { columns: %w[number name], rows: [ [ "0010", "=Bank" ] ], source_version: 2 }.to_json)
+    get "#{path}/export", params: { q: "Bank", source_version: "2" }
+    assert_response :success
+    assert_equal "no-store", response.headers["Cache-Control"]
+    assert_includes response.headers["Content-Disposition"], "r2.csv"
+    assert_equal [ [ "number", "name" ], [ "0010", "'=Bank" ] ], CSV.parse(response.body)
+    stub_request(:get, "#{api}/chart-imports").to_return(status: 200, body: { columns: %w[type number name position] }.to_json)
+    get "#{path}/template"
+    assert_equal [ %w[type number name position] ], CSV.parse(response.body)
+  end
+
+  test "row and chart errors suppress acceptance and protected errors clear the review" do
+    invalid = review.deep_dup
+    invalid[:plan].merge!(valid: false, errors: [ "invalid_formula_cycle_or_reference" ])
+    invalid[:plan][:rows][0].merge!(operation: "error", errors: [ "position_taken" ])
+    stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 200, body: invalid.to_json)
+    get path, params: { import_id: IID }
+    assert_includes response.body, "position_taken"
+    assert_includes response.body, "invalid_formula_cycle_or_reference"
+    assert_select "input[value='Accept reviewed changes']", count: 0
+    stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 404, body: { error: "not_found" }.to_json)
+    get path, params: { import_id: IID }
+    assert_response :not_found
+    assert_not_includes response.body, "Bank"
+  end
+end

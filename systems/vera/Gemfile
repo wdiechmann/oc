@@ -50,3 +50,5 @@ end
 gem "mail", "~> 2.9"
 
 gem "will_paginate", "~> 4.0"
+
+gem "csv", "~> 3.3"

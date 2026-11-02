@@ -25,12 +25,35 @@ defmodule Ep.Finance.SetupProjector do
             select: {o, e}
         )
 
+      # Finish the last command group so an import is never visible half-projected.
+      rows =
+        case List.last(rows) do
+          nil ->
+            rows
+
+          {_, last} ->
+            extra =
+              Repo.all(
+                from o in Outbox,
+                  join: e in Event,
+                  on: e.id == o.event_id,
+                  where:
+                    o.tenant_id == ^tid and is_nil(o.delivered_at) and
+                      e.stream_type == "finance_setup" and e.stream_id == ^last.stream_id and
+                      e.command_id == ^last.command_id and e.stream_version > ^last.stream_version,
+                  order_by: e.stream_version,
+                  select: {o, e}
+              )
+
+            rows ++ extra
+        end
+
       Enum.each(rows, fn {out, event} ->
         consume!(tid, event)
         Repo.update!(Ecto.Changeset.change(out, delivered_at: DateTime.utc_now()))
       end)
 
-      if length(rows) == 1000, do: Oban.insert!(SetupWorker.new(%{tenant_id: tid}))
+      if length(rows) >= 1000, do: Oban.insert!(SetupWorker.new(%{tenant_id: tid}))
       length(rows)
     end)
   end
@@ -67,13 +90,31 @@ defmodule Ep.Finance.SetupProjector do
       unless payload["tenant_id"] == tid && payload["book_id"] == event.stream_id,
         do: Repo.rollback(:projection_scope)
 
+      snapshot =
+        if payload["account"] do
+          account = payload["account"]
+
+          unless account["tenant_id"] == tid && account["book_id"] == event.stream_id &&
+                   account["version"] == event.stream_version &&
+                   (event.event_type != "AccountCreated" || account["id"] == event.id),
+                 do: Repo.rollback(:projection_scope)
+
+          unless row, do: Repo.rollback(:projection_gap)
+
+          Map.put(row.data, "accounts", [
+            account | Enum.reject(row.data["accounts"], &(&1["id"] == account["id"]))
+          ])
+        else
+          payload["setup"]
+        end
+
       attrs = %{
         book_id: event.stream_id,
         tenant_id: tid,
         source_version: event.stream_version,
         data:
           Ep.Finance.Catalogues.project(
-            Map.update!(payload["setup"], "accounts", &Setup.normalize_accounts/1),
+            Map.update!(snapshot, "accounts", &Setup.normalize_accounts/1),
             row && row.data,
             event
           )

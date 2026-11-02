@@ -153,7 +153,31 @@ defmodule Ep.Finance.Catalogues do
     end
   end
 
-  def selection!(tid, bid, kind, p, previous) do
+  def selection!(tid, bid, kind, params, previous) do
+    case validate_selection(tid, bid, kind, params, previous) do
+      {:ok, attrs} -> attrs
+      {:error, reason} -> Repo.rollback(reason)
+    end
+  end
+
+  def validate_selection(tid, bid, kind, params, previous) do
+    try do
+      {:ok, selection_checked!(tid, bid, kind, params, previous)}
+    catch
+      {:catalogue_selection, reason} -> {:error, reason}
+    end
+  end
+
+  defp selection_error!(reason), do: throw({:catalogue_selection, reason})
+
+  defp selection_uuid!(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, id} -> id
+      _ -> selection_error!(:invalid_catalogue_reference)
+    end
+  end
+
+  defp selection_checked!(tid, bid, kind, p, previous) do
     {id_field, code_field, version_field} =
       if kind == "vat",
         do: {:vat_entry_id, :vat_code, :vat_entry_version},
@@ -174,8 +198,8 @@ defmodule Ep.Finance.Catalogues do
               tenant_id: tid,
               book_id: bid,
               kind: kind,
-              id: uuid!(p[id_key])
-            ) || Repo.rollback(:invalid_catalogue_reference)
+              id: selection_uuid!(p[id_key])
+            ) || selection_error!(:invalid_catalogue_reference)
 
           is_nil(legacy) ->
             nil
@@ -188,14 +212,14 @@ defmodule Ep.Finance.Catalogues do
                     fragment("lower(?)", e.code) == ^String.downcase(legacy)
             ) ||
               own_alias(tid, bid, kind, previous_id, legacy) ||
-              Repo.rollback(:invalid_catalogue_reference)
+              selection_error!(:invalid_catalogue_reference)
 
           true ->
-            Repo.rollback(:invalid_catalogue_reference)
+            selection_error!(:invalid_catalogue_reference)
         end
 
       if entry && !entry.active && entry.id != previous_id,
-        do: Repo.rollback(:inactive_catalogue_entry)
+        do: selection_error!(:inactive_catalogue_entry)
 
       %{
         id_field => entry && entry.id,
@@ -203,10 +227,10 @@ defmodule Ep.Finance.Catalogues do
         version_field => entry && entry.version
       }
     else
-      if Map.has_key?(p, id_key), do: Repo.rollback(:catalogue_not_initialized)
+      if Map.has_key?(p, id_key), do: selection_error!(:catalogue_not_initialized)
 
       unless is_nil(legacy) || legacy in Enum.map(@legacy[kind], &elem(&1, 0)),
-        do: Repo.rollback(:invalid_setup)
+        do: selection_error!(:invalid_setup)
 
       %{id_field => nil, code_field => legacy, version_field => nil}
     end

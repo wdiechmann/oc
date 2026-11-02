@@ -41,6 +41,14 @@ module Ep
       suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
+    def chart_import_info(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports")
+    def chart_export(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-export", query: query)
+    def upload_chart(tid, bid, data) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports", body: data)
+    def chart_import(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(id)}")
+    def preview_chart(tid, bid, id, mapping) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(id)}/preview", body: { mapping: mapping })
+    def accept_chart(tid, bid, attrs, key)
+      request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(attrs[:import_id])}/accept", body: attrs.except(:import_id), key: key)
+    end
     def chart_accounts(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup/accounts", query: query.compact)
     def finance_setup(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup")
     def configure_finance(tid, bid, action, attrs, key)

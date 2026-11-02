@@ -87,7 +87,9 @@ class FinanceSetupController < ApplicationController
   def completion_url
     op = session[:finance_operation]
     return unless op
-    if op["action"].to_s.start_with?("catalogue_")
+    if op["type"] == "FinanceChartImport:accept"
+      completion_tenant_book_chart_import_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("catalogue_")
       completion_tenant_book_catalogues_path(op["tenant_id"], op["book_id"])
     elsif op["type"].to_s.start_with?("FinancePeriod:")
       completion_tenant_book_periods_path(op["tenant_id"], op["book_id"])
@@ -100,7 +102,9 @@ class FinanceSetupController < ApplicationController
   def retry_url
     op = session[:finance_operation]
     return unless op && op["checked"]
-    if op["action"].to_s.start_with?("catalogue_")
+    if op["type"] == "FinanceChartImport:accept"
+      retry_tenant_book_chart_import_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("catalogue_")
       retry_tenant_book_catalogues_path(op["tenant_id"], op["book_id"])
     elsif op["type"].to_s.start_with?("FinancePeriod:")
       retry_tenant_book_periods_path(op["tenant_id"], op["book_id"])

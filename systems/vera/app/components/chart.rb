@@ -36,6 +36,12 @@ class Components::Chart < Components::Base
         f.submit("Search", class: "cursor-pointer rounded-lg bg-teal-950 px-4 py-2 text-sm font-medium text-white")
       end
       coa_editor(data: { page: @collection.current_page.to_i, pages: @collection.total_pages, source_version: @data.fetch("source_version"), chart_url: tenant_book_chart_path(@tid, @bid, q: @query.presence), focus_id: @focus, focus_edge: @edge, pending: (@data["status"] != "ready").to_s }, class: "block", aria_describedby: "coa-help") do
+        div(class: "mb-4 flex flex-wrap gap-4 text-sm text-teal-900 underline") do
+          a(href: export_tenant_book_chart_import_path(@tid, @bid, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export accepted chart" }
+          a(href: export_tenant_book_chart_import_path(@tid, @bid, q: @query, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export filtered chart" } if @query.present?
+          a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false, chart_export: true }) { "CSV template" }
+          a(href: tenant_book_chart_import_path(@tid, @bid)) { "Import CSV" } if @data.dig("permissions", "configure")
+        end
         p(id: "coa-status", role: "status", aria_live: "polite", class: "mb-3 text-sm text-amber-900")
         div(class: "coa-scroll", tabindex: "-1") do
           div(class: "coa-grid", role: "table", aria_label: "Chart of accounts") do

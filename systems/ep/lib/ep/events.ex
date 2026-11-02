@@ -30,8 +30,15 @@ defmodule Ep.Events do
     events =
       facts
       |> Enum.with_index(head.version + 1)
-      |> Enum.map(fn {{type, payload}, version} ->
+      |> Enum.map(fn {fact, version} ->
+        {id, type, payload} =
+          case fact do
+            {type, payload} -> {nil, type, payload}
+            {id, type, payload} -> {id, type, payload}
+          end
+
         attrs = Map.merge(metadata, %{stream_version: version, event_type: type})
+        attrs = if id, do: Map.put(attrs, :id, id), else: attrs
         event = Repo.insert!(struct!(Event, attrs))
         Repo.insert!(%Details{event_id: event.id, payload: payload})
 

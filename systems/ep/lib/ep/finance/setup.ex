@@ -442,95 +442,20 @@ defmodule Ep.Finance.Setup do
   end
 
   defp account_attrs!(p, tid, bid, id, previous) do
-    kind =
-      case p["kind"] do
-        "heading" -> "header"
-        "total" -> "calculation"
-        other -> other
-      end
-
-    name = p["name"]
     rows = Repo.all(from a in Account, where: a.book_id == ^bid)
 
-    position =
-      if Map.has_key?(p, "position") do
-        p["position"]
-      else
-        (previous && previous.position) ||
-          (Enum.map(rows, & &1.position) |> Enum.max(fn -> 0 end)) + 100
-      end
+    case Ep.Finance.AccountRules.validate(p, tid, bid, id, previous, rows) do
+      {:ok, attrs} ->
+        candidate = Map.merge(%{id: id}, attrs)
 
-    unless is_binary(name) && String.length(String.trim(name)) in 1..120 &&
-             kind in ~w(header calculation posting) && is_integer(position) &&
-             position in 1..2_147_483_647,
-           do: Repo.rollback(:invalid_setup)
+        unless Ep.Finance.Formula.acyclic?([candidate | Enum.reject(rows, &(&1.id == id))]),
+          do: Repo.rollback(:invalid_formula)
 
-    if Enum.any?(rows, &(&1.id != id && &1.position == position)),
-      do: Repo.rollback(:position_taken)
+        attrs
 
-    number = if kind == "posting", do: p["number"]
-
-    unless kind != "posting" ||
-             (is_binary(number) && Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, number)),
-           do: Repo.rollback(:invalid_setup)
-
-    selections =
-      if kind == "posting" do
-        Map.merge(
-          Ep.Finance.Catalogues.selection!(
-            tid,
-            bid,
-            "vat",
-            p,
-            previous
-          ),
-          Ep.Finance.Catalogues.selection!(
-            tid,
-            bid,
-            "category",
-            p,
-            previous
-          )
-        )
-      else
-        %{
-          vat_entry_id: nil,
-          category_entry_id: nil,
-          vat_entry_version: nil,
-          category_entry_version: nil,
-          vat_code: nil,
-          category: nil
-        }
-      end
-
-    formula = if kind == "calculation", do: p["formula"]
-    candidate = %{id: id, number: number, kind: kind, formula_refs: %{}}
-    chart = [candidate | Enum.reject(rows, &(&1.id == id))]
-
-    refs =
-      if kind == "calculation" do
-        case Ep.Finance.Formula.references(formula, chart, previous) do
-          {:ok, refs} -> refs
-          _ -> Repo.rollback(:invalid_formula)
-        end
-      else
-        %{}
-      end
-
-    unless Ep.Finance.Formula.acyclic?([
-             %{candidate | formula_refs: refs} | Enum.reject(rows, &(&1.id == id))
-           ]),
-           do: Repo.rollback(:invalid_formula)
-
-    %{
-      number: number,
-      name: String.trim(name),
-      kind: kind,
-      position: position,
-      formula: formula,
-      formula_refs: refs
-    }
-    |> Map.merge(selections)
+      {:error, reason} ->
+        Repo.rollback(reason)
+    end
   end
 
   defp reserve!(_bid, nil, _self), do: :ok

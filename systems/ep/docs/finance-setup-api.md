@@ -20,3 +20,5 @@ Mutations require `Idempotency-Key` (1–128 safe characters), reject extra fiel
 Protected current tables and per-book transaction locks govern acceptance and revocation. A tenant/occasion lock protects competing bindings. `finance_setup` events publish snapshots through outbox/inbox to a background MV; reads expose lag and refuse stopped controls. Grant candidates/current authority are live restricted control data, not financial authorization from the MV. The view can be rebuilt without appending events or dispatching financial work. Position order and formula configuration are supported; batch reorder/rebalancing, imports, periods and journal permissions follow later slices.
 
 Example account command: `{"number":"0010","name":"Bank","kind":"posting","position":100,"vat_code":"none","category":"assets","expected_version":1}`.
+
+Reviewed chart CSV import/export is specified in [chart-csv-api.md](chart-csv-api.md) and [chart-csv-openapi.json](chart-csv-openapi.json). Single-line commands and historical setup snapshot replay remain compatible.

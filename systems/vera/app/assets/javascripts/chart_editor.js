@@ -108,6 +108,11 @@ class CoaEditor extends HTMLElement {
     this.watch();
   }
   click(event) {
+    if (event.target.closest("[data-chart-export]") && this.openForm()?.dataset.dirty === "true") {
+      event.preventDefault();
+      this.status("Save or cancel your current line before exporting the accepted chart.");
+      return;
+    }
     const reference = event.target.closest("[data-coa-reference]");
     if (reference) {
       navigator.clipboard.writeText(`[@${reference.dataset.coaReference}]`).then(() => this.status("Stable account reference copied."), () => this.status(`Formula reference: [@${reference.dataset.coaReference}]`));
