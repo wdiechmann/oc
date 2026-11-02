@@ -49,7 +49,13 @@ From a book, choose **Roles and occasions**. A tenant administrator explicitly a
 
 Link existing occasions there, then open the separate **Chart of accounts** line editor. Its columns are Type, Number, Name, VAT, Category, Position and Formula, with type-specific fields. Use list-focused Home/End/PgUp/PgDn/↑/↓, Enter to edit/save and Escape to cancel. will_paginate pages progressively append on scroll. Numbers keep leading zeroes and stay reserved after renumbering/deactivation/type changes. Formula text is validated and pinned to stable references; calculated ledger results follow later. Conflicts preserve the draft above the accepted row for explicit reapplication. Lost-response completion checks never repeat a mutation; an explicit retry after checking submits the unchanged original body/key. See the [finance setup contract](../ep/docs/finance-setup-api.md).
 
-Apply the new EP migration (`mix ecto.migrate` in systems/ep; already applied in this local workspace) before using this slice. Restart EP/VERA when running without development code reloading. No credentials or financial grants are created by the migration, and existing tenant admins must explicitly assign their steward role. Batch reorder/rebalancing, configurable tax/category catalogues, reporting/formula results, import/export and monetary operations remain later work.
+Apply the new EP migration (`mix ecto.migrate` in systems/ep; already applied in this local workspace) before using this slice. Restart EP/VERA when running without development code reloading. No credentials or financial grants are created by the migration, and existing tenant admins must explicitly assign their steward role. Batch reorder/rebalancing, effective tax/rate/rule configuration, reporting/formula results, import/export and monetary operations remain later work.
+
+## VAT and category catalogues
+
+Open **VAT and categories** from a book, setup or chart. A book steward must press **Initialize catalogues** once: this adopts the former choices and binds existing account selections to stable IDs in one accepted batch. The chart is readonly until adoption is projected, preserving legacy selections. The local schema migration is applied, but no user book is initialized automatically.
+
+Create entries, rename code/name and deactivate/reactivate them. Existing associations survive changes, inactive entries remain on their own accounts, and new assignments require current active entries from the correct book/catalogue. Former codes stay reserved. Catalogue history, conflict drafts, pending/stopped views and receipt recovery use the existing setup pipeline. See [catalogues-api.md](../ep/docs/catalogues-api.md). These VAT entries are classification labels; tax rates/calculation/posting rules remain later work.
 
 ## Accounting periods
 

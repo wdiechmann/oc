@@ -16,6 +16,10 @@ class Components::Chart < Components::Base
         a(href: tenant_book_chart_path(@tid, @bid, focus_id: @focus), class: "text-sm font-medium text-teal-900 hover:underline") { "Refresh chart" }
       end
       a(href: tenant_book_periods_path(@tid, @bid), class: "mt-3 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
+      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "VAT and categories" }
+      unless @data["catalogues_initialized"]
+        p(class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { "Initialize this book’s VAT/category catalogues before editing the chart. Existing selections will be preserved and bound to stable entries." }
+      end
       p(class: "mt-4 text-sm text-stone-600", id: "coa-help") { "↑/↓ move · Home/End first/last · PgUp/PgDn page · Enter edit/save · Escape cancel. Tab moves between fields while editing." }
       p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { @message } if @message
       if @check
@@ -44,7 +48,7 @@ class Components::Chart < Components::Base
             if @collection.empty?
               p(class: "p-5 text-sm text-stone-500") { "No accounts match this chart." }
             end
-            if @data.dig("permissions", "configure") && @data["status"] == "ready" && !@check
+            if @data.dig("permissions", "configure") && @data["catalogues_initialized"] == true && @data["status"] == "ready" && !@check
               render Components::ChartRow.new(data: @data, account: nil, token: @token, draft: @draft)
             end
           end

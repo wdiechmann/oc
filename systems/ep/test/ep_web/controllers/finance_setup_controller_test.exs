@@ -95,7 +95,8 @@ defmodule EpWeb.FinanceSetupControllerTest do
            }
 
     assert chart["accounts"] |> hd() |> Map.get("number") == "0010"
-    assert chart["options"]["vat_codes"] == ["none", "input", "output"]
+    assert chart["options"]["vat_codes"] == []
+    assert chart["catalogues_initialized"] == false
 
     revised =
       Map.merge(attrs, %{

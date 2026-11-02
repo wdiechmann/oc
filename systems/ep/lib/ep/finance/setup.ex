@@ -6,9 +6,7 @@ defmodule Ep.Finance.Setup do
   alias Ep.Events.{CommandReceipt, Outbox}
   alias Ep.Projections.Control
 
-  @vat_codes ~w(none input output)
-  @categories ~w(assets liabilities equity income expenses)
-  @actions ~w(steward reopening_authority binding account_create account_revise)
+  @actions ~w(catalogue_initialize catalogue_create catalogue_revise steward reopening_authority binding account_create account_revise)
 
   def get(principal, tid, bid) do
     with {:ok, tid} <- uuid(tid), {:ok, bid} <- uuid(bid) do
@@ -30,6 +28,8 @@ defmodule Ep.Finance.Setup do
           latest_version: latest,
           permissions: %{assign_stewards: admin, configure: steward},
           accounts: data["accounts"],
+          catalogue_entries: data["catalogue_entries"] || [],
+          catalogues_initialized: data["catalogues_initialized"] || false,
           bindings: data["bindings"],
           stewards: if(admin, do: stewards(bid), else: []),
           candidates: if(admin, do: candidates(tid), else: []),
@@ -68,9 +68,11 @@ defmodule Ep.Finance.Setup do
        data
        |> Map.drop([:stewards, :candidates, :occasions, :bindings])
        |> Map.merge(%{
-         accounts: Enum.slice(rows, (page - 1) * size, size),
+         accounts:
+           Enum.slice(rows, (page - 1) * size, size)
+           |> Enum.map(&Ep.Finance.Catalogues.labels(&1, data.catalogue_entries)),
          pagination: %{page: page, per_page: size, total_entries: total, total_pages: pages},
-         options: %{vat_codes: @vat_codes, categories: @categories}
+         options: Ep.Finance.Catalogues.options(data.catalogue_entries)
        })}
     else
       false -> {:error, :chart_changed}
@@ -216,6 +218,13 @@ defmodule Ep.Finance.Setup do
               "stream_version" => event.stream_version
             }
 
+            result =
+              case action do
+                "catalogue_create" -> Map.put(result, "entry_id", event_id)
+                "catalogue_revise" -> Map.put(result, "entry_id", params["entry_id"])
+                _ -> result
+              end
+
             Repo.insert!(%CommandReceipt{
               id: cid,
               identity_id: principal.identity_id,
@@ -275,6 +284,10 @@ defmodule Ep.Finance.Setup do
     unless admin || steward, do: Repo.rollback(:not_found)
     {book, not is_nil(admin), not is_nil(steward)}
   end
+
+  defp mutate!(tid, bid, action, p, eid, version, actor, app)
+       when action in ~w(catalogue_initialize catalogue_create catalogue_revise),
+       do: Ep.Finance.Catalogues.mutate!(tid, bid, action, p, eid, version, actor, app)
 
   defp mutate!(tid, bid, "steward", p, _eid, _version, _actor, _app) do
     fields!(p, ~w(identity_id active expected_version))
@@ -362,7 +375,7 @@ defmodule Ep.Finance.Setup do
 
   defp mutate!(tid, bid, "account_create", p, eid, version, actor, app) do
     account_fields!(p, false)
-    attrs = account_attrs!(p, bid, eid, nil)
+    attrs = account_attrs!(p, tid, bid, eid, nil)
     reserve!(bid, attrs.number, nil)
 
     Repo.insert!(
@@ -394,7 +407,7 @@ defmodule Ep.Finance.Setup do
              p["expected_account_version"] == account.version,
            do: Repo.rollback(:version_conflict)
 
-    attrs = account_attrs!(p, bid, id, account) |> Map.put(:active, boolean!(p["active"]))
+    attrs = account_attrs!(p, tid, bid, id, account) |> Map.put(:active, boolean!(p["active"]))
     reserve!(bid, attrs.number, id)
 
     attrs =
@@ -421,13 +434,14 @@ defmodule Ep.Finance.Setup do
         do: ~w(account_id name kind active expected_account_version expected_version),
         else: ~w(name kind expected_version)
 
-    allowed = required ++ ~w(number vat_code category position formula)
+    allowed =
+      required ++ ~w(number vat_code category vat_entry_id category_entry_id position formula)
 
     unless Enum.all?(required, &Map.has_key?(p, &1)) && Enum.all?(Map.keys(p), &(&1 in allowed)),
       do: Repo.rollback(:invalid_setup)
   end
 
-  defp account_attrs!(p, bid, id, previous) do
+  defp account_attrs!(p, tid, bid, id, previous) do
     kind =
       case p["kind"] do
         "heading" -> "header"
@@ -455,14 +469,39 @@ defmodule Ep.Finance.Setup do
       do: Repo.rollback(:position_taken)
 
     number = if kind == "posting", do: p["number"]
-    vat = if kind == "posting", do: p["vat_code"]
-    category = if kind == "posting", do: p["category"]
 
     unless kind != "posting" ||
-             (is_binary(number) && Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, number) &&
-                (is_nil(vat) || vat in @vat_codes) &&
-                (is_nil(category) || category in @categories)),
+             (is_binary(number) && Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, number)),
            do: Repo.rollback(:invalid_setup)
+
+    selections =
+      if kind == "posting" do
+        Map.merge(
+          Ep.Finance.Catalogues.selection!(
+            tid,
+            bid,
+            "vat",
+            p,
+            previous
+          ),
+          Ep.Finance.Catalogues.selection!(
+            tid,
+            bid,
+            "category",
+            p,
+            previous
+          )
+        )
+      else
+        %{
+          vat_entry_id: nil,
+          category_entry_id: nil,
+          vat_entry_version: nil,
+          category_entry_version: nil,
+          vat_code: nil,
+          category: nil
+        }
+      end
 
     formula = if kind == "calculation", do: p["formula"]
     candidate = %{id: id, number: number, kind: kind, formula_refs: %{}}
@@ -488,11 +527,10 @@ defmodule Ep.Finance.Setup do
       name: String.trim(name),
       kind: kind,
       position: position,
-      vat_code: vat,
-      category: category,
       formula: formula,
       formula_refs: refs
     }
+    |> Map.merge(selections)
   end
 
   defp reserve!(_bid, nil, _self), do: :ok
@@ -516,12 +554,18 @@ defmodule Ep.Finance.Setup do
     bindings = Repo.all(from b in Binding, where: b.book_id == ^bid, order_by: b.occasion_id)
 
     %{
+      "catalogues_initialized" => Ep.Finance.Catalogues.initialized?(bid),
+      "catalogue_entries" => Ep.Finance.Catalogues.snapshot(bid),
       "accounts" =>
         Enum.map(
           accounts,
           &Map.take(&1, [
             :id,
             :number,
+            :vat_entry_id,
+            :category_entry_id,
+            :vat_entry_version,
+            :category_entry_version,
             :vat_code,
             :category,
             :position,

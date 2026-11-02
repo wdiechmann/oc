@@ -18,6 +18,17 @@ defmodule EpWeb.FinanceSetupController do
         )
       )
 
+  def catalogues(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.Catalogues.get(conn.assigns.current_principal, p["tenant_id"], p["book_id"])
+      )
+
+  def initialize_catalogues(conn, p), do: command(conn, p, "catalogue_initialize")
+  def create_catalogue_entry(conn, p), do: command(conn, p, "catalogue_create")
+  def revise_catalogue_entry(conn, p), do: command(conn, p, "catalogue_revise")
+
   def steward(conn, p), do: command(conn, p, "steward")
   def reopening_authority(conn, p), do: command(conn, p, "reopening_authority")
   def binding(conn, p), do: command(conn, p, "binding")
@@ -61,7 +72,9 @@ defmodule EpWeb.FinanceSetupController do
                :binding_taken,
                :idempotency_conflict,
                :position_taken,
-               :chart_changed
+               :chart_changed,
+               :catalogues_initialized,
+               :catalogue_not_initialized
              ] ->
           409
 

@@ -365,6 +365,108 @@ defmodule Ep.Finance.BookConcurrencyTest do
     end)
   end
 
+  test "catalogue deactivation and a new account association cannot accept the same stale setup revision" do
+    {owner, tid, bid, vat} =
+      Sandbox.unboxed_run(Repo, fn ->
+        owner = sign_in()
+
+        {:ok, %{result: t}} =
+          Ep.Tenancy.create_tenant(owner.principal, %{"name" => "Catalogue race"}, "tenant")
+
+        tid = t["tenant_id"]
+
+        {:ok, b} =
+          Books.create(
+            owner.principal,
+            tid,
+            %{
+              "name" => "Catalogue race",
+              "code" => "CATALOGUES",
+              "base_currency" => "DKK",
+              "accounting_authority" => "ep",
+              "timezone" => "Europe/Copenhagen",
+              "fiscal_year_start_month" => 1
+            },
+            "book"
+          )
+
+        bid = b["book_id"]
+
+        {:ok, _} =
+          Ep.Finance.Setup.command(
+            owner.principal,
+            tid,
+            bid,
+            "steward",
+            %{
+              "identity_id" => owner.principal.identity_id,
+              "active" => true,
+              "expected_version" => 0
+            },
+            "role"
+          )
+
+        {:ok, _} =
+          Ep.Finance.Setup.command(
+            owner.principal,
+            tid,
+            bid,
+            "catalogue_initialize",
+            %{"expected_version" => 1},
+            "initialize"
+          )
+
+        vat = Repo.get_by!(Ep.Finance.CatalogueEntry, book_id: bid, kind: "vat", code: "input")
+        {owner, tid, bid, vat}
+      end)
+
+    on_exit(fn -> Sandbox.unboxed_run(Repo, fn -> cleanup(owner, tid) end) end)
+    supervisor = start_supervised!({Task.Supervisor, []})
+    parent = self()
+    barrier = make_ref()
+
+    operations = [
+      {"account_create",
+       %{
+         "name" => "Bank",
+         "kind" => "posting",
+         "number" => "0010",
+         "position" => 100,
+         "vat_entry_id" => vat.id,
+         "expected_version" => 2
+       }},
+      {"catalogue_revise",
+       %{
+         "entry_id" => vat.id,
+         "code" => vat.code,
+         "name" => vat.name,
+         "active" => false,
+         "expected_entry_version" => vat.version,
+         "expected_version" => 2
+       }}
+    ]
+
+    tasks =
+      for {action, attrs} <- operations do
+        Task.Supervisor.async_nolink(supervisor, fn ->
+          Sandbox.unboxed_run(Repo, fn ->
+            send(parent, {:ready, self()})
+
+            receive do
+              ^barrier ->
+                Ep.Finance.Setup.command(owner.principal, tid, bid, action, attrs, action)
+            end
+          end)
+        end)
+      end
+
+    Enum.each(tasks, fn task -> assert_receive {:ready, pid} when pid == task.pid end)
+    Enum.each(tasks, fn task -> send(task.pid, barrier) end)
+    results = Task.await_many(tasks, 10_000)
+    assert Enum.count(results, &match?({:ok, _}, &1)) == 1
+    assert Enum.count(results, &match?({:error, :version_conflict}, &1)) == 1
+  end
+
   defp blocked_by?(waiting, holder, deadline) do
     %{rows: [[blockers]]} = Repo.query!("SELECT pg_blocking_pids($1)", [waiting])
 
@@ -397,6 +499,7 @@ defmodule Ep.Finance.BookConcurrencyTest do
             Ep.Finance.PeriodState,
             Ep.Finance.SetupView,
             Ep.Finance.Account,
+            Ep.Finance.CatalogueEntry,
             Ep.Finance.Binding,
             Ep.Finance.Steward,
             Ep.Finance.SetupState

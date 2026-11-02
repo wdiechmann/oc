@@ -112,3 +112,7 @@ The dedicated CoA endpoint `GET .../setup/accounts` supports bounded canonical-p
 ## Accounting periods
 
 [periods-api.md](docs/periods-api.md) and [periods-openapi.json](docs/periods-openapi.json) document draft corrections, open/close/reopen, separate reopening authority and private receipts. Apply `add_accounting_periods` before use (already applied locally). PeriodWorker/PeriodProjector use independent finance_periods serving controls and outbox recovery; `Ep.Finance.PeriodProjector.rebuild(tenant_id)` is an operator-only metadata/history replay. Future posting handlers must validate book/accounting/financial authority and retain `Periods.lock_open!` in the same transaction through ledger/event acceptance. The guard grants no money authority and this slice exposes no posting API.
+
+## Book VAT/category catalogues
+
+[catalogues-api.md](docs/catalogues-api.md) documents explicit adoption of the former choices, stable entry references, mutable reserved codes, lifecycle/history and account guards. Apply `add_book_catalogues` before serving this API (already applied locally). Initialization is a steward command, never a read/migration side effect. Catalogue/account commands share finance_setup locks/versions/projection/recovery. New chart clients use UUID references; compatibility code inputs are constrained as documented. VAT labels introduce no rates or monetary execution.

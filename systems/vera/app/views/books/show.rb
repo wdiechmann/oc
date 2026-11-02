@@ -10,6 +10,7 @@ class Views::Books::Show < Views::Base
       a(href: tenant_book_setup_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Roles and occasions" }
       a(href: tenant_book_chart_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Chart of accounts" }
       a(href: tenant_book_periods_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
+      a(href: tenant_book_catalogues_path(tid, @detail.fetch("book_id", @detail.dig("book", "book_id"))), class: "ml-5 text-sm font-medium text-teal-900 hover:underline") { "VAT and categories" }
       book = @detail["book"]
       h1(class: "mt-6 text-3xl font-semibold") { book ? book.fetch("name") : "Book setup accepted" }
       if @detail["status"] != "ready"

@@ -12,7 +12,12 @@ class ChartAccountsController < FinanceSetupController
   def attributes_for(action, account_id)
     attrs = super
     attrs[:number] = nil unless params[:kind] == "posting"
-    attrs.merge!(position: Integer(params[:position], exception: false), vat_code: params[:vat_code].presence, category: params[:category].presence, formula: params[:formula].presence)
+    attrs.merge!(position: Integer(params[:position], exception: false), formula: params[:formula].presence)
+    if params.key?(:vat_entry_id) || params.key?(:category_entry_id)
+      attrs.merge!(vat_entry_id: params[:vat_entry_id].presence, category_entry_id: params[:category_entry_id].presence)
+    else
+      attrs.merge!(vat_code: params[:vat_code].presence, category: params[:category].presence)
+    end
     attrs
   end
 
@@ -35,6 +40,15 @@ class ChartAccountsController < FinanceSetupController
       end
     else
       render Views::ChartAccounts::Show.new(**options, signed_in: signed_in?, notice: flash[:notice]), status: status
+    end
+  end
+
+  def error_message(code)
+    case code
+    when "invalid_catalogue_reference" then "Choose a VAT/category entry belonging to this book and the correct catalogue."
+    when "inactive_catalogue_entry" then "That catalogue entry is inactive. Keep an existing association or choose an active entry."
+    when "catalogue_not_initialized" then "Initialize this book’s VAT/category catalogues before assigning catalogue entries."
+    else super
     end
   end
 

@@ -6,7 +6,7 @@ defmodule Ep.Finance.SetupProjector do
   alias Ep.Finance.{Setup, SetupView, SetupWorker}
   alias Ep.Projections.Inbox
   @consumer "finance_setup:v1"
-  @types ~w(PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountCreated AccountRevised AccountDeactivated AccountReactivated)
+  @types ~w(CataloguesInitialized CatalogueEntryCreated CatalogueEntryRevised CatalogueEntryDeactivated CatalogueEntryReactivated PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountCreated AccountRevised AccountDeactivated AccountReactivated)
 
   def deliver(tid) do
     Repo.transaction(fn ->
@@ -71,7 +71,12 @@ defmodule Ep.Finance.SetupProjector do
         book_id: event.stream_id,
         tenant_id: tid,
         source_version: event.stream_version,
-        data: Map.update!(payload["setup"], "accounts", &Setup.normalize_accounts/1)
+        data:
+          Ep.Finance.Catalogues.project(
+            Map.update!(payload["setup"], "accounts", &Setup.normalize_accounts/1),
+            row && row.data,
+            event
+          )
       }
 
       if row,

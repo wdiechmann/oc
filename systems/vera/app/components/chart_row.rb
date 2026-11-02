@@ -8,7 +8,7 @@ class Components::ChartRow < Components::Base
     @action = account ? "account_revise" : "account_create"
     @draft = nil unless draft && draft[:action] == @action && draft[:attrs][:account_id] == @id
     @values = @draft ? @draft[:attrs].stringify_keys : account || { "kind"=>"posting", "position"=>nil, "active"=>true }
-    @editable = data["status"] == "ready" && data.dig("permissions", "configure") && !locked
+    @editable = data["status"] == "ready" && data["catalogues_initialized"] == true && data.dig("permissions", "configure") && !locked
   end
   def view_template
     div(id: "account-#{@id || 'new'}", role: "row", tabindex: @account ? "0" : "-1", class: "coa-row", data: { coa_row: true, account_id: @id, page: @data.dig("pagination", "page"), draft: (!!@draft).to_s, new_row: (!@account).to_s }) do
@@ -35,7 +35,7 @@ class Components::ChartRow < Components::Base
   end
   private
   def cells(account)
-    values = [ account["kind"].to_s.capitalize, account["number"], account["name"], label(account["vat_code"]), label(account["category"]), account["position"], account["formula"] ]
+    values = [ account["kind"].to_s.capitalize, account["number"], account["name"], account["vat_label"] || label(account["vat_code"]), account["category_label"] || label(account["category"]), account["position"], account["formula"] ]
     values.each { |value| div(role: "cell", class: "coa-cell", title: value.to_s) { value.to_s } }
   end
   def label(value) = value.to_s.tr("_", " ").capitalize
@@ -49,8 +49,8 @@ class Components::ChartRow < Components::Base
         div(role: "cell") { f.label(:kind, "Type", class: "sr-only"); f.select(:kind, KINDS, { selected: @values["kind"] }, class: FIELD, data: { coa_kind: true }) }
         text_field(f, :number, "Number", kinds: "posting", maxlength: 40, pattern: "[A-Za-z0-9](?:[A-Za-z0-9._]|-){0,39}")
         text_field(f, :name, "Name", maxlength: 120)
-        dropdown(f, :vat_code, "VAT", @data.dig("options", "vat_codes") || %w[none input output])
-        dropdown(f, :category, "Category", @data.dig("options", "categories") || %w[assets liabilities equity income expenses])
+        dropdown(f, :vat_entry_id, "VAT", @data.dig("options", "vat_codes") || [])
+        dropdown(f, :category_entry_id, "Category", @data.dig("options", "categories") || [])
         div(role: "cell") do
           f.label(:position, "Position", class: "sr-only")
           f.number_field(:position, value: @values["position"], min: 1, max: 2_147_483_647, required: true, class: FIELD)
@@ -79,7 +79,14 @@ class Components::ChartRow < Components::Base
   def dropdown(f, name, title, values)
     div(role: "cell", data: { coa_kinds: "posting" }) do
       f.label(name, title, class: "sr-only")
-      f.select(name, values.map { |v| [ label(v), v ] }, { selected: @values[name.to_s], include_blank: "—" }, class: FIELD)
+      selected = @values[name.to_s]
+      choices = values.filter_map do |value|
+        if value.is_a?(Hash)
+          next unless value["active"] || value["id"] == selected
+          [ "#{value['code']} · #{value['name']}#{value['active'] ? '' : ' (inactive)'}", value.fetch("id") ]
+        end
+      end
+      f.select(name, choices, { selected: selected, include_blank: "—" }, class: FIELD)
     end
   end
 end

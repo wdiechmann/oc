@@ -6,6 +6,10 @@ defmodule Ep.Finance.Account do
     field :book_id, :binary_id
     field :actor_identity_id, :binary_id
     field :application_id, :string
+    field :vat_entry_id, :binary_id
+    field :category_entry_id, :binary_id
+    field :vat_entry_version, :integer
+    field :category_entry_version, :integer
     field :vat_code, :string
     field :category, :string
     field :position, :integer

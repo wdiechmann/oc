@@ -82,6 +82,22 @@ defmodule EpWeb.Router do
          FinanceSetupController,
          :reopening_authority
 
+    get "/tenants/:tenant_id/finance/books/:book_id/setup/catalogues",
+        FinanceSetupController,
+        :catalogues
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/catalogues/initialize",
+         FinanceSetupController,
+         :initialize_catalogues
+
+    post "/tenants/:tenant_id/finance/books/:book_id/setup/catalogues",
+         FinanceSetupController,
+         :create_catalogue_entry
+
+    patch "/tenants/:tenant_id/finance/books/:book_id/setup/catalogues/:entry_id",
+          FinanceSetupController,
+          :revise_catalogue_entry
+
     get "/tenants/:tenant_id/finance/books/:book_id/setup", FinanceSetupController, :show
 
     post "/tenants/:tenant_id/finance/books/:book_id/setup/stewards",

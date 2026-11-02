@@ -26,6 +26,15 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def catalogues(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup/catalogues")
+    def catalogue_command(tid, bid, action, attrs, key)
+      suffix = case action
+      when "initialize" then "/initialize"
+      when "create" then ""
+      when "revise" then "/#{uuid!(attrs[:entry_id])}"
+      end
+      request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/setup/catalogues#{suffix}", body: attrs.except(:entry_id), key: key)
+    end
     def periods(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/periods")
     def period_command(tid, bid, action, attrs, key)
       id = attrs[:period_id]

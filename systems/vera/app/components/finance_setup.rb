@@ -34,6 +34,7 @@ class Components::FinanceSetup < Components::Base
       stewards if @data.dig("permissions", "assign_stewards")
       bindings
       accounts
+      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 inline-block text-sm font-medium text-teal-900 hover:underline") { "VAT and categories" }
       a(href: tenant_book_periods_path(@tid, @bid), class: "ml-4 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
     end
   end
