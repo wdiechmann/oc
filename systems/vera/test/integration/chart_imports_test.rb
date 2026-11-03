@@ -126,4 +126,13 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_requested preview
   end
+  test "regional spreadsheet exports skip empty rows and preserve semicolon-delimited strings" do
+    csv = ";;;;\r\nnumber;name;position;active;type\r\n0010;\"Salg, varer; øvrige\";10;;\r\n;;;;\r\n"
+    parsed = ChartCsv.parse(StringIO.new(csv))
+    assert_equal %w[number name position active type], parsed[:headers]
+    assert_equal [ [ "0010", "Salg, varer; øvrige", "10", "", "" ] ], parsed[:records]
+    assert_equal [ [ "0010", "Bank" ] ], ChartCsv.parse(StringIO.new("number\tname\n0010\tBank\n"))[:records]
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("name;name\na;b\n")) }
+    assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("number;name\n0010;Bank;extra\n")) }
+  end
 end

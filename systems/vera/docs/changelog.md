@@ -69,3 +69,9 @@ CSV templates now include the tenant/book IDs, a demo header row, position and a
 Added conservative type inference for blank/unmapped type fields, with explicit choices retained and guesses marked in review. Numbered rows are posting; formula rows and unnumbered rows after postings are calculation; remaining unnumbered rows are headers. Calculation formulas still require validation before acceptance.
 
 Verification: 139 EP tests and 51 VERA tests (416 assertions) pass; RuboCop and Zeitwerk pass; Brakeman reports zero warnings/errors. Browser rehearsal checked the downloaded demo values, checkbox retention, deduplicated code proposals and desktop/mobile layouts with no console errors. No database migration is required.
+
+## 2026-11-03 — Regional CSV upload
+
+Fixed semicolon/tab spreadsheet imports and skipped completely empty rows, including a separator-only row before the header. Reproduced the reported Kontoplan.csv upload and verified all 231 records parse as 16 string columns. Duplicate/blank headers and inconsistent nonblank row widths remain errors.
+
+Verification: 52 VERA tests (421 assertions), RuboCop and Zeitwerk pass. Playwright uploaded the reported file against a synthetic EP and reached column mapping with all 231 records.

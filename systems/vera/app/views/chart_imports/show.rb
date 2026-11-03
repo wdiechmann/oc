@@ -13,7 +13,7 @@ class Views::ChartImports::Show < Views::Base
     if @data["import_id"]
       review
     elsif @data.dig("permissions", "configure") && @data["catalogues_initialized"] && @data["status"] == "ready"
-      p(class: "mt-4 text-sm") { "Comma-separated UTF-8 CSV · 2 MiB · 500 rows · 32 columns. Keep account numbers and IDs as Text in spreadsheet software to preserve leading zeros. Reviews expire after one hour. If active is mapped, use true or false." }
+      p(class: "mt-4 text-sm") { "Comma-, semicolon- or tab-separated UTF-8 CSV · 2 MiB · 500 rows · 32 columns. Keep account numbers and IDs as Text in spreadsheet software to preserve leading zeros. Reviews expire after one hour. If active is mapped, use true or false." }
       a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false }, class: "mt-4 inline-block underline") { "Download demo template" }
       form_with(url: upload_tenant_book_chart_import_path(@tid, @bid), multipart: true, data: { turbo: false }, class: "mt-6") do |f|
         f.label(:csv, "CSV file")

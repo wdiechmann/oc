@@ -9,8 +9,16 @@ class ChartCsv
     raise Invalid, "CSV files must be UTF-8 and at most 2 MiB." if raw.bytesize > MAX_BYTES
     raw = raw.force_encoding(Encoding::UTF_8).delete_prefix("\uFEFF")
     raise Invalid, "CSV files must be UTF-8." unless raw.valid_encoding?
+    # Regional spreadsheet exports commonly use semicolons or tabs.
+    first_line = raw.each_line.find { |line| line.gsub(/[;,\t\s]/, "").present? }.to_s
+    separator = [ ",", ";", "\t" ].max_by do |candidate|
+      CSV.parse_line(first_line, col_sep: candidate)&.length || 0
+    rescue CSV::MalformedCSVError
+      0
+    end
     rows = []
-    CSV.parse(raw, liberal_parsing: false) do |row|
+    CSV.parse(raw, col_sep: separator, liberal_parsing: false) do |row|
+      next if row.all? { |value| value.to_s.strip.empty? }
       raise Invalid, "Use at most 500 rows and 32 columns." if rows.length > 500 || row.length > 32
       rows << row.map { |v| decode(v.to_s) }
     end
@@ -20,7 +28,7 @@ class ChartCsv
     end
     { headers: headers, records: rows }
   rescue CSV::MalformedCSVError
-    raise Invalid, "Check CSV quotes and delimiters. Use comma-separated UTF-8 CSV."
+    raise Invalid, "Check CSV quotes and delimiters. Use comma-, semicolon- or tab-separated UTF-8 CSV."
   end
   def self.generate(columns, rows)
     CSV.generate(force_quotes: true, row_sep: "\r\n") do |csv|

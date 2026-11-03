@@ -59,3 +59,5 @@ The chart toolbar links Export accepted chart, Export filtered chart (when searc
 Templates now contain a single `demo` header row with tenant/book IDs, position 100 and active true. Upload and mapping forms expose the exact label “create type, vat- and category-codes”; selection carries into mapping, where users can change it before review. The explanation retains header/calculation/posting types and limits code creation to unique missing VAT/category codes. Review lists every proposed catalogue entry alongside account changes.
 
 The template demonstrates header; type guidance lists posting and calculation. Type mapping is optional; blank types are guessed from number/formula/block position and visibly marked on review rows. Explicit types win, and missing formulas or other validation failures still disable acceptance.
+
+CSV upload detects comma, semicolon and tab separators and ignores completely empty spreadsheet rows before headers or between records. Nonblank records retain strict header/width checks and upload limits.
