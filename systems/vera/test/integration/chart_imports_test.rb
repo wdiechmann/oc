@@ -118,7 +118,7 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     get path, params: { import_id: IID }
     assert_select "input[type=checkbox][name=create_codes][checked]"
     assert_select "label", text: "create type, vat- and category-codes"
-    assert_includes response.body, "Create vat code: V25"
+    assert_includes response.body, "Create VAT code: V25"
     assert_includes response.body, "Guessed type: posting"
     assert_includes response.body, "Types: header, posting, calculation."
     preview = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: true }).to_return(status: 200, body: data.to_json)

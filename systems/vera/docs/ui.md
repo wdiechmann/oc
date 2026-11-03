@@ -61,3 +61,5 @@ Templates now contain a single `demo` header row with tenant/book IDs, position 
 The template demonstrates header; type guidance lists posting and calculation. Type mapping is optional; blank types are guessed from number/formula/block position and visibly marked on review rows. Explicit types win, and missing formulas or other validation failures still disable acceptance.
 
 CSV upload detects comma, semicolon and tab separators and ignores completely empty spreadsheet rows before headers or between records. Nonblank records retain strict header/width checks and upload limits.
+
+Import guidance distinguishes VAT descriptions (Dansk salgsmoms, UEUV - Varesalg EU) from account categories (Aktiv, Passiv, Indtægt). Review labels proposed entries as VAT or account category. Manual catalogue code inputs accept up to 120 Unicode characters without the former ASCII-only pattern.

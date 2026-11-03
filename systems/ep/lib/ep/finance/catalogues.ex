@@ -311,12 +311,18 @@ defmodule Ep.Finance.Catalogues do
   defp ensure_initialized!(bid),
     do: unless(initialized?(bid), do: Repo.rollback(:catalogue_not_initialized))
 
+  def valid_code?(code) when is_binary(code) do
+    code = String.trim(code)
+    String.length(code) in 1..120 && !Regex.match?(~r/[\p{Cc}\p{Cf}]/u, code)
+  end
+
+  def valid_code?(_), do: false
+
   defp attrs!(p) do
     code = p["code"]
     name = p["name"]
 
-    unless is_binary(code) &&
-             Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, String.trim(code)) &&
+    unless valid_code?(code) &&
              is_binary(name) && String.length(String.trim(name)) in 1..120,
            do: Repo.rollback(:invalid_catalogue)
 

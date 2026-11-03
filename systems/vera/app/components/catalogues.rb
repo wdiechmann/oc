@@ -102,7 +102,7 @@ class Components::Catalogues < Components::Base
         end
         div do
           f.label(:code, "Code", class: "text-sm font-medium")
-          f.text_field(:code, value: values["code"], required: true, maxlength: 40, pattern: "[A-Za-z0-9](?:[A-Za-z0-9._]|-){0,39}", class: FIELD)
+          f.text_field(:code, value: values["code"], required: true, maxlength: 120, class: FIELD)
         end
         div do
           f.label(:name, "Name", class: "text-sm font-medium")

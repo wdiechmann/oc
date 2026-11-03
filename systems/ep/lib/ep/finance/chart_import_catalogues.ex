@@ -26,7 +26,7 @@ defmodule Ep.Finance.ChartImportCatalogues do
           Enum.any?(existing, &(&1.kind == kind && String.downcase(&1.code) == normalized)) ->
             {entries, errors}
 
-          !Regex.match?(~r/^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$/, code) ->
+          !Ep.Finance.Catalogues.valid_code?(code) ->
             {entries, errors ++ ["invalid_catalogue_code: #{kind} #{code}"]}
 
           Enum.any?(existing, &(&1.kind == kind && normalized in &1.reserved_codes)) ->

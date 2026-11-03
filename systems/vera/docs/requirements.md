@@ -45,3 +45,5 @@ The upload and mapping forms offer “create type, vat- and category-codes”, u
 Blank or unmapped account types are guessed and marked in review: a number implies posting; a formula, or an unnumbered row immediately following postings, implies calculation; other unnumbered rows start as headers. Explicit types always win. These guesses do not bypass validation: calculations still require valid formula text and posting rows require valid account numbers. The template demonstrates header; the form lists posting and calculation as the other supported types.
 
 CSV upload detects comma, semicolon and tab separators and ignores completely empty spreadsheet rows before headers or between records. Nonblank records retain strict header/width checks and upload limits.
+
+VAT and account categories are independent book-local catalogues. Accept descriptive Unicode values (1–120 trimmed characters, without control/format characters) in either; preserve full labels instead of requiring ASCII identifiers or splitting descriptions. Deduplicate and reserve codes separately by kind, and reject cross-kind account references.

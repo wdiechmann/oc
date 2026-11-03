@@ -11,3 +11,5 @@
 9. Next: remaining CoA gate — dedicated batch reorder/rebalancing, effective tax/rate/rule configuration and formula results/report mappings. Broader finance roles, financial controls, journals, settlement, consolidation and operational payments follow system_2_plan.md.
 
 Regional CSV upload: separator detection and empty-row skipping happen in VERA’s bounded string parser; EP’s review and financial validation remain authoritative.
+
+Reviewed import now accepts descriptive VAT/category values in independent catalogues, including Danish names and long VAT descriptions.

@@ -395,7 +395,7 @@ defmodule Ep.Finance.ChartImportsTest do
   end
 
   test "invalid rows and reserved or malformed codes prevent all catalogue creation", c do
-    for {code, position} <- [{"NEW", "bad"}, {"bad code", "100"}] do
+    for {code, position} <- [{"NEW", "bad"}, {"bad\ncode", "100"}] do
       {:ok, upload} =
         ChartImports.upload(c.actor, c.tid, c.bid, %{
           "headers" => ~w(type number name position vat_code),
@@ -494,5 +494,68 @@ defmodule Ep.Finance.ChartImportsTest do
     refute p.plan["valid"]
     assert List.last(p.plan["rows"])["inferred_type"] == "calculation"
     assert List.last(p.plan["rows"])["errors"] == ["invalid_formula"]
+  end
+
+  test "Danish descriptive VAT values and account categories remain independent catalogues", c do
+    vat = "UEUV - Varesalg EU - indberettes (rubrik B - varer)"
+
+    records = [
+      ["posting", "0010", "Sales", "100", vat, "Indtægt"],
+      ["posting", "0020", "Bank", "200", "Dansk salgsmoms", "Aktiv"],
+      ["posting", "0030", "Liabilities", "300", "Dansk salgsmoms", "Passiv"],
+      ["posting", "0040", "Same text, different kind", "400", "Aktiv", "Aktiv"]
+    ]
+
+    {:ok, upload} =
+      ChartImports.upload(c.actor, c.tid, c.bid, %{
+        "headers" => ~w(type number name position vat_code category_code),
+        "records" => records
+      })
+
+    {:ok, p} =
+      ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{
+        "mapping" => upload.mapping,
+        "create_codes" => true
+      })
+
+    assert p.plan["valid"]
+    assert p.plan["errors"] == []
+    assert Enum.count(p.plan["catalogue_creates"], &(&1["kind"] == "vat")) == 3
+    assert Enum.count(p.plan["catalogue_creates"], &(&1["kind"] == "category")) == 3
+    assert {:ok, _} = accept(c, p)
+
+    for account <- Repo.all(from a in Account, where: a.book_id == ^c.bid) do
+      assert Repo.get!(Ep.Finance.CatalogueEntry, account.vat_entry_id).kind == "vat"
+      assert Repo.get!(Ep.Finance.CatalogueEntry, account.category_entry_id).kind == "category"
+    end
+
+    account = Repo.get_by!(Account, book_id: c.bid, number: "0040")
+    refute account.vat_entry_id == account.category_entry_id
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, exported} = ChartImports.export(c.actor, c.tid, c.bid)
+    repeated = review(c, exported.columns, exported.rows)
+    assert repeated.plan["counts"] == %{"unchanged" => 4}
+
+    entry =
+      Repo.get_by!(Ep.Finance.CatalogueEntry, book_id: c.bid, kind: "category", code: "Indtægt")
+
+    {:ok, setup} = Setup.get(c.actor, c.tid, c.bid)
+
+    assert {:error, :code_taken} =
+             Setup.command(
+               c.actor,
+               c.tid,
+               c.bid,
+               "catalogue_create",
+               %{
+                 "kind" => "category",
+                 "code" => "INDTÆGT",
+                 "name" => "Duplicate",
+                 "expected_version" => setup.latest_version
+               },
+               "duplicate"
+             )
+
+    assert entry.name == "Indtægt"
   end
 end

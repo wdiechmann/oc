@@ -63,3 +63,5 @@ Import account events contain per-account patches; existing single-line setup sn
 Import code creation uses non-writing provisional catalogue entries with pinned IDs/versions, passed through the same reference validators as accepted entries. Re-preview binds the explicit create_codes flag and catalogue proposals into the digest; acceptance reconstructs them against current protected state, then emits catalogue patches before account patches in the shared setup stream. Catalogue history and atomic whole-command publication survive replay.
 
 Regional CSV upload: separator detection and empty-row skipping happen in VERA’s bounded string parser; EP’s review and financial validation remain authoritative.
+
+The shared catalogue code validator accepts bounded descriptive Unicode text for manual setup and CSV proposals. VAT/category lookup, uniqueness, reservations and accepted account associations remain scoped by book/kind. Identical text in different kinds yields independent UUIDs; descriptive values round-trip unchanged.

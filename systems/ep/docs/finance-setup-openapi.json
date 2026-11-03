@@ -962,7 +962,9 @@
           },
           "code": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$"
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Trimmed Unicode text, including descriptive labels and spaces; no control/format characters. Unique within book and catalogue kind."
           },
           "name": {
             "type": "string",
@@ -988,7 +990,9 @@
         "properties": {
           "code": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$"
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Trimmed Unicode text, including descriptive labels and spaces; no control/format characters. Unique within book and catalogue kind."
           },
           "name": {
             "type": "string",

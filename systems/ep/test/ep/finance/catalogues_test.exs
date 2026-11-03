@@ -299,7 +299,7 @@ defmodule Ep.Finance.CataloguesTest do
 
     for changed <- [
           %{"kind" => "tax_rate"},
-          %{"code" => "bad code"},
+          %{"code" => "bad\ncode"},
           %{"name" => "  "},
           %{"rate" => 25}
         ] do

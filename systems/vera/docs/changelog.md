@@ -75,3 +75,9 @@ Verification: 139 EP tests and 51 VERA tests (416 assertions) pass; RuboCop and 
 Fixed semicolon/tab spreadsheet imports and skipped completely empty rows, including a separator-only row before the header. Reproduced the reported Kontoplan.csv upload and verified all 231 records parse as 16 string columns. Duplicate/blank headers and inconsistent nonblank row widths remain errors.
 
 Verification: 52 VERA tests (421 assertions), RuboCop and Zeitwerk pass. Playwright uploaded the reported file against a synthetic EP and reached column mapping with all 231 records.
+
+## 2026-11-03 — Descriptive VAT and category values
+
+Removed the shared ASCII-only code restriction responsible for 13 VAT errors and one Danish category error in the reported file. Manual catalogue commands and import proposals now share a bounded Unicode text validator; full values are preserved. VAT and account categories remain independent by kind for matching, deduplication, reservations and references. Import guidance and review labels make that distinction explicit.
+
+Verification: 140 EP tests and 52 VERA tests (421 assertions), RuboCop and Zeitwerk pass. The reported file produces 13 VAT and 4 category proposals with zero catalogue-code errors in a non-writing test-database check. Playwright verified separately labelled VAT/category proposals and mobile layout against synthetic EP. No migration is required.

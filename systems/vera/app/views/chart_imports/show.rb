@@ -9,6 +9,7 @@ class Views::ChartImports::Show < Views::Base
     h1(class: "mt-6 text-3xl font-semibold") { "Import chart CSV" }
     p(class: "mt-4 text-stone-600") { "Upload → map columns → review → accept. Missing rows never delete or deactivate accounts. All changes are accepted together." }
     p(role: "alert", class: "mt-4 bg-amber-50 p-4") { @message } if @message
+    p(class: "mt-3 text-sm text-stone-600") { "VAT values and account categories are separate catalogues: VAT examples include Dansk salgsmoms and UEUV - Varesalg EU; category examples include Aktiv, Passiv and Indtægt. Descriptive text is preserved." }
     p(class: "mt-3 text-sm text-stone-600") { "Types: header, posting, calculation. The demo uses header. Blank types are guessed: numbered rows as posting, formula rows or unnumbered rows after postings as calculation, otherwise header. Check every guess; calculations require a valid formula." }
     if @data["import_id"]
       review
@@ -59,7 +60,7 @@ class Views::ChartImports::Show < Views::Base
     p(class: "mt-3") { plan.fetch("counts").map { |key, value| "#{key}: #{value}" }.join(" · ") }
     plan.fetch("errors", []).each { |error| p(class: "mt-3 text-red-800", role: "alert") { error } }
     Array(plan["catalogue_creates"]).each do |entry|
-      p(class: "mt-3 rounded-lg border p-3 text-sm") { "Create #{entry['kind']} code: #{entry['code']} · Name: #{entry['name']}" }
+      p(class: "mt-3 rounded-lg border p-3 text-sm") { "Create #{entry['kind'] == "vat" ? "VAT" : "account category"} code: #{entry['code']} · Name: #{entry['name']}" }
     end
     div(class: "mt-4 space-y-3") do
       plan.fetch("rows").each do |row|
