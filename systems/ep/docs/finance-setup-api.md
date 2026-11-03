@@ -24,3 +24,5 @@ Example account command: `{"number":"0010","name":"Bank","kind":"posting","posit
 Reviewed chart CSV import/export is specified in [chart-csv-api.md](chart-csv-api.md) and [chart-csv-openapi.json](chart-csv-openapi.json). Single-line commands and historical setup snapshot replay remain compatible.
 
 Current chart queries exclude retired accounts. `GET /setup/accounts?retired=1` provides paginated read-only retired rows with original identities/positions and configure=false; it uses the same scope, freshness and authority guards. Retirement differs from ordinary inactivity. Single-line edits cannot mutate retired rows; import review can explicitly restore the original ID.
+
+Native reviewed row/block ordering and position rebalancing are specified in [chart-order-api.md](chart-order-api.md) and [chart-order-openapi.json](chart-order-openapi.json). These position-only commands preserve all account fields and formula references.

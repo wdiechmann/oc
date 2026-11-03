@@ -482,6 +482,8 @@ defmodule Ep.Finance.ChartImports do
           lock: "FOR UPDATE"
       ) || Repo.rollback(:not_found)
 
+    unless row.data["purpose"] in [nil, "csv"], do: Repo.rollback(:not_found)
+
     if DateTime.compare(row.expires_at, DateTime.utc_now()) != :gt,
       do: Repo.rollback(:review_expired)
 

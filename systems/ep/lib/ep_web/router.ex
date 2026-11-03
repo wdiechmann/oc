@@ -59,6 +59,20 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/chart-order", ChartOrderController, :show
+
+    post "/tenants/:tenant_id/finance/books/:book_id/chart-order/reviews",
+         ChartOrderController,
+         :preview
+
+    get "/tenants/:tenant_id/finance/books/:book_id/chart-order/reviews/:review_id",
+        ChartOrderController,
+        :review
+
+    post "/tenants/:tenant_id/finance/books/:book_id/chart-order/reviews/:review_id/accept",
+         ChartOrderController,
+         :accept
+
     get "/tenants/:tenant_id/finance/books/:book_id/chart-export", ChartImportController, :export
     get "/tenants/:tenant_id/finance/books/:book_id/chart-imports", ChartImportController, :info
 

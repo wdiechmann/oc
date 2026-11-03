@@ -16,6 +16,11 @@ Rails.application.routes.draw do
         get :completion
         post :retry
       end
+      resource :chart_order, only: %i[show update], controller: "chart_orders" do
+        post :preview
+        get :completion
+        post :retry
+      end
       resource :chart_import, only: %i[show update], controller: "chart_imports" do
         post :upload
         post :preview

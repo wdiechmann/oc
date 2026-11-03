@@ -1,0 +1,303 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EP native chart ordering",
+    "version": "1.0.0",
+    "description": "Position-only reviewed changes. See chart-order-api.md."
+  },
+  "security": [
+    {
+      "backend": [],
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/chart-order": {
+      "get": {
+        "summary": "Complete ready current chart; excludes retired rows",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready order/private review/accepted result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope, steward, purpose, review owner or backend unavailable"
+          },
+          "409": {
+            "description": "Revision, digest, consumed review or idempotency conflict; view pending/uninitialized"
+          },
+          "410": {
+            "description": "Review expired"
+          },
+          "422": {
+            "description": "Invalid full permutation or chart exceeds 2,000 rows"
+          },
+          "503": {
+            "description": "View stopped"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/chart-order/reviews": {
+      "post": {
+        "summary": "Prepare a private position-only review without account changes",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready order/private review/accepted result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope, steward, purpose, review owner or backend unavailable"
+          },
+          "409": {
+            "description": "Revision, digest, consumed review or idempotency conflict; view pending/uninitialized"
+          },
+          "410": {
+            "description": "Review expired"
+          },
+          "422": {
+            "description": "Invalid full permutation or chart exceeds 2,000 rows"
+          },
+          "503": {
+            "description": "View stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expected_version",
+                  "ordered_ids"
+                ],
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "ordered_ids": {
+                    "type": "array",
+                    "maxItems": 2000,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "description": "Every current account exactly once, in the proposed order."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/chart-order/reviews/{review_id}": {
+      "get": {
+        "summary": "Read creating identity/backend\u2019s private order review",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready order/private review/accepted result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope, steward, purpose, review owner or backend unavailable"
+          },
+          "409": {
+            "description": "Revision, digest, consumed review or idempotency conflict; view pending/uninitialized"
+          },
+          "410": {
+            "description": "Review expired"
+          },
+          "422": {
+            "description": "Invalid full permutation or chart exceeds 2,000 rows"
+          },
+          "503": {
+            "description": "View stopped"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/chart-order/reviews/{review_id}/accept": {
+      "post": {
+        "summary": "Atomically accept exactly the reviewed positions; FinanceChartOrder:accept receipt",
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ready order/private review/accepted result"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Scope, steward, purpose, review owner or backend unavailable"
+          },
+          "409": {
+            "description": "Revision, digest, consumed review or idempotency conflict; view pending/uninitialized"
+          },
+          "410": {
+            "description": "Review expired"
+          },
+          "422": {
+            "description": "Invalid full permutation or chart exceeds 2,000 rows"
+          },
+          "503": {
+            "description": "View stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "digest",
+                  "expected_version"
+                ],
+                "properties": {
+                  "digest": {
+                    "type": "string"
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "backend": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

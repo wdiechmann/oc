@@ -38,3 +38,6 @@ textarea.coa-input { min-height: 34px; resize: vertical; }
 .coa-pagination .current { background: #134e4a; color: white; font-style: normal; }
 .coa-pagination .disabled { color: #a8a29e; }
 [hidden] { display: none !important; }
+
+.order-row[data-selected="true"] { background: #f0fdfa; }
+.order-row { scroll-margin-block: 1rem; }
