@@ -9,6 +9,9 @@ defmodule Ep.Finance.ChartImports do
     ChartImport,
     ChartImportCleanupWorker,
     ChartImportPlan,
+    ChartImportCatalogues,
+    CatalogueEntry,
+    Catalogues,
     Setup,
     SetupState,
     SetupView,
@@ -142,27 +145,21 @@ defmodule Ep.Finance.ChartImports do
       row = review!(principal, tid, bid, id, app)
       if row.accepted_command_id, do: Repo.rollback(:import_already_accepted)
 
-      unless is_map(params) && Map.keys(params) == ["mapping"] &&
+      unless is_map(params) && Enum.all?(Map.keys(params), &(&1 in ~w(mapping create_codes))) &&
+               is_boolean(Map.get(params, "create_codes", false)) &&
                valid_mapping?(params["mapping"], row.data["headers"]),
              do: Repo.rollback(:invalid_mapping)
 
       current = Repo.all(from a in Account, where: a.tenant_id == ^tid and a.book_id == ^bid)
 
-      plan =
-        ChartImportPlan.build(
-          tid,
-          bid,
-          row.data["headers"],
-          row.data["records"],
-          params["mapping"],
-          current,
-          version
-        )
+      create_codes = Map.get(params, "create_codes", false)
+      plan = build_plan(tid, bid, row.data, params["mapping"], current, version, create_codes)
 
       data =
         row.data
         |> Map.merge(%{
           "mapping" => params["mapping"],
+          "create_codes" => create_codes,
           "plan" => plan,
           "expected_version" => version
         })
@@ -173,7 +170,7 @@ defmodule Ep.Finance.ChartImports do
           "digest",
           digest(
             {row.id, tid, bid, principal.identity_id, app, version, plan, params["mapping"],
-             row.data["source_digest"]}
+             row.data["source_digest"], create_codes}
           )
         )
 
@@ -215,16 +212,17 @@ defmodule Ep.Finance.ChartImports do
           events = Map.new(row.data["plan"]["rows"], &{to_string(&1["line"]), &1["event_id"]})
 
           plan =
-            ChartImportPlan.build(
+            build_plan(
               tid,
               bid,
-              row.data["headers"],
-              row.data["records"],
+              row.data,
               row.data["mapping"],
               current,
               version,
+              Map.get(row.data, "create_codes", false),
               ids,
-              events
+              events,
+              row.data["plan"]["catalogue_creates"] || []
             )
 
           unless plan == row.data["plan"], do: Repo.rollback(:digest_conflict)
@@ -236,9 +234,85 @@ defmodule Ep.Finance.ChartImports do
     end)
   end
 
+  defp build_plan(
+         tid,
+         bid,
+         data,
+         mapping,
+         current,
+         version,
+         create_codes,
+         ids \\ %{},
+         events \\ %{},
+         seeds \\ []
+       ) do
+    {creates, proposed, errors} =
+      if create_codes,
+        do:
+          ChartImportCatalogues.plan(
+            tid,
+            bid,
+            data["headers"],
+            data["records"],
+            mapping,
+            version,
+            seeds
+          ),
+        else: {[], [], []}
+
+    plan =
+      ChartImportPlan.build(
+        tid,
+        bid,
+        data["headers"],
+        data["records"],
+        mapping,
+        current,
+        version + length(creates),
+        ids,
+        events,
+        proposed
+      )
+
+    plan
+    |> Map.put("catalogue_creates", creates)
+    |> Map.update!("errors", &(&1 ++ errors))
+    |> Map.update!("valid", &(&1 && errors == []))
+  end
+
   defp accept_plan!(principal, tid, bid, review, plan, key, fingerprint, app) do
     cid = Ecto.UUID.generate()
     Repo.query!("SET CONSTRAINTS finance_account_book_position_unique DEFERRED")
+
+    catalogue_facts =
+      Enum.map(plan["catalogue_creates"] || [], fn entry ->
+        Catalogues.mutate!(
+          tid,
+          bid,
+          "catalogue_create",
+          Map.take(entry, ~w(kind code name))
+          |> Map.put("expected_version", review.data["expected_version"]),
+          entry["id"],
+          entry["version"],
+          principal.identity_id,
+          app
+        )
+
+        saved = Repo.get!(CatalogueEntry, entry["id"])
+
+        {entry["id"], "CatalogueEntryCreated",
+         %{
+           "tenant_id" => tid,
+           "book_id" => bid,
+           "import_id" => review.id,
+           "source_digest" => review.data["source_digest"],
+           "catalogue_entry" =>
+             Map.take(
+               saved,
+               ~w(id tenant_id book_id kind code name active version actor_identity_id application_id)a
+             )
+         }}
+      end)
 
     facts =
       plan["rows"]
@@ -284,6 +358,8 @@ defmodule Ep.Finance.ChartImports do
            "account" => Map.take(account, @fields)
          }}
       end)
+
+    facts = catalogue_facts ++ facts
 
     events =
       if facts == [],
@@ -393,6 +469,7 @@ defmodule Ep.Finance.ChartImports do
       row_count: length(row.data["records"]),
       columns: @columns,
       mapping: row.data["mapping"],
+      create_codes: Map.get(row.data, "create_codes", false),
       plan: row.data["plan"],
       digest: row.data["digest"],
       expected_version: row.data["expected_version"],
@@ -401,7 +478,8 @@ defmodule Ep.Finance.ChartImports do
   end
 
   defp valid_upload?(%{"headers" => headers, "records" => records} = params) do
-    Map.keys(params) |> Enum.sort() == ~w(headers records) && is_list(headers) &&
+    Enum.all?(Map.keys(params), &(&1 in ~w(headers records create_codes))) &&
+      is_boolean(Map.get(params, "create_codes", false)) && is_list(headers) &&
       length(headers) in 1..32 &&
       Enum.all?(headers, &(is_binary(&1) && String.trim(&1) != "" && byte_size(&1) <= 120)) &&
       length(Enum.uniq(headers)) == length(headers) && is_list(records) &&
@@ -416,7 +494,7 @@ defmodule Ep.Finance.ChartImports do
 
   defp valid_mapping?(mapping, headers) when is_map(mapping) do
     Enum.all?(mapping, fn {field, header} -> field in @columns && header in headers end) &&
-      Enum.all?(~w(type name position), &Map.has_key?(mapping, &1)) &&
+      Enum.all?(~w(name position), &Map.has_key?(mapping, &1)) &&
       length(Enum.uniq(Map.values(mapping))) == map_size(mapping)
   end
 

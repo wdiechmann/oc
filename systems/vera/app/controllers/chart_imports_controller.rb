@@ -1,7 +1,7 @@
 class ChartImportsController < FinanceSetupController
   def upload
     return pending_feedback if session[:finance_operation]
-    data = ep.upload_chart(params[:tenant_id], params[:book_id], ChartCsv.parse(params[:csv]))
+    data = ep.upload_chart(params[:tenant_id], params[:book_id], ChartCsv.parse(params[:csv]).merge(create_codes: params[:create_codes] == "1"))
     redirect_to tenant_book_chart_import_path(params[:tenant_id], params[:book_id], import_id: data.fetch("import_id")), status: :see_other
   rescue ChartCsv::Invalid => error
     show_setup(status: 422, message: error.message)
@@ -10,7 +10,7 @@ class ChartImportsController < FinanceSetupController
   def preview
     return pending_feedback if session[:finance_operation]
     mapping = params.fetch(:mapping, ActionController::Parameters.new).permit(*%w[schema_version tenant_id book_id source_version account_id account_version type number name vat_entry_id vat_code category_entry_id category_code position formula active]).to_h.reject { |_, value| value.blank? }
-    data = ep.preview_chart(params[:tenant_id], params[:book_id], params[:import_id], mapping)
+    data = ep.preview_chart(params[:tenant_id], params[:book_id], params[:import_id], mapping, create_codes: params[:create_codes] == "1")
     render_review(data)
   end
 
@@ -21,7 +21,8 @@ class ChartImportsController < FinanceSetupController
 
   def template
     data = ep.chart_import_info(params[:tenant_id], params[:book_id])
-    send_data ChartCsv.generate(data.fetch("columns"), []), type: "text/csv; charset=utf-8", filename: "chart-template.csv"
+    demo = { "schema_version"=>"1", "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>"header", "name"=>"demo", "position"=>"100", "active"=>"true" }
+    send_data ChartCsv.generate(data.fetch("columns"), [ data.fetch("columns").map { |column| demo.fetch(column, "") } ]), type: "text/csv; charset=utf-8", filename: "chart-template.csv"
   end
 
   private

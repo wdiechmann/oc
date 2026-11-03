@@ -344,4 +344,155 @@ defmodule Ep.Finance.ChartImportsTest do
     assert {:ok, exported} = ChartImports.export(c.actor, c.tid, c.bid)
     assert exported.row_count == 999
   end
+
+  test "missing unique codes are reviewed without writes and accepted atomically with their accounts",
+       c do
+    attrs = %{
+      "headers" => ~w(type number name position vat_code category_code source_version),
+      "records" => [
+        ["posting", "0010", "One", "100", "V25", "SALES", "2"],
+        ["posting", "0020", "Two", "200", "v25", "sales", "2"]
+      ],
+      "create_codes" => true
+    }
+
+    count = Repo.aggregate(Ep.Finance.CatalogueEntry, :count)
+    {:ok, upload} = ChartImports.upload(c.actor, c.tid, c.bid, attrs)
+    assert upload.create_codes
+
+    {:ok, disabled} =
+      ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{"mapping" => upload.mapping})
+
+    refute disabled.plan["valid"]
+
+    {:ok, preview} =
+      ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{
+        "mapping" => upload.mapping,
+        "create_codes" => true
+      })
+
+    assert preview.plan["valid"]
+    assert Enum.map(preview.plan["catalogue_creates"], & &1["code"]) == ["V25", "SALES"]
+    assert Repo.aggregate(Ep.Finance.CatalogueEntry, :count) == count
+    assert {:error, :digest_conflict} = accept(c, disabled)
+    assert {:ok, result} = accept(c, preview)
+    assert result["stream_version"] == 6
+    assert Repo.aggregate(Ep.Finance.CatalogueEntry, :count) == count + 2
+    [one, two] = Repo.all(from a in Account, where: a.book_id == ^c.bid, order_by: a.position)
+    assert one.vat_entry_id == two.vat_entry_id
+    assert one.category_entry_id == two.category_entry_id
+    assert one.vat_entry_version == 3
+    assert one.category_entry_version == 4
+    assert {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, before} = Setup.get(c.actor, c.tid, c.bid)
+    vat = Enum.find(before.catalogue_entries, &(&1["code"] == "V25"))
+    assert hd(vat["history"])["event_type"] == "CatalogueEntryCreated"
+    assert {:ok, :ok} = SetupProjector.rebuild(c.tid)
+    {:ok, after_rebuild} = Setup.get(c.actor, c.tid, c.bid)
+    assert before.accounts == after_rebuild.accounts
+    assert before.catalogue_entries == after_rebuild.catalogue_entries
+    assert {:ok, %{"replayed" => true}} = accept(c, preview)
+  end
+
+  test "invalid rows and reserved or malformed codes prevent all catalogue creation", c do
+    for {code, position} <- [{"NEW", "bad"}, {"bad code", "100"}] do
+      {:ok, upload} =
+        ChartImports.upload(c.actor, c.tid, c.bid, %{
+          "headers" => ~w(type number name position vat_code),
+          "records" => [["posting", "0010", "Bank", position, code]]
+        })
+
+      {:ok, p} =
+        ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{
+          "mapping" => upload.mapping,
+          "create_codes" => true
+        })
+
+      refute p.plan["valid"]
+      assert {:error, :invalid_review} = accept(c, p)
+      refute Repo.exists?(from e in Ep.Finance.CatalogueEntry, where: e.code == ^code)
+    end
+
+    {:ok, created} =
+      Setup.command(
+        c.actor,
+        c.tid,
+        c.bid,
+        "catalogue_create",
+        %{"kind" => "vat", "code" => "OLD", "name" => "Old", "expected_version" => 2},
+        "old"
+      )
+
+    {:ok, _} =
+      Setup.command(
+        c.actor,
+        c.tid,
+        c.bid,
+        "catalogue_revise",
+        %{
+          "entry_id" => hd(created["event_ids"]),
+          "expected_version" => 3,
+          "expected_entry_version" => 3,
+          "code" => "NEW",
+          "name" => "New",
+          "active" => true
+        },
+        "rename"
+      )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+
+    {:ok, u} =
+      ChartImports.upload(c.actor, c.tid, c.bid, %{
+        "headers" => ~w(type number name position vat_code),
+        "records" => [["posting", "0010", "Bank", "100", "OLD"]]
+      })
+
+    {:ok, p} =
+      ChartImports.preview(c.actor, c.tid, c.bid, u.import_id, %{
+        "mapping" => u.mapping,
+        "create_codes" => true
+      })
+
+    refute p.plan["valid"]
+    assert "reserved_catalogue_code: vat OLD" in p.plan["errors"]
+    assert {:error, :invalid_review} = accept(c, p)
+  end
+
+  test "blank types are guessed from account numbers and block edges while explicit types win",
+       c do
+    p =
+      review(c, ~w(type number name position formula), [
+        ["", "", "Income", "100", ""],
+        ["", "0010", "Sales", "200", ""],
+        ["", "0020", "Other", "300", ""],
+        ["", "", "Total", "400", "[0010] + [0020]"],
+        ["header", "", "Costs", "500", ""],
+        ["posting", "0030", "Costs", "600", ""],
+        ["header", "", "Explicit header after postings", "700", ""]
+      ])
+
+    assert p.plan["valid"]
+
+    assert Enum.map(p.plan["rows"], &get_in(&1, ["after", "kind"])) ==
+             ~w(header posting posting calculation header posting header)
+
+    assert Enum.map(p.plan["rows"], & &1["inferred_type"]) == [
+             "header",
+             "posting",
+             "posting",
+             "calculation",
+             nil,
+             nil,
+             nil
+           ]
+
+    assert {:ok, _} = accept(c, p)
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    # A trailing unnumbered total is guessed, but never accepted without a formula.
+    p = review(c, ~w(number name position), [["0040", "Posting", "800"], ["", "Total", "900"]])
+    refute p.plan["valid"]
+    assert List.last(p.plan["rows"])["inferred_type"] == "calculation"
+    assert List.last(p.plan["rows"])["errors"] == ["invalid_formula"]
+  end
 end

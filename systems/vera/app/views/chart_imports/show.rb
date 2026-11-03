@@ -9,14 +9,16 @@ class Views::ChartImports::Show < Views::Base
     h1(class: "mt-6 text-3xl font-semibold") { "Import chart CSV" }
     p(class: "mt-4 text-stone-600") { "Upload → map columns → review → accept. Missing rows never delete or deactivate accounts. All changes are accepted together." }
     p(role: "alert", class: "mt-4 bg-amber-50 p-4") { @message } if @message
+    p(class: "mt-3 text-sm text-stone-600") { "Types: header, posting, calculation. The demo uses header. Blank types are guessed: numbered rows as posting, formula rows or unnumbered rows after postings as calculation, otherwise header. Check every guess; calculations require a valid formula." }
     if @data["import_id"]
       review
     elsif @data.dig("permissions", "configure") && @data["catalogues_initialized"] && @data["status"] == "ready"
       p(class: "mt-4 text-sm") { "Comma-separated UTF-8 CSV · 2 MiB · 500 rows · 32 columns. Keep account numbers and IDs as Text in spreadsheet software to preserve leading zeros. Reviews expire after one hour. If active is mapped, use true or false." }
-      a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false }, class: "mt-4 inline-block underline") { "Download empty template" }
+      a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false }, class: "mt-4 inline-block underline") { "Download demo template" }
       form_with(url: upload_tenant_book_chart_import_path(@tid, @bid), multipart: true, data: { turbo: false }, class: "mt-6") do |f|
         f.label(:csv, "CSV file")
         f.file_field(:csv, accept: ".csv,text/csv", required: true, class: FIELD)
+        create_codes_checkbox
         f.submit("Upload for mapping", class: BUTTON)
       end
     else
@@ -25,7 +27,7 @@ class Views::ChartImports::Show < Views::Base
   end
   def review
     p(class: "mt-4 text-sm") { "#{@data['row_count']} records · Expires #{@data['expires_at']}" }
-    p(class: "mt-3 text-sm") { "Type, name and position are required. Unmapped optional fields preserve existing values; mapped blank cells clear them. Match by account ID, or posting number when ID is blank. Blank IDs on headers/calculations create new rows." }
+    p(class: "mt-3 text-sm") { "Name and position are required. Type may be unmapped or blank to guess it. Unmapped optional fields preserve existing values; mapped blank cells clear them. Match by account ID, or posting number when ID is blank. Blank IDs on headers/calculations create new rows." }
     details(class: "mt-5 rounded-lg border p-4", open: !@data["plan"]) do
       summary(class: "cursor-pointer font-semibold") { "Column mapping and sample" }
       form_with(url: preview_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false }) do |f|
@@ -33,7 +35,7 @@ class Views::ChartImports::Show < Views::Base
         div(class: "mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3") do
           @data.fetch("columns").each do |column|
             div do
-              label(for: "map-#{column}", class: "text-sm font-medium") { column }
+              label(for: "map-#{column}", class: "text-sm font-medium") { column == "type" ? "type (optional; guessed when blank)" : column }
               select(name: "mapping[#{column}]", id: "map-#{column}", class: FIELD) do
                 option(value: "") { "Unmapped" }
                 @data.fetch("headers").each { |header| option(value: header, selected: @data.dig("mapping", column) == header) { header } }
@@ -41,6 +43,7 @@ class Views::ChartImports::Show < Views::Base
             end
           end
         end
+        create_codes_checkbox
         f.submit("Review mapped changes", class: BUTTON)
       end
       div(class: "mt-5 overflow-x-auto") do
@@ -55,10 +58,14 @@ class Views::ChartImports::Show < Views::Base
     h2(class: "mt-7 text-xl font-semibold") { "Review at revision #{@data['expected_version']}" }
     p(class: "mt-3") { plan.fetch("counts").map { |key, value| "#{key}: #{value}" }.join(" · ") }
     plan.fetch("errors", []).each { |error| p(class: "mt-3 text-red-800", role: "alert") { error } }
+    Array(plan["catalogue_creates"]).each do |entry|
+      p(class: "mt-3 rounded-lg border p-3 text-sm") { "Create #{entry['kind']} code: #{entry['code']} · Name: #{entry['name']}" }
+    end
     div(class: "mt-4 space-y-3") do
       plan.fetch("rows").each do |row|
         details(class: "rounded-lg border p-4", open: row["operation"] == "error") do
           summary(class: "cursor-pointer font-medium") { "Record #{row['line']}: #{row['operation']} · #{row.dig('after', 'number')} #{row.dig('after', 'name')}" }
+          p(class: "mt-2 text-sm text-amber-900") { "Guessed type: #{row['inferred_type']} — check before acceptance." } if row["inferred_type"]
           Array(row["errors"]).each { |error| p(class: "mt-2 text-red-800", role: "alert") { error.to_s } }
           if row["source"]
             dl(class: "mt-3 break-all text-sm") do
@@ -83,6 +90,13 @@ class Views::ChartImports::Show < Views::Base
     else
       p(class: "mt-5 bg-amber-50 p-4") { @data["accepted_command_id"] ? "This review has already been accepted." : "Fix every error and review again before acceptance." }
     end
+  end
+  def create_codes_checkbox
+    label(class: "mt-5 flex items-center gap-3 text-sm font-medium") do
+      input(type: "checkbox", name: "create_codes", value: "1", checked: @data["create_codes"] == true)
+      plain "create type, vat- and category-codes"
+    end
+    p(class: "mt-2 text-sm text-stone-600") { "Create missing VAT/category codes from unique mapped values, using each code as its name. Existing entries are reused. Account types remain header, calculation or posting." }
   end
   def account(label, data)
     div do

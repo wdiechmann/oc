@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "EP reviewed chart CSV transfer",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Configuration only. See chart-csv-api.md for semantics and limits. VERA parses/encodes CSV; EP receives bounded string arrays. No journals or balances."
   },
   "security": [
@@ -139,6 +139,11 @@
                         "maxLength": 10000
                       }
                     }
+                  },
+                  "create_codes": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Propose missing unique VAT/category codes; created only with reviewed atomic acceptance. Account types remain fixed."
                   }
                 }
               }
@@ -335,14 +340,18 @@
                   "mapping": {
                     "type": "object",
                     "required": [
-                      "type",
                       "name",
                       "position"
                     ],
                     "additionalProperties": {
                       "type": "string"
                     },
-                    "description": "Logical canonical column to uploaded header. Optional unmapped fields are preserved; mapped blank fields clear."
+                    "description": "Logical canonical column to uploaded header. Optional unmapped fields are preserved; mapped blank fields clear. Type is optional: blank/unmapped types are inferred and marked in review; explicit types win."
+                  },
+                  "create_codes": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Propose missing unique VAT/category codes; created only with reviewed atomic acceptance. Account types remain fixed."
                   }
                 }
               }

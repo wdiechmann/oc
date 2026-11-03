@@ -39,12 +39,12 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
   end
 
   test "upload and mapping forward bounded strings without accepting accounts" do
-    upload = stub_request(:post, "#{api}/chart-imports").with(body: { headers: %w[kind code label order], records: [ [ "posting", "0010", "Bank", "100" ] ] }).to_return(status: 200, body: review.to_json)
+    upload = stub_request(:post, "#{api}/chart-imports").with(body: { create_codes: false, headers: %w[kind code label order], records: [ [ "posting", "0010", "Bank", "100" ] ] }).to_return(status: 200, body: review.to_json)
     file = Rack::Test::UploadedFile.new(StringIO.new("kind,code,label,order\nposting,0010,Bank,100\n"), "text/csv", original_filename: "chart.csv")
     post "#{path}/upload", params: { csv: file }
     assert_redirected_to "#{path}?import_id=#{IID}"
     assert_requested upload
-    mapping = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping] }).to_return(status: 200, body: review.to_json)
+    mapping = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: false }).to_return(status: 200, body: review.to_json)
     post "#{path}/preview", params: { import_id: IID, mapping: review[:mapping].merge(formula: "") }
     assert_response :success
     assert_select "input[value='Accept reviewed changes']"
@@ -83,16 +83,16 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     assert_requested accept, times: 2
   end
 
-  test "exports cover the requested snapshot and templates contain no example rows" do
+  test "exports cover the requested snapshot and templates include a scoped demo row" do
     stub_request(:get, "#{api}/chart-export").with(query: { q: "Bank", source_version: "2" }).to_return(status: 200, body: { columns: %w[number name], rows: [ [ "0010", "=Bank" ] ], source_version: 2 }.to_json)
     get "#{path}/export", params: { q: "Bank", source_version: "2" }
     assert_response :success
     assert_equal "no-store", response.headers["Cache-Control"]
     assert_includes response.headers["Content-Disposition"], "r2.csv"
     assert_equal [ [ "number", "name" ], [ "0010", "'=Bank" ] ], CSV.parse(response.body)
-    stub_request(:get, "#{api}/chart-imports").to_return(status: 200, body: { columns: %w[type number name position] }.to_json)
+    stub_request(:get, "#{api}/chart-imports").to_return(status: 200, body: { columns: %w[tenant_id book_id type name position active] }.to_json)
     get "#{path}/template"
-    assert_equal [ %w[type number name position] ], CSV.parse(response.body)
+    assert_equal [ %w[tenant_id book_id type name position active], [ TID, BID, "header", "demo", "100", "true" ] ], CSV.parse(response.body)
   end
 
   test "row and chart errors suppress acceptance and protected errors clear the review" do
@@ -108,5 +108,22 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     get path, params: { import_id: IID }
     assert_response :not_found
     assert_not_includes response.body, "Bank"
+  end
+  test "code creation selection is explicit, retained and shown before acceptance" do
+    data = review.deep_dup
+    data[:create_codes] = true
+    data[:plan][:rows][0][:inferred_type] = "posting"
+    data[:plan][:catalogue_creates] = [ { kind: "vat", code: "V25", name: "V25" } ]
+    stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 200, body: data.to_json)
+    get path, params: { import_id: IID }
+    assert_select "input[type=checkbox][name=create_codes][checked]"
+    assert_select "label", text: "create type, vat- and category-codes"
+    assert_includes response.body, "Create vat code: V25"
+    assert_includes response.body, "Guessed type: posting"
+    assert_includes response.body, "Types: header, posting, calculation."
+    preview = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: true }).to_return(status: 200, body: data.to_json)
+    post "#{path}/preview", params: { import_id: IID, mapping: review[:mapping], create_codes: "1" }
+    assert_response :success
+    assert_requested preview
   end
 end

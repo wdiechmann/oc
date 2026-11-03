@@ -160,9 +160,9 @@ defmodule Ep.Finance.Catalogues do
     end
   end
 
-  def validate_selection(tid, bid, kind, params, previous) do
+  def validate_selection(tid, bid, kind, params, previous, proposed \\ []) do
     try do
-      {:ok, selection_checked!(tid, bid, kind, params, previous)}
+      {:ok, selection_checked!(tid, bid, kind, params, previous, proposed)}
     catch
       {:catalogue_selection, reason} -> {:error, reason}
     end
@@ -177,7 +177,7 @@ defmodule Ep.Finance.Catalogues do
     end
   end
 
-  defp selection_checked!(tid, bid, kind, p, previous) do
+  defp selection_checked!(tid, bid, kind, p, previous, proposed) do
     {id_field, code_field, version_field} =
       if kind == "vat",
         do: {:vat_entry_id, :vat_code, :vat_entry_version},
@@ -199,7 +199,12 @@ defmodule Ep.Finance.Catalogues do
               book_id: bid,
               kind: kind,
               id: selection_uuid!(p[id_key])
-            ) || selection_error!(:invalid_catalogue_reference)
+            ) ||
+              Enum.find(
+                proposed,
+                &(&1.tenant_id == tid && &1.book_id == bid && &1.kind == kind &&
+                    &1.id == p[id_key])
+              ) || selection_error!(:invalid_catalogue_reference)
 
           is_nil(legacy) ->
             nil
@@ -212,6 +217,11 @@ defmodule Ep.Finance.Catalogues do
                     fragment("lower(?)", e.code) == ^String.downcase(legacy)
             ) ||
               own_alias(tid, bid, kind, previous_id, legacy) ||
+              Enum.find(
+                proposed,
+                &(&1.tenant_id == tid && &1.book_id == bid && &1.kind == kind &&
+                    String.downcase(&1.code) == String.downcase(legacy))
+              ) ||
               selection_error!(:invalid_catalogue_reference)
 
           true ->

@@ -91,21 +91,32 @@ defmodule Ep.Finance.SetupProjector do
         do: Repo.rollback(:projection_scope)
 
       snapshot =
-        if payload["account"] do
-          account = payload["account"]
+        if payload["catalogue_entry"] do
+          entry = payload["catalogue_entry"]
 
-          unless account["tenant_id"] == tid && account["book_id"] == event.stream_id &&
-                   account["version"] == event.stream_version &&
-                   (event.event_type != "AccountCreated" || account["id"] == event.id),
+          unless row && event.event_type == "CatalogueEntryCreated" && entry["id"] == event.id &&
+                   entry["tenant_id"] == tid && entry["book_id"] == event.stream_id &&
+                   entry["version"] == event.stream_version,
                  do: Repo.rollback(:projection_scope)
 
-          unless row, do: Repo.rollback(:projection_gap)
-
-          Map.put(row.data, "accounts", [
-            account | Enum.reject(row.data["accounts"], &(&1["id"] == account["id"]))
-          ])
+          Map.put(row.data, "catalogue_entries", [entry | row.data["catalogue_entries"]])
         else
-          payload["setup"]
+          if payload["account"] do
+            account = payload["account"]
+
+            unless account["tenant_id"] == tid && account["book_id"] == event.stream_id &&
+                     account["version"] == event.stream_version &&
+                     (event.event_type != "AccountCreated" || account["id"] == event.id),
+                   do: Repo.rollback(:projection_scope)
+
+            unless row, do: Repo.rollback(:projection_gap)
+
+            Map.put(row.data, "accounts", [
+              account | Enum.reject(row.data["accounts"], &(&1["id"] == account["id"]))
+            ])
+          else
+            payload["setup"]
+          end
         end
 
       attrs = %{

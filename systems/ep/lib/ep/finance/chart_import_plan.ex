@@ -6,19 +6,33 @@ defmodule Ep.Finance.ChartImportPlan do
   @fields ~w(id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version)a
   @material ~w(number name kind position active formula formula_refs vat_entry_id category_entry_id)a
 
-  def build(tid, bid, headers, records, mapping, current, version, ids \\ %{}, event_ids \\ %{}) do
+  def build(
+        tid,
+        bid,
+        headers,
+        records,
+        mapping,
+        current,
+        version,
+        ids \\ %{},
+        event_ids \\ %{},
+        proposed \\ []
+      ) do
     rows =
       records
       |> Enum.with_index(2)
       |> Enum.map(fn {values, line} ->
         record = Map.new(Enum.zip(headers, values))
+        prior = if line > 2, do: Map.new(Enum.zip(headers, Enum.at(records, line - 3))), else: %{}
+        kind = guessed_kind(record, mapping, prior)
+        inferred = if String.trim(to_string(value(record, mapping, "type"))) == "", do: kind
 
         try do
           check_scope!(record, mapping, "schema_version", "1")
           check_scope!(record, mapping, "tenant_id", tid)
           check_scope!(record, mapping, "book_id", bid)
-          check_scope!(record, mapping, "source_version", to_string(version))
-          params = parameters(record, mapping, current)
+          check_scope!(record, mapping, "source_version", to_string(version - length(proposed)))
+          params = parameters(record, mapping, kind)
           previous = previous!(record, mapping, params, current)
 
           account_version =
@@ -30,8 +44,8 @@ defmodule Ep.Finance.ChartImportPlan do
 
           id = (previous && previous.id) || ids[to_string(line)] || Ecto.UUID.generate()
           params = defaults(params, previous)
-          params = reference!(tid, bid, record, mapping, params, "vat", previous)
-          params = reference!(tid, bid, record, mapping, params, "category", previous)
+          params = reference!(tid, bid, record, mapping, params, "vat", previous, proposed)
+          params = reference!(tid, bid, record, mapping, params, "category", previous, proposed)
 
           %{
             line: line,
@@ -41,6 +55,7 @@ defmodule Ep.Finance.ChartImportPlan do
             previous: previous,
             params: params,
             source: record,
+            inferred_type: inferred,
             errors: []
           }
         catch
@@ -52,6 +67,7 @@ defmodule Ep.Finance.ChartImportPlan do
               previous: nil,
               params: %{},
               source: record,
+              inferred_type: inferred,
               errors: [Atom.to_string(error)]
             }
         end
@@ -93,7 +109,15 @@ defmodule Ep.Finance.ChartImportPlan do
             %{row | errors: ["duplicate_account"]}
 
           true ->
-            case AccountRules.validate(row.params, tid, bid, row.id, row.previous, prospective) do
+            case AccountRules.validate(
+                   row.params,
+                   tid,
+                   bid,
+                   row.id,
+                   row.previous,
+                   prospective,
+                   proposed
+                 ) do
               {:error, error} ->
                 %{row | errors: [Atom.to_string(error)]}
 
@@ -155,6 +179,7 @@ defmodule Ep.Finance.ChartImportPlan do
              "account_id" => row.id,
              "event_id" => row.event_id,
              "operation" => operation,
+             "inferred_type" => row.inferred_type,
              "before" => row.previous && stringify(Map.take(row.previous, @fields)),
              "after" => after_row,
              "errors" => []
@@ -165,6 +190,7 @@ defmodule Ep.Finance.ChartImportPlan do
              "account_id" => row.id,
              "event_id" => row.event_id,
              "operation" => "error",
+             "inferred_type" => row.inferred_type,
              "before" => nil,
              "after" => nil,
              "source" => row.source,
@@ -181,9 +207,24 @@ defmodule Ep.Finance.ChartImportPlan do
     }
   end
 
-  defp parameters(record, mapping, _current) do
-    kind = value(record, mapping, "type") |> to_string() |> String.downcase() |> String.trim()
+  defp guessed_kind(record, mapping, prior) do
+    explicit = value(record, mapping, "type") |> to_string() |> String.downcase() |> String.trim()
 
+    prior_type =
+      value(prior, mapping, "type") |> to_string() |> String.downcase() |> String.trim()
+
+    prior_posting =
+      prior_type == "posting" || (prior_type == "" && present?(value(prior, mapping, "number")))
+
+    cond do
+      explicit != "" -> explicit
+      present?(value(record, mapping, "number")) -> "posting"
+      present?(value(record, mapping, "formula")) || prior_posting -> "calculation"
+      true -> "header"
+    end
+  end
+
+  defp parameters(record, mapping, kind) do
     kind =
       case kind do
         "heading" -> "header"
@@ -231,7 +272,7 @@ defmodule Ep.Finance.ChartImportPlan do
     end
   end
 
-  defp reference!(tid, bid, record, mapping, p, kind, previous) do
+  defp reference!(tid, bid, record, mapping, p, kind, previous, proposed) do
     {id_field, code_field, legacy_field} =
       if kind == "vat",
         do: {"vat_entry_id", "vat_code", "vat_code"},
@@ -239,6 +280,7 @@ defmodule Ep.Finance.ChartImportPlan do
 
     id = value(record, mapping, id_field)
     code = value(record, mapping, code_field)
+    code = if is_binary(code), do: String.trim(code), else: code
 
     cond do
       present?(id) ->
@@ -246,6 +288,10 @@ defmodule Ep.Finance.ChartImportPlan do
 
         entry =
           Repo.get_by(CatalogueEntry, tenant_id: tid, book_id: bid, kind: kind, id: id) ||
+            Enum.find(
+              proposed,
+              &(&1.tenant_id == tid && &1.book_id == bid && &1.kind == kind && &1.id == id)
+            ) ||
             fail!(:invalid_catalogue_reference)
 
         if present?(code) && code != entry.code, do: fail!(:catalogue_mismatch)

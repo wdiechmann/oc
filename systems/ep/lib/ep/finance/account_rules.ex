@@ -1,8 +1,8 @@
 defmodule Ep.Finance.AccountRules do
   @moduledoc "Non-writing account field/reference validation shared by line editing and CSV plans."
-  def validate(p, tid, bid, id, previous, chart) do
+  def validate(p, tid, bid, id, previous, chart, proposed \\ []) do
     try do
-      {:ok, checked!(p, tid, bid, id, previous, chart)}
+      {:ok, checked!(p, tid, bid, id, previous, chart, proposed)}
     catch
       {:account_rule, reason} -> {:error, reason}
     end
@@ -10,7 +10,7 @@ defmodule Ep.Finance.AccountRules do
 
   defp reject!(reason), do: throw({:account_rule, reason})
 
-  defp checked!(p, tid, bid, id, previous, rows) do
+  defp checked!(p, tid, bid, id, previous, rows, proposed) do
     kind =
       case p["kind"] do
         "heading" -> "header"
@@ -45,7 +45,7 @@ defmodule Ep.Finance.AccountRules do
     selections =
       if kind == "posting" do
         Enum.reduce(["vat", "category"], %{}, fn type, attrs ->
-          case Ep.Finance.Catalogues.validate_selection(tid, bid, type, p, previous) do
+          case Ep.Finance.Catalogues.validate_selection(tid, bid, type, p, previous, proposed) do
             {:ok, selection} -> Map.merge(attrs, selection)
             {:error, reason} -> reject!(reason)
           end
