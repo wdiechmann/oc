@@ -22,7 +22,7 @@ class ChartAccountsController < FinanceSetupController
   end
 
   def show_setup(status: 200, message: nil)
-    query = params.permit(:page, :q, :source_version, :focus_id).to_h
+    query = params.permit(:page, :q, :source_version, :focus_id, :retired).to_h
     if @attrs
       query.delete("source_version")
       query.delete("q")

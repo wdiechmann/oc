@@ -45,7 +45,7 @@ module Ep
     def chart_export(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-export", query: query)
     def upload_chart(tid, bid, data) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports", body: data)
     def chart_import(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(id)}")
-    def preview_chart(tid, bid, id, mapping, create_codes: false) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(id)}/preview", body: { mapping: mapping, create_codes: create_codes })
+    def preview_chart(tid, bid, id, mapping, create_codes: false, mode: "replace") = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(id)}/preview", body: { mapping: mapping, create_codes: create_codes, mode: mode })
     def accept_chart(tid, bid, attrs, key)
       request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-imports/#{uuid!(attrs[:import_id])}/accept", body: attrs.except(:import_id), key: key)
     end

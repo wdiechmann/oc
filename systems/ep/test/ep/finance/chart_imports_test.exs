@@ -55,7 +55,11 @@ defmodule Ep.Finance.ChartImportsTest do
 
   defp review(c, headers, records) do
     {:ok, upload} =
-      ChartImports.upload(c.actor, c.tid, c.bid, %{"headers" => headers, "records" => records})
+      ChartImports.upload(c.actor, c.tid, c.bid, %{
+        "headers" => headers,
+        "records" => records,
+        "mode" => "merge"
+      })
 
     {:ok, preview} =
       ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{"mapping" => upload.mapping})
@@ -557,5 +561,158 @@ defmodule Ep.Finance.ChartImportsTest do
              )
 
     assert entry.name == "Indtægt"
+  end
+
+  defp replace_review(c, records, headers \\ ~w(type number name position formula)) do
+    {:ok, upload} =
+      ChartImports.upload(c.actor, c.tid, c.bid, %{"headers" => headers, "records" => records})
+
+    assert upload.mode == "replace"
+
+    {:ok, preview} =
+      ChartImports.preview(c.actor, c.tid, c.bid, upload.import_id, %{"mapping" => upload.mapping})
+
+    preview
+  end
+
+  test "replacement releases omitted positions, preserves retained IDs and archives the old chart atomically",
+       c do
+    seed =
+      review(c, ~w(type number name position formula), [
+        ["posting", "0010", "Retained bank", "100", ""],
+        ["header", "", "Old header", "200", ""],
+        ["calculation", "", "Old total", "300", "[0010]"]
+      ])
+
+    {:ok, _} = accept(c, seed, "seed")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    bank = Repo.get_by!(Account, book_id: c.bid, number: "0010")
+    old_header = Repo.get_by!(Account, book_id: c.bid, name: "Old header")
+    old_total = Repo.get_by!(Account, book_id: c.bid, name: "Old total")
+
+    p =
+      replace_review(c, [
+        ["posting", "0020", "New cash", "100", ""],
+        ["posting", "0010", "Retained bank", "200", ""]
+      ])
+
+    assert p.plan["valid"]
+    assert p.plan["mode"] == "replace"
+    assert p.plan["retained_count"] == 1
+    assert p.plan["counts"] == %{"create" => 1, "revise" => 1, "retire" => 2}
+    refute Repo.get!(Account, old_header.id).retired
+    {:ok, accepted} = accept(c, p, "replace")
+    assert Repo.get!(Account, bank.id).position == 200
+    retired = Repo.get!(Account, old_header.id)
+    assert retired.retired && !retired.active && retired.position == 200
+    assert Repo.get!(Account, old_total.id).formula_refs == old_total.formula_refs
+    assert {:ok, %{"replayed" => true}} = accept(c, p, "replace")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, data} = Setup.get(c.actor, c.tid, c.bid)
+    assert Enum.map(data.accounts, & &1["number"]) |> Enum.sort() == ["0010", "0020"]
+    assert length(data.retired_accounts) == 2
+    {:ok, archive} = Setup.accounts(c.actor, c.tid, c.bid, %{"retired" => "1", "per_page" => "1"})
+    assert archive.retired && !archive.permissions.configure
+    assert archive.pagination.total_entries == 2
+    {:ok, exported} = ChartImports.export(c.actor, c.tid, c.bid)
+    assert exported.row_count == 2
+
+    assert {:error, :not_found} =
+             Setup.command(
+               c.actor,
+               c.tid,
+               c.bid,
+               "account_revise",
+               %{
+                 "account_id" => old_header.id,
+                 "kind" => "header",
+                 "name" => "Forbidden",
+                 "active" => true,
+                 "expected_version" => accepted["stream_version"],
+                 "expected_account_version" => retired.version
+               },
+               "edit-retired"
+             )
+
+    assert {:ok, :ok} = SetupProjector.rebuild(c.tid)
+    {:ok, rebuilt} = Setup.get(c.actor, c.tid, c.bid)
+    assert rebuilt.accounts == data.accounts
+    assert rebuilt.retired_accounts == data.retired_accounts
+  end
+
+  test "merge remains explicit and mode changes invalidate an earlier replacement review", c do
+    seed = review(c, ~w(type number name position), [["posting", "0010", "Existing", "100"]])
+    {:ok, _} = accept(c, seed, "seed")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    p = replace_review(c, [["posting", "0020", "Replacement", "100", ""]])
+    assert p.plan["valid"] && length(p.plan["retirements"]) == 1
+
+    {:ok, changed} =
+      ChartImports.preview(c.actor, c.tid, c.bid, p.import_id, %{
+        "mapping" => p.mapping,
+        "mode" => "merge"
+      })
+
+    refute changed.plan["valid"]
+    assert hd(changed.plan["rows"])["errors"] == ["position_taken"]
+    assert changed.plan["retirements"] == []
+    assert {:error, :digest_conflict} = accept(c, p)
+    assert Repo.aggregate(Account, :count) == 1
+    refute Repo.one!(from a in Account, where: a.book_id == ^c.bid).retired
+  end
+
+  test "replacement validates duplicate positions and references against the complete successor chart",
+       c do
+    seed =
+      review(c, ~w(type number name position formula), [
+        ["posting", "0010", "Old bank", "100", ""],
+        ["calculation", "", "Retained total", "200", "[0010]"]
+      ])
+
+    {:ok, _} = accept(c, seed, "seed")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    total = Repo.get_by!(Account, book_id: c.bid, kind: "calculation")
+
+    p =
+      replace_review(c, [
+        ["posting", "0020", "One", "100", ""],
+        ["posting", "0030", "Two", "100", ""]
+      ])
+
+    refute p.plan["valid"]
+    assert {:error, :invalid_review} = accept(c, p)
+
+    p =
+      replace_review(
+        c,
+        [[total.id, "calculation", "", "Retained total", "200", "[0010]"]],
+        ~w(account_id type number name position formula)
+      )
+
+    refute p.plan["valid"]
+    assert {:error, :invalid_review} = accept(c, p)
+    assert Repo.aggregate(Account, :count) == 2
+    assert Repo.aggregate(from(a in Account, where: a.retired), :count) == 0
+  end
+
+  test "a later import restores a retired number to its original identity", c do
+    original = replace_review(c, [["posting", "0010", "Original", "100", ""]])
+    {:ok, _} = accept(c, original, "original")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    id = hd(original.plan["rows"])["account_id"]
+    replacement = replace_review(c, [["posting", "0020", "Replacement", "100", ""]])
+    {:ok, _} = accept(c, replacement, "replace")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    assert Repo.get!(Account, id).retired
+    restored = replace_review(c, [["posting", "0010", "Restored", "100", ""]])
+    assert hd(restored.plan["rows"])["operation"] == "restore"
+    assert hd(restored.plan["rows"])["account_id"] == id
+    {:ok, _} = accept(c, restored, "restore")
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    assert Repo.get!(Account, id).active
+    refute Repo.get!(Account, id).retired
+    assert Repo.aggregate(Account, :count) == 2
+    {:ok, data} = Setup.get(c.actor, c.tid, c.bid)
+    assert length(data.accounts) == 1 && length(data.retired_accounts) == 1
   end
 end

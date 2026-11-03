@@ -16,7 +16,7 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
   def path = "/tenants/#{TID}/books/#{BID}/chart_import"
   def api = "#{EP}/tenants/#{TID}/finance/books/#{BID}"
   def review
-    { tenant_id: TID, book_id: BID, import_id: IID, row_count: 1, expires_at: 1.hour.from_now.iso8601, columns: %w[type number name position], headers: %w[kind code label order], sample: [ [ "posting", "0010", "Bank", "100" ] ], mapping: { type: "kind", number: "code", name: "label", position: "order" }, expected_version: 2, digest: "review-digest", plan: { valid: true, errors: [], counts: { create: 1 }, rows: [ { line: 2, operation: "create", before: nil, after: { kind: "posting", number: "0010", name: "Bank", position: 100 }, errors: [] } ] } }
+    { tenant_id: TID, book_id: BID, import_id: IID, mode: "merge", row_count: 1, expires_at: 1.hour.from_now.iso8601, columns: %w[type number name position], headers: %w[kind code label order], sample: [ [ "posting", "0010", "Bank", "100" ] ], mapping: { type: "kind", number: "code", name: "label", position: "order" }, expected_version: 2, digest: "review-digest", plan: { mode: "merge", valid: true, errors: [], counts: { create: 1 }, rows: [ { line: 2, operation: "create", before: nil, after: { kind: "posting", number: "0010", name: "Bank", position: 100 }, errors: [] } ] } }
   end
   def ready_review
     stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 200, body: review.to_json)
@@ -39,12 +39,12 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
   end
 
   test "upload and mapping forward bounded strings without accepting accounts" do
-    upload = stub_request(:post, "#{api}/chart-imports").with(body: { create_codes: false, headers: %w[kind code label order], records: [ [ "posting", "0010", "Bank", "100" ] ] }).to_return(status: 200, body: review.to_json)
+    upload = stub_request(:post, "#{api}/chart-imports").with(body: { create_codes: false, mode: "replace", headers: %w[kind code label order], records: [ [ "posting", "0010", "Bank", "100" ] ] }).to_return(status: 200, body: review.to_json)
     file = Rack::Test::UploadedFile.new(StringIO.new("kind,code,label,order\nposting,0010,Bank,100\n"), "text/csv", original_filename: "chart.csv")
     post "#{path}/upload", params: { csv: file }
     assert_redirected_to "#{path}?import_id=#{IID}"
     assert_requested upload
-    mapping = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: false }).to_return(status: 200, body: review.to_json)
+    mapping = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: false, mode: "replace" }).to_return(status: 200, body: review.to_json)
     post "#{path}/preview", params: { import_id: IID, mapping: review[:mapping].merge(formula: "") }
     assert_response :success
     assert_select "input[value='Accept reviewed changes']"
@@ -121,7 +121,7 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Create VAT code: V25"
     assert_includes response.body, "Guessed type: posting"
     assert_includes response.body, "Types: header, posting, calculation."
-    preview = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: true }).to_return(status: 200, body: data.to_json)
+    preview = stub_request(:post, "#{api}/chart-imports/#{IID}/preview").with(body: { mapping: review[:mapping], create_codes: true, mode: "replace" }).to_return(status: 200, body: data.to_json)
     post "#{path}/preview", params: { import_id: IID, mapping: review[:mapping], create_codes: "1" }
     assert_response :success
     assert_requested preview
@@ -134,5 +134,25 @@ class ChartImportsTest < ActionDispatch::IntegrationTest
     assert_equal [ [ "0010", "Bank" ] ], ChartCsv.parse(StringIO.new("number\tname\n0010\tBank\n"))[:records]
     assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("name;name\na;b\n")) }
     assert_raises(ChartCsv::Invalid) { ChartCsv.parse(StringIO.new("number;name\n0010;Bank;extra\n")) }
+  end
+  test "replacement is the default and review explicitly lists retained and retiring accounts" do
+    ready = { tenant_id: TID, book_id: BID, status: "ready", permissions: { configure: true }, catalogues_initialized: true }
+    stub_request(:get, "#{api}/chart-imports").to_return(status: 200, body: ready.to_json)
+    get path
+    assert_select "select[name=mode] option[value=replace][selected]"
+    assert_select "option[value=merge]", text: "Merge into existing chart"
+    data = review.deep_dup
+    data[:mode] = "replace"
+    data[:plan].merge!(mode: "replace", retained_count: 1, retirements: [ { operation: "retire", before: { name: "Old account", position: 100 }, after: { name: "Old account", position: 100, active: false, retired: true }, errors: [] } ])
+    stub_request(:get, "#{api}/chart-imports/#{IID}").to_return(status: 200, body: data.to_json)
+    get path, params: { import_id: IID }
+    assert_select "input[value='Accept chart replacement']"
+    assert_includes response.body, "1 existing accounts retained; 1 accounts will be retired"
+    assert_includes response.body, "Existing account: retire"
+    token = css_select("input[name=form_token]").first["value"]
+    accept = stub_request(:post, "#{api}/chart-imports/#{IID}/accept").with(body: { digest: "review-digest", expected_version: 2 }).to_return(status: 200, body: { stream_version: 4 }.to_json)
+    patch path, params: { form_token: token, mode: "merge" }
+    assert_response :see_other
+    assert_requested accept
   end
 end

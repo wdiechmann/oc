@@ -19,6 +19,7 @@ defmodule Ep.Finance.Account do
     field :reserved_numbers, {:array, :string}
     field :name, :string
     field :kind, :string
+    field :retired, :boolean, default: false
     field :active, :boolean, default: true
     field :version, :integer
     timestamps()

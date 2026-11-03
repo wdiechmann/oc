@@ -180,4 +180,28 @@ class ChartAccountsTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     assert_not_requested :patch, "#{api}/accounts/#{AID}"
   end
+  test "retired accounts are read-only and history navigation retains its scope" do
+    retired = data.merge(retired: true, permissions: { configure: false, assign_stewards: true }, pagination: { page: 1, per_page: 50, total_entries: 60, total_pages: 2 })
+    view(retired)
+    get path, params: { retired: "1" }
+    assert_response :success
+    assert_select "h1", text: "Retired accounts"
+    assert_select "input[name=form_token]", count: 0
+    assert_select "input[name=retired][value='1']"
+    assert_select "a[data-coa-next][href*='retired=1']"
+    assert_select "a[data-chart-export]", count: 0
+    assert_select "a", text: "Current chart"
+  end
+  test "replacement by another steward preserves a draft for an account no longer in the current chart" do
+    view
+    get path
+    form_token = token("account_revise", AID)
+    view(data.merge(accounts: [], source_version: 5, latest_version: 5, pagination: { page: 1, per_page: 50, total_entries: 0, total_pages: 1 }))
+    stub_request(:patch, "#{api}/accounts/#{AID}").to_return(status: 409, body: { error: "version_conflict" }.to_json)
+    patch path, params: draft(form_token)
+    assert_response :conflict
+    assert_includes response.body, "no longer in the current chart"
+    assert_select "pre", text: /My draft/
+    assert_select "input[value=Reapply]", count: 0
+  end
 end

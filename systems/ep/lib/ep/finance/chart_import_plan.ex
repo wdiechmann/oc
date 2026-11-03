@@ -3,8 +3,8 @@ defmodule Ep.Finance.ChartImportPlan do
   alias Ep.Finance.{AccountRules, Formula, CatalogueEntry}
   alias Ep.Repo
 
-  @fields ~w(id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version)a
-  @material ~w(number name kind position active formula formula_refs vat_entry_id category_entry_id)a
+  @fields ~w(id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired)a
+  @material ~w(number name kind position active formula formula_refs vat_entry_id category_entry_id retired)a
 
   def build(
         tid,
@@ -16,7 +16,8 @@ defmodule Ep.Finance.ChartImportPlan do
         version,
         ids \\ %{},
         event_ids \\ %{},
-        proposed \\ []
+        proposed \\ [],
+        mode \\ "merge"
       ) do
     rows =
       records
@@ -82,8 +83,10 @@ defmodule Ep.Finance.ChartImportPlan do
 
     targets = MapSet.new(Enum.map(rows, & &1.id))
 
+    remaining = if mode == "replace", do: [], else: Enum.reject(current, & &1.retired)
+
     prospective =
-      (Enum.reject(current, &MapSet.member?(targets, &1.id)) ++
+      (Enum.reject(remaining, &MapSet.member?(targets, &1.id)) ++
          Enum.filter(rows, &(&1.errors == [])))
       |> Enum.map(fn
         %{params: p, id: id, previous: old} ->
@@ -131,13 +134,18 @@ defmodule Ep.Finance.ChartImportPlan do
 
                 if taken || duplicated,
                   do: %{row | errors: ["number_taken"]},
-                  else: Map.put(row, :attrs, Map.put(attrs, :active, row.params["active"]))
+                  else:
+                    Map.put(
+                      row,
+                      :attrs,
+                      Map.merge(attrs, %{active: row.params["active"], retired: false})
+                    )
             end
         end
       end)
 
     final_chart =
-      (Enum.reject(current, &MapSet.member?(targets, &1.id)) ++
+      (Enum.reject(remaining, &MapSet.member?(targets, &1.id)) ++
          Enum.filter(rows, &(&1.errors == [])))
       |> Enum.map(fn
         %{attrs: attrs, id: id} -> Map.put(attrs, :id, id)
@@ -149,7 +157,7 @@ defmodule Ep.Finance.ChartImportPlan do
         do: ["invalid_formula_cycle_or_reference"],
         else: []
 
-    {review, _} =
+    {review, last_version} =
       Enum.map_reduce(rows, version, fn row, v ->
         if row.errors == [] do
           unchanged =
@@ -158,6 +166,7 @@ defmodule Ep.Finance.ChartImportPlan do
           operation =
             cond do
               unchanged -> "unchanged"
+              row.previous && row.previous.retired -> "restore"
               row.previous -> "revise"
               true -> "create"
             end
@@ -199,11 +208,42 @@ defmodule Ep.Finance.ChartImportPlan do
         end
       end)
 
+    retired =
+      if mode == "replace",
+        do: Enum.reject(current, &(&1.retired || MapSet.member?(targets, &1.id))),
+        else: []
+
+    {retirements, _} =
+      retired
+      |> Enum.sort_by(&{&1.position, &1.id})
+      |> Enum.map_reduce(last_version, fn account, v ->
+        {%{
+           "account_id" => account.id,
+           "event_id" => event_ids["retire:" <> account.id] || Ecto.UUID.generate(),
+           "operation" => "retire",
+           "before" => stringify(Map.take(account, @fields)),
+           "after" =>
+             account
+             |> Map.take(@fields)
+             |> Map.merge(%{retired: true, active: false, version: v + 1})
+             |> stringify(),
+           "errors" => []
+         }, v + 1}
+      end)
+
+    counts = Enum.frequencies_by(review, & &1["operation"])
+
+    counts =
+      if retirements == [], do: counts, else: Map.put(counts, "retire", length(retirements))
+
     %{
       "rows" => review,
+      "mode" => mode,
+      "retirements" => retirements,
+      "retained_count" => Enum.count(rows, &(&1.previous && !&1.previous.retired)),
       "errors" => global_errors,
       "valid" => global_errors == [] && Enum.all?(review, &(&1["errors"] == [])),
-      "counts" => Enum.frequencies_by(review, & &1["operation"])
+      "counts" => counts
     }
   end
 
@@ -252,6 +292,9 @@ defmodule Ep.Finance.ChartImportPlan do
       if previous,
         do: previous |> Map.take(~w(number name position formula active)a) |> stringify(),
         else: %{"active" => true, "number" => nil, "formula" => nil}
+
+    defaults =
+      if previous && previous.retired, do: Map.put(defaults, "active", true), else: defaults
 
     Map.merge(defaults, params)
   end

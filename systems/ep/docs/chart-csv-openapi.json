@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "EP reviewed chart CSV transfer",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Configuration only. See chart-csv-api.md for semantics and limits. VERA parses/encodes CSV; EP receives bounded string arrays. No journals or balances."
   },
   "security": [
@@ -144,6 +144,15 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Propose missing unique VAT/category codes; created only with reviewed atomic acceptance. Account types remain fixed."
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "replace",
+                      "merge"
+                    ],
+                    "default": "replace",
+                    "description": "New uploads default to replacement. Preview retains the upload mode unless explicitly changed. Legacy drafts remain merge until explicitly changed. Replacement retires omitted current accounts and preserves identities/history."
                   }
                 }
               }
@@ -352,6 +361,15 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Propose missing unique VAT/category codes; created only with reviewed atomic acceptance. Account types remain fixed."
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "replace",
+                      "merge"
+                    ],
+                    "default": "replace",
+                    "description": "New uploads default to replacement. Preview retains the upload mode unless explicitly changed. Legacy drafts remain merge until explicitly changed. Replacement retires omitted current accounts and preserves identities/history."
                   }
                 }
               }

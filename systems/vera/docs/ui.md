@@ -63,3 +63,7 @@ The template demonstrates header; type guidance lists posting and calculation. T
 CSV upload detects comma, semicolon and tab separators and ignores completely empty spreadsheet rows before headers or between records. Nonblank records retain strict header/width checks and upload limits.
 
 Import guidance distinguishes VAT descriptions (Dansk salgsmoms, UEUV - Varesalg EU) from account categories (Aktiv, Passiv, Indtægt). Review labels proposed entries as VAT or account category. Manual catalogue code inputs accept up to 120 Unicode characters without the former ASCII-only pattern.
+
+Upload/mapping includes Import mode: Replace chart (default) or Merge into existing chart. Review states the mode, retained count and retire count, expands retirement before/after rows alongside incoming changes, and names the replacement button Accept chart replacement. Old drafts retain Merge until explicitly changed. Chart navigation links Retired accounts and Current chart; retired view shows preserved rows without edit/import/export controls. Search, keyboard/page navigation and infinite scroll retain the selected history scope.
+
+If another steward replaces a chart while a line is being edited, a rejected save preserves the submitted draft as text even when its account has left the current chart. It offers no automatic reapplication to a retired row.

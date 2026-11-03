@@ -21,7 +21,7 @@ defmodule Ep.Finance.ChartImports do
   @columns ~w(schema_version tenant_id book_id source_version account_id account_version type number name vat_entry_id vat_code category_entry_id category_code position formula active)
   @max_rows 500
   @max_bytes 2_097_152
-  @fields ~w(id tenant_id book_id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version actor_identity_id application_id)a
+  @fields ~w(id tenant_id book_id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired actor_identity_id application_id)a
 
   def info(principal, tid, bid) do
     with {:ok, data} <- Setup.get(principal, tid, bid) do
@@ -59,6 +59,7 @@ defmodule Ep.Finance.ChartImports do
 
       rows =
         Setup.normalize_accounts(view.data["accounts"])
+        |> Enum.reject(&(&1["retired"] == true))
         |> Enum.filter(&String.contains?(String.downcase("#{&1["number"]} #{&1["name"]}"), q))
         |> Enum.map(fn a ->
           vat = entries[a["vat_entry_id"]]
@@ -120,6 +121,7 @@ defmodule Ep.Finance.ChartImports do
           expires_at: expires,
           data:
             Map.merge(params, %{
+              "mode" => Map.get(params, "mode", "replace"),
               "mapping" => default_mapping(params["headers"]),
               "source_digest" => digest(params)
             })
@@ -145,7 +147,8 @@ defmodule Ep.Finance.ChartImports do
       row = review!(principal, tid, bid, id, app)
       if row.accepted_command_id, do: Repo.rollback(:import_already_accepted)
 
-      unless is_map(params) && Enum.all?(Map.keys(params), &(&1 in ~w(mapping create_codes))) &&
+      unless is_map(params) && Enum.all?(Map.keys(params), &(&1 in ~w(mapping create_codes mode))) &&
+               Map.get(params, "mode", Map.get(row.data, "mode", "merge")) in ~w(replace merge) &&
                is_boolean(Map.get(params, "create_codes", false)) &&
                valid_mapping?(params["mapping"], row.data["headers"]),
              do: Repo.rollback(:invalid_mapping)
@@ -153,13 +156,25 @@ defmodule Ep.Finance.ChartImports do
       current = Repo.all(from a in Account, where: a.tenant_id == ^tid and a.book_id == ^bid)
 
       create_codes = Map.get(params, "create_codes", false)
-      plan = build_plan(tid, bid, row.data, params["mapping"], current, version, create_codes)
+      mode = Map.get(params, "mode", Map.get(row.data, "mode", "merge"))
+
+      plan =
+        build_plan(
+          tid,
+          bid,
+          Map.put(row.data, "mode", mode),
+          params["mapping"],
+          current,
+          version,
+          create_codes
+        )
 
       data =
         row.data
         |> Map.merge(%{
           "mapping" => params["mapping"],
           "create_codes" => create_codes,
+          "mode" => mode,
           "plan" => plan,
           "expected_version" => version
         })
@@ -170,7 +185,7 @@ defmodule Ep.Finance.ChartImports do
           "digest",
           digest(
             {row.id, tid, bid, principal.identity_id, app, version, plan, params["mapping"],
-             row.data["source_digest"], create_codes}
+             row.data["source_digest"], create_codes, mode}
           )
         )
 
@@ -210,6 +225,15 @@ defmodule Ep.Finance.ChartImports do
           current = Repo.all(from a in Account, where: a.tenant_id == ^tid and a.book_id == ^bid)
           ids = Map.new(row.data["plan"]["rows"], &{to_string(&1["line"]), &1["account_id"]})
           events = Map.new(row.data["plan"]["rows"], &{to_string(&1["line"]), &1["event_id"]})
+
+          events =
+            Map.merge(
+              events,
+              Map.new(
+                row.data["plan"]["retirements"] || [],
+                &{"retire:" <> &1["account_id"], &1["event_id"]}
+              )
+            )
 
           plan =
             build_plan(
@@ -271,7 +295,8 @@ defmodule Ep.Finance.ChartImports do
         version + length(creates),
         ids,
         events,
-        proposed
+        proposed,
+        Map.get(data, "mode", "merge")
       )
 
     plan
@@ -305,6 +330,7 @@ defmodule Ep.Finance.ChartImports do
            "tenant_id" => tid,
            "book_id" => bid,
            "import_id" => review.id,
+           "mode" => plan["mode"],
            "source_digest" => review.data["source_digest"],
            "catalogue_entry" =>
              Map.take(
@@ -315,7 +341,7 @@ defmodule Ep.Finance.ChartImports do
       end)
 
     facts =
-      plan["rows"]
+      (plan["rows"] ++ (plan["retirements"] || []))
       |> Enum.reject(&(&1["operation"] == "unchanged"))
       |> Enum.map(fn change ->
         old = Repo.get_by(Account, tenant_id: tid, book_id: bid, id: change["account_id"])
@@ -343,6 +369,8 @@ defmodule Ep.Finance.ChartImports do
 
         type =
           cond do
+            change["operation"] == "retire" -> "AccountRetired"
+            old && old.retired -> "AccountRestored"
             !old -> "AccountCreated"
             old.active && !account.active -> "AccountDeactivated"
             !old.active && account.active -> "AccountReactivated"
@@ -354,6 +382,7 @@ defmodule Ep.Finance.ChartImports do
            "tenant_id" => tid,
            "book_id" => bid,
            "import_id" => review.id,
+           "mode" => plan["mode"],
            "source_digest" => review.data["source_digest"],
            "account" => Map.take(account, @fields)
          }}
@@ -393,7 +422,8 @@ defmodule Ep.Finance.ChartImports do
       "import_id" => review.id,
       "stream_version" => version,
       "event_ids" => Enum.map(events, & &1.id),
-      "counts" => plan["counts"]
+      "counts" => plan["counts"],
+      "mode" => plan["mode"]
     }
 
     Repo.insert!(%CommandReceipt{
@@ -470,6 +500,7 @@ defmodule Ep.Finance.ChartImports do
       columns: @columns,
       mapping: row.data["mapping"],
       create_codes: Map.get(row.data, "create_codes", false),
+      mode: Map.get(row.data, "mode", "merge"),
       plan: row.data["plan"],
       digest: row.data["digest"],
       expected_version: row.data["expected_version"],
@@ -478,7 +509,8 @@ defmodule Ep.Finance.ChartImports do
   end
 
   defp valid_upload?(%{"headers" => headers, "records" => records} = params) do
-    Enum.all?(Map.keys(params), &(&1 in ~w(headers records create_codes))) &&
+    Enum.all?(Map.keys(params), &(&1 in ~w(headers records create_codes mode))) &&
+      Map.get(params, "mode", "replace") in ~w(replace merge) &&
       is_boolean(Map.get(params, "create_codes", false)) && is_list(headers) &&
       length(headers) in 1..32 &&
       Enum.all?(headers, &(is_binary(&1) && String.trim(&1) != "" && byte_size(&1) <= 120)) &&

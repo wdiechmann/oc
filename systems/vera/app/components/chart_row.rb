@@ -18,7 +18,7 @@ class Components::ChartRow < Components::Base
           div(role: "cell") do
             button(type: "button", data: { coa_edit: true }, class: "coa-action") { "Edit" } if @editable
             button(type: "button", data: { coa_reference: @id }, class: "coa-action", title: "Copy a stable formula reference") { "Copy ref" }
-            span(class: "text-xs text-stone-400") { "Inactive" } unless @account["active"]
+            span(class: "text-xs text-stone-400") { @account["retired"] ? "Retired" : "Inactive" } unless @account["active"]
           end
         end
       elsif @editable

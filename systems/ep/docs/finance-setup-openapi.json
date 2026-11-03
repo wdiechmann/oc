@@ -306,6 +306,18 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "retired",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1"
+              ]
+            },
+            "description": "1 selects read-only retired history; omitted/0 selects the current chart."
           }
         ],
         "responses": {

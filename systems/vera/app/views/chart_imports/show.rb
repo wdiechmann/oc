@@ -7,7 +7,7 @@ class Views::ChartImports::Show < Views::Base
   def view_template
     a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
     h1(class: "mt-6 text-3xl font-semibold") { "Import chart CSV" }
-    p(class: "mt-4 text-stone-600") { "Upload → map columns → review → accept. Missing rows never delete or deactivate accounts. All changes are accepted together." }
+    p(class: "mt-4 text-stone-600") { "Upload → choose replacement or merge → map columns → review → accept. Replacement retires omitted accounts; merge keeps them. History is preserved and all changes are accepted together." }
     p(role: "alert", class: "mt-4 bg-amber-50 p-4") { @message } if @message
     p(class: "mt-3 text-sm text-stone-600") { "VAT values and account categories are separate catalogues: VAT examples include Dansk salgsmoms and UEUV - Varesalg EU; category examples include Aktiv, Passiv and Indtægt. Descriptive text is preserved." }
     p(class: "mt-3 text-sm text-stone-600") { "Types: header, posting, calculation. The demo uses header. Blank types are guessed: numbered rows as posting, formula rows or unnumbered rows after postings as calculation, otherwise header. Check every guess; calculations require a valid formula." }
@@ -19,6 +19,7 @@ class Views::ChartImports::Show < Views::Base
       form_with(url: upload_tenant_book_chart_import_path(@tid, @bid), multipart: true, data: { turbo: false }, class: "mt-6") do |f|
         f.label(:csv, "CSV file")
         f.file_field(:csv, accept: ".csv,text/csv", required: true, class: FIELD)
+        import_mode
         create_codes_checkbox
         f.submit("Upload for mapping", class: BUTTON)
       end
@@ -44,6 +45,7 @@ class Views::ChartImports::Show < Views::Base
             end
           end
         end
+        import_mode
         create_codes_checkbox
         f.submit("Review mapped changes", class: BUTTON)
       end
@@ -57,15 +59,16 @@ class Views::ChartImports::Show < Views::Base
     plan = @data["plan"]
     return unless plan
     h2(class: "mt-7 text-xl font-semibold") { "Review at revision #{@data['expected_version']}" }
+    p(class: "mt-3 font-semibold") { plan["mode"] == "replace" ? "Replace chart: #{plan.fetch('retained_count', 0)} existing accounts retained; #{Array(plan['retirements']).length} accounts will be retired." : "Merge into existing chart: omitted accounts remain unchanged." }
     p(class: "mt-3") { plan.fetch("counts").map { |key, value| "#{key}: #{value}" }.join(" · ") }
     plan.fetch("errors", []).each { |error| p(class: "mt-3 text-red-800", role: "alert") { error } }
     Array(plan["catalogue_creates"]).each do |entry|
       p(class: "mt-3 rounded-lg border p-3 text-sm") { "Create #{entry['kind'] == "vat" ? "VAT" : "account category"} code: #{entry['code']} · Name: #{entry['name']}" }
     end
     div(class: "mt-4 space-y-3") do
-      plan.fetch("rows").each do |row|
+      (plan.fetch("rows") + Array(plan["retirements"])).each do |row|
         details(class: "rounded-lg border p-4", open: row["operation"] == "error") do
-          summary(class: "cursor-pointer font-medium") { "Record #{row['line']}: #{row['operation']} · #{row.dig('after', 'number')} #{row.dig('after', 'name')}" }
+          summary(class: "cursor-pointer font-medium") { "#{row['operation'] == 'retire' ? 'Existing account' : "Record #{row['line']}"}: #{row['operation']} · #{row.dig('after', 'number')} #{row.dig('after', 'name')}" }
           p(class: "mt-2 text-sm text-amber-900") { "Guessed type: #{row['inferred_type']} — check before acceptance." } if row["inferred_type"]
           Array(row["errors"]).each { |error| p(class: "mt-2 text-red-800", role: "alert") { error.to_s } }
           if row["source"]
@@ -86,11 +89,19 @@ class Views::ChartImports::Show < Views::Base
     if @token
       form_with(url: tenant_book_chart_import_path(@tid, @bid), method: :patch, data: { turbo: false }) do |f|
         f.hidden_field(:form_token, value: @token)
-        f.submit("Accept reviewed changes", class: BUTTON)
+        f.submit(plan["mode"] == "replace" ? "Accept chart replacement" : "Accept reviewed changes", class: BUTTON)
       end
     else
       p(class: "mt-5 bg-amber-50 p-4") { @data["accepted_command_id"] ? "This review has already been accepted." : "Fix every error and review again before acceptance." }
     end
+  end
+  def import_mode
+    label(for: "import-mode", class: "mt-5 block text-sm font-medium") { "Import mode" }
+    select(id: "import-mode", name: "mode", class: FIELD) do
+      option(value: "replace", selected: (@data["mode"] || "replace") == "replace") { "Replace chart (default)" }
+      option(value: "merge", selected: @data["mode"] == "merge") { "Merge into existing chart" }
+    end
+    p(class: "mt-2 text-sm text-stone-600") { "Replace uses only the imported rows for the current chart. Matching IDs/numbers retain their identity; omitted accounts move to retired history and release their positions. Merge keeps omitted accounts and checks their positions too. Account numbers remain reserved for their original identities." }
   end
   def create_codes_checkbox
     label(class: "mt-5 flex items-center gap-3 text-sm font-medium") do
@@ -104,7 +115,7 @@ class Views::ChartImports::Show < Views::Base
       h3(class: "font-semibold") { label }
       if data
         dl(class: "mt-2 text-sm") do
-          %w[kind number name vat_entry_id vat_code category_entry_id category position formula active].each do |field|
+          %w[kind number name vat_entry_id vat_code category_entry_id category position formula active retired].each do |field|
             dt(class: "mt-2 font-medium") { field }
             dd(class: "whitespace-pre-wrap break-all") { data[field].to_s }
           end

@@ -22,3 +22,5 @@ Protected current tables and per-book transaction locks govern acceptance and re
 Example account command: `{"number":"0010","name":"Bank","kind":"posting","position":100,"vat_code":"none","category":"assets","expected_version":1}`.
 
 Reviewed chart CSV import/export is specified in [chart-csv-api.md](chart-csv-api.md) and [chart-csv-openapi.json](chart-csv-openapi.json). Single-line commands and historical setup snapshot replay remain compatible.
+
+Current chart queries exclude retired accounts. `GET /setup/accounts?retired=1` provides paginated read-only retired rows with original identities/positions and configure=false; it uses the same scope, freshness and authority guards. Retirement differs from ordinary inactivity. Single-line edits cannot mutate retired rows; import review can explicitly restore the original ID.

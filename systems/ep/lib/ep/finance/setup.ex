@@ -27,7 +27,8 @@ defmodule Ep.Finance.Setup do
           source_version: source,
           latest_version: latest,
           permissions: %{assign_stewards: admin, configure: steward},
-          accounts: data["accounts"],
+          accounts: Enum.reject(data["accounts"] || [], &(&1["retired"] == true)),
+          retired_accounts: Enum.filter(data["accounts"] || [], &(&1["retired"] == true)),
           catalogue_entries: data["catalogue_entries"] || [],
           catalogues_initialized: data["catalogues_initialized"] || false,
           bindings: data["bindings"],
@@ -52,7 +53,9 @@ defmodule Ep.Finance.Setup do
       query = String.downcase(String.slice(to_string(params["q"] || ""), 0, 120))
 
       rows =
-        normalize_accounts(data.accounts)
+        normalize_accounts(
+          if params["retired"] == "1", do: data.retired_accounts, else: data.accounts
+        )
         |> Enum.filter(fn a ->
           String.contains?(String.downcase("#{a["number"]} #{a["name"]}"), query)
         end)
@@ -66,8 +69,14 @@ defmodule Ep.Finance.Setup do
 
       {:ok,
        data
-       |> Map.drop([:stewards, :candidates, :occasions, :bindings])
+       |> Map.drop([:stewards, :candidates, :occasions, :bindings, :retired_accounts])
        |> Map.merge(%{
+         retired: params["retired"] == "1",
+         permissions:
+           if(params["retired"] == "1",
+             do: Map.put(data.permissions, :configure, false),
+             else: data.permissions
+           ),
          accounts:
            Enum.slice(rows, (page - 1) * size, size)
            |> Enum.map(&Ep.Finance.Catalogues.labels(&1, data.catalogue_entries)),
@@ -105,6 +114,9 @@ defmodule Ep.Finance.Setup do
   defp valid_chart_params(params) when is_map(params) do
     valid =
       Enum.all?(params, fn
+        {"retired", value} ->
+          value in ~w(0 1)
+
         {"q", value} ->
           is_binary(value)
 
@@ -401,7 +413,8 @@ defmodule Ep.Finance.Setup do
     id = uuid!(p["account_id"])
 
     account =
-      Repo.get_by(Account, tenant_id: tid, book_id: bid, id: id) || Repo.rollback(:not_found)
+      Repo.get_by(Account, tenant_id: tid, book_id: bid, id: id, retired: false) ||
+        Repo.rollback(:not_found)
 
     unless is_integer(p["expected_account_version"]) &&
              p["expected_account_version"] == account.version,
@@ -442,7 +455,7 @@ defmodule Ep.Finance.Setup do
   end
 
   defp account_attrs!(p, tid, bid, id, previous) do
-    rows = Repo.all(from a in Account, where: a.book_id == ^bid)
+    rows = Repo.all(from a in Account, where: a.book_id == ^bid and not a.retired)
 
     case Ep.Finance.AccountRules.validate(p, tid, bid, id, previous, rows) do
       {:ok, attrs} ->
@@ -499,6 +512,7 @@ defmodule Ep.Finance.Setup do
             :name,
             :kind,
             :active,
+            :retired,
             :version,
             :actor_identity_id,
             :application_id

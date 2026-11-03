@@ -6,7 +6,7 @@ defmodule Ep.Finance.SetupProjector do
   alias Ep.Finance.{Setup, SetupView, SetupWorker}
   alias Ep.Projections.Inbox
   @consumer "finance_setup:v1"
-  @types ~w(CataloguesInitialized CatalogueEntryCreated CatalogueEntryRevised CatalogueEntryDeactivated CatalogueEntryReactivated PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountCreated AccountRevised AccountDeactivated AccountReactivated)
+  @types ~w(CataloguesInitialized CatalogueEntryCreated CatalogueEntryRevised CatalogueEntryDeactivated CatalogueEntryReactivated PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountRetired AccountRestored AccountCreated AccountRevised AccountDeactivated AccountReactivated)
 
   def deliver(tid) do
     Repo.transaction(fn ->
@@ -108,6 +108,13 @@ defmodule Ep.Finance.SetupProjector do
                      account["version"] == event.stream_version &&
                      (event.event_type != "AccountCreated" || account["id"] == event.id),
                    do: Repo.rollback(:projection_scope)
+
+            if event.event_type == "AccountRetired" &&
+                 (account["retired"] != true || account["active"] != false),
+               do: Repo.rollback(:projection_scope)
+
+            if event.event_type == "AccountRestored" && account["retired"] != false,
+              do: Repo.rollback(:projection_scope)
 
             unless row, do: Repo.rollback(:projection_gap)
 
