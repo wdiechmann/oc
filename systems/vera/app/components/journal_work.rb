@@ -76,6 +76,7 @@ class Components::JournalWork < Components::Base
     is_draft = @draft && @draft["id"] == row["id"]
     values = is_draft ? row.merge(@draft) : row
     editing = is_draft || row["id"].nil?
+    credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
     override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
     label = row["posting_id"] ? row["posting_id"].to_s : row["id"] ? "On next save" : "On save"
     form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "journal-columns grid items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, draft: is_draft.to_s, editing: editing.to_s }) do |f|
@@ -108,19 +109,19 @@ class Components::JournalWork < Components::Base
       end
       lookup(f, values, "credit", editing)
       div do
-        credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
         input(type: "hidden", name: "credit_override", value: credit_override.to_s, data: { credit_override: true })
         input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_credit: true })
-        button(type: "button", hidden: !editing || !credit_override, data: { credit_default: true }, class: "text-xs text-teal-900 underline") { "Use calculated amount" }
       end
       vat = vat_display(selected, row)
       output(class: "py-2 text-right text-sm tabular-nums text-stone-600", title: vat[:explanation], aria_label: vat[:explanation], data: { work_vat: true }) { vat[:amount] }
-      div(class: "flex flex-wrap gap-2") do
-        button(type: "button", hidden: !editing || !override, data: { basis_default: true }, class: "text-xs text-teal-900 underline") { "Use account default" }
-        button(type: "button", hidden: editing, data: { work_edit: true }, class: "text-sm text-teal-900 underline") { "Edit" } if @editable && !row["void"]
-        f.submit("Save", class: "rounded bg-teal-950 px-3 py-2 text-sm text-white", hidden: !editing, data: { work_save: true }) if @editable
-        button(type: "button", hidden: !editing, data: { work_cancel: true }, class: "text-xs text-teal-900 underline") { "Cancel" } if @editable
-        button(type: "submit", name: "void", value: (!row["void"]).to_s, formnovalidate: true, class: "text-xs text-stone-600 underline") { row["void"] ? "Restore" : "Void" } if @editable && row["posting_id"]
+      render Components::ContextMenu.new(id: "work-actions-#{row['id'] || 'new'}", label: "More actions for posting #{label}", hidden: !@editable) do
+        button(type: "button", hidden: !editing || !credit_override, data: { credit_default: true }, role: "menuitem", class: "vera-menu-item") { "Use calculated amount" }
+
+        button(type: "button", hidden: !editing || !override, data: { basis_default: true }, role: "menuitem", class: "vera-menu-item") { "Use account default" }
+        button(type: "button", hidden: editing, data: { work_edit: true }, role: "menuitem", class: "vera-menu-item") { "Edit" } if @editable && !row["void"]
+        button(type: "submit", role: "menuitem", class: "vera-menu-item", hidden: !editing, data: { work_save: true }) { "Save" } if @editable
+        button(type: "button", hidden: !editing, data: { work_cancel: true }, role: "menuitem", class: "vera-menu-item") { "Cancel" } if @editable
+        button(type: "submit", name: "void", value: (!row["void"]).to_s, formnovalidate: true, role: "menuitem", class: "vera-menu-item") { row["void"] ? "Restore" : "Void" } if @editable && row["posting_id"]
       end
     end
   end

@@ -91,6 +91,14 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "#main-content.w-full"
     assert_select "#main-content.max-w-6xl", count: 0
     assert columns[7].at_css("[data-work-credit]")
+    assert_equal "context-menu", columns[9].name
+    assert columns[9].at_css("[data-menu-trigger] svg")
+    assert_equal "menu", columns[9].at_css("[data-menu-trigger]")["aria-haspopup"]
+    assert_equal "auto", columns[9].at_css("[role=menu]")["popover"]
+    assert_equal [ "Edit", "Void" ], columns[9].css("[role=menuitem]:not([hidden])").map(&:text)
+    assert columns[9].at_css("[data-work-edit]").ancestors("[role=menu]").any?
+    assert_select "#work-row-new [data-menu-trigger][aria-expanded=false]"
+    assert_select "#work-row-new [role=menu] [data-work-save]", count: 1
   end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")

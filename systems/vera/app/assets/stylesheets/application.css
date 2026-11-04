@@ -44,10 +44,20 @@ textarea.coa-input { min-height: 34px; resize: vertical; }
 
 /* Reference absorbs spare width first; accounts contract before amounts. */
 .journal-grid-container { container-type: inline-size; }
-.journal-grid { min-width: 962px; }
+.journal-grid { min-width: 922px; }
 .journal-columns {
-  --journal-account-width: clamp(140px, calc((100cqw - 1042px) / 2 + 140px), 220px);
-  --journal-amount-width: clamp(90px, calc((100cqw - 962px) / 2 + 90px), 130px);
-  grid-template-columns: 64px minmax(100px, 1fr) 36px var(--journal-account-width) var(--journal-amount-width) 36px var(--journal-account-width) var(--journal-amount-width) 90px 80px;
+  --journal-account-width: clamp(140px, calc((100cqw - 1002px) / 2 + 140px), 220px);
+  --journal-amount-width: clamp(90px, calc((100cqw - 922px) / 2 + 90px), 130px);
+  grid-template-columns: 64px minmax(100px, 1fr) 36px var(--journal-account-width) var(--journal-amount-width) 36px var(--journal-account-width) var(--journal-amount-width) 90px 40px;
 }
 .journal-columns > * { min-width: 0; }
+
+.vera-context-menu {
+  position: fixed; inset: auto; margin: 0; padding: .25rem;
+  width: max-content; min-width: 12rem; max-width: calc(100vw - 1rem);
+  max-height: calc(100dvh - 1rem); overflow: auto;
+  border: 1px solid #d6d3d1; border-radius: .5rem;
+  background: white; color: #292524; box-shadow: 0 8px 24px #0002;
+}
+.vera-menu-item { display: block; width: 100%; border: 0; padding: .5rem .75rem; text-align: left; font-size: .875rem; cursor: pointer; border-radius: .25rem; }
+.vera-menu-item:hover, .vera-menu-item:focus-visible { background: #f0fdfa; outline: 2px solid #115e59; outline-offset: -2px; }

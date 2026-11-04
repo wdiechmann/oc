@@ -141,3 +141,9 @@ Verification: 194 EP tests and 89 VERA tests (743 assertions) pass. Browser chec
 Both VAT headers now read VAT. Inclusion cells contain only a checkbox; calculated VAT cells show only the localized amount (or zero), with explanations in hover/accessibility text. Journal pages use full width and the grid contracts reference, accounts, then amounts as space decreases. Pending/error VAT stays distinguishable.
 
 Verification: 89 Rails tests (751 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright checked checkbox-only cells, numeric VAT and hover explanations, and responsive column priority at 1920, 1440, 1280, 1150, 1080, 1024 and 375 pixels without page overflow.
+
+## 2026-11-04 — More menu for journal row actions
+
+Moved journal row actions and VAT/credit resets behind a vertical-dot More icon, following Carla’s SVG/context-menu and shared-dialog focus conventions. Added reusable VERA SVG and context-menu components, native popover positioning, keyboard navigation, outside dismissal and focus return. Menus retain the existing row form and financial commands; the action column is narrower.
+
+Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright checked state-specific actions, keyboard edit, Enter save, Escape without cancelling edits, cancel, void/restore, outside dismissal and mobile menu bounds. VERA graph refreshed.
