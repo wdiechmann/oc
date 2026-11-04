@@ -533,7 +533,16 @@ defmodule Ep.Finance.Journals do
 
                 case quote do
                   {:ok, q} ->
-                    q |> Jason.encode!() |> Jason.decode!() |> Map.put("code", entry.code)
+                    q = q |> Jason.encode!() |> Jason.decode!() |> Map.put("code", entry.code)
+
+                    if row && rule.direction in ~w(input output),
+                      do:
+                        Map.put(
+                          q,
+                          "posting_direction",
+                          if(row["amount_minor"] < 0, do: "output", else: "input")
+                        ),
+                      else: q
 
                   {:error, reason} ->
                     %{"error" => Atom.to_string(reason)}

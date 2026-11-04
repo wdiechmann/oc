@@ -160,9 +160,9 @@ class JournalsController < FinanceSetupController
     %w[debit credit].each do |side|
       raise Ep::Client::Error.new(422, code: "invalid_account_reference") if params["#{side}_label"].present? && params["#{side}_account_id"].blank?
     end
-    minor = JournalMoney.parse(params[:amount], separator: decimal_separator)
+    minor = JournalMoney.parse(params[:amount], separator: decimal_separator, signed: true)
     raise Ep::Client::Error.new(422, code: "invalid_amount") if minor.nil?
-    credit = params[:credit_override] == "true" ? JournalMoney.parse(params[:credit_amount], separator: decimal_separator) : nil
+    credit = params[:credit_override] == "true" ? JournalMoney.parse(params[:credit_amount], separator: decimal_separator, signed: true) : nil
     raise Ep::Client::Error.new(422, code: "invalid_amount") if params[:credit_override] == "true" && credit.nil?
     { credit_amount_minor: credit, id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
   end
@@ -201,7 +201,7 @@ class JournalsController < FinanceSetupController
       return "Check the draft name/date, account choices and whether the amount includes VAT." if @action.to_s.start_with?("journal_") && @action != "journal_save"
       "Check the name, date, references and lines. Use whole minor units; optional VAT bases require an explicitly selected VAT entry."
     when "invalid_amount"
-      return "Enter a nonnegative amount with #{decimal_separator} as decimal point, at most two decimals and no thousands separators." if @action == "journal_row"
+      return "Enter a signed amount with #{decimal_separator} as decimal point, at most two decimals and no thousands separators." if @action == "journal_row"
       "Debit and credit must be nonnegative whole minor units, up to 9,000,000,000,000 per line. VAT bases and assessed amounts may be signed."
     when "invalid_account_reference", "invalid_vat_reference" then "Choose accounts and VAT entries from this book. Unavailable saved choices are retained for comparison."
     when "view_pending" then "A journal, setup or period view is updating. Refresh before reviewing."

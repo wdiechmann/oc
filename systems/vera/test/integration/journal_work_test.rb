@@ -70,8 +70,8 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
   test "manual credit amount uses locale parsing and remains an explicit override" do
     view
     get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
-    command = stub_request(:post, "#{api}/work/row").with { |request| JSON.parse(request.body).dig("row", "credit_amount_minor") == 15000 }.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
-    patch path, params: row_form(token("#work-row-new")).merge(credit_override: "true", credit_amount: "150,00")
+    command = stub_request(:post, "#{api}/work/row").with { |request| JSON.parse(request.body).dig("row", "credit_amount_minor") == -90000 && JSON.parse(request.body).dig("row", "amount_minor") == -112500 }.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: row_form(token("#work-row-new")).merge(amount: "-1125,00", credit_override: "true", credit_amount: "-900,00")
     assert_redirected_to "#{path}?draft_id=#{JID}"
     assert_requested command
   end
@@ -157,6 +157,9 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_equal ".", JournalMoney.separator("es-US")
     assert_equal 123450, JournalMoney.parse("1234,50", separator: ",")
     assert_equal 12550, JournalMoney.parse("125.50", separator: ".")
+    assert_equal(-112500, JournalMoney.parse("-1125,00", separator: ",", signed: true))
+    assert_equal(-112500, JournalMoney.parse("−1125.00", separator: ".", signed: true))
+    assert_nil JournalMoney.parse("-1125,00", separator: ",")
     assert_nil JournalMoney.parse("1.234,50", separator: ",")
     assert_nil JournalMoney.parse("1.234", separator: ".")
     assert_nil JournalMoney.parse("125.50", separator: ",")

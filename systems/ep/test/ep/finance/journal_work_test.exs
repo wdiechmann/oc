@@ -281,7 +281,7 @@ defmodule Ep.Finance.JournalWorkTest do
                c.tid,
                c.bid,
                "row",
-               put_in(b, ["row", "amount_minor"], -1),
+               put_in(b, ["row", "amount_minor"], -9_000_000_000_001),
                "invalid"
              )
 
@@ -399,7 +399,7 @@ defmodule Ep.Finance.JournalWorkTest do
     assert q["amounts"]["vat"] == 2500
     assert q["amounts"]["net"] == 10000
     [saved] = draft.data["rows"]
-    assert saved["credit_total_minor"] == 12500
+    assert saved["credit_total_minor"] == 10000
     assert saved["amount_basis"] == "gross"
     refute saved["basis_override"]
 
@@ -412,8 +412,8 @@ defmodule Ep.Finance.JournalWorkTest do
 
     overridden = Repo.get!(JournalDraft, did)
     assert hd(overridden.validation["lines"])["vat"]["amounts"]["vat"] == 3125
-    assert hd(overridden.data["rows"])["credit_total_minor"] == 15625
-    assert List.last(overridden.data["lines"])["credit_minor"] == 15625
+    assert hd(overridden.data["rows"])["credit_total_minor"] == 12500
+    assert List.last(overridden.data["lines"])["credit_minor"] == 12500
 
     save(
       c,
@@ -427,9 +427,38 @@ defmodule Ep.Finance.JournalWorkTest do
     )
 
     custom = Repo.get!(JournalDraft, did)
-    assert hd(custom.data["rows"])["suggested_credit_minor"] == 15625
+    assert hd(custom.data["rows"])["suggested_credit_minor"] == 12500
     assert hd(custom.data["rows"])["credit_total_minor"] == 15000
     assert hd(custom.data["rows"])["posting_id"] == saved["posting_id"]
+
+    for {amount, credit, vat_amount, direction} <- [
+          {112_500, 90000, 22500, "input"},
+          {-112_500, -90000, -22500, "output"}
+        ] do
+      save(
+        c,
+        did,
+        Map.merge(row(c, saved["id"]), %{
+          "amount_minor" => amount,
+          "amount_basis" => "gross",
+          "basis_override" => true
+        }),
+        "split-#{amount}"
+      )
+
+      split = Repo.get!(JournalDraft, did)
+      assert hd(split.data["rows"])["credit_total_minor"] == credit
+      quote = hd(split.validation["lines"])["vat"]
+      assert quote["amounts"]["vat"] == vat_amount
+      assert quote["posting_direction"] == direction
+      assert hd(split.data["rows"])["posting_id"] == saved["posting_id"]
+
+      if amount < 0 do
+        assert hd(split.data["lines"])["credit_minor"] == 112_500
+        assert List.last(split.data["lines"])["debit_minor"] == 90000
+      end
+    end
+
     assert Repo.get!(Ep.Finance.Account, account.id).vat_basis == "gross"
     {:ok, setup} = Setup.get(c.actor, c.tid, c.bid)
     current = Repo.get!(Ep.Finance.Account, account.id)

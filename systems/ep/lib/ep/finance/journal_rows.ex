@@ -19,12 +19,13 @@ defmodule Ep.Finance.JournalRows do
         unless is_map(row) &&
                  Enum.sort(Map.keys(Map.drop(row, ["basis_override", "credit_amount_minor"]))) ==
                    Enum.sort(@keys) &&
-                 is_integer(row["amount_minor"]) && row["amount_minor"] in 0..9_000_000_000_000 &&
+                 is_integer(row["amount_minor"]) &&
+                 row["amount_minor"] in -9_000_000_000_000..9_000_000_000_000 &&
                  row["amount_basis"] in [nil, "gross", "net"] &&
                  is_boolean(Map.get(row, "basis_override", !is_nil(row["amount_basis"]))) &&
                  (is_nil(row["credit_amount_minor"]) ||
                     (is_integer(row["credit_amount_minor"]) &&
-                       row["credit_amount_minor"] in 0..9_000_000_000_000)) &&
+                       row["credit_amount_minor"] in -9_000_000_000_000..9_000_000_000_000)) &&
                  is_boolean(row["void"]) &&
                  is_binary(row["reference"]) && String.length(row["reference"]) <= 120 &&
                  !Regex.match?(~r/[\p{Cc}\p{Cf}]/u, row["reference"]),
@@ -69,7 +70,9 @@ defmodule Ep.Finance.JournalRows do
           )
 
         total = row["credit_amount_minor"] || suggested
-        unless is_nil(total) || total in 0..9_000_000_000_000, do: Repo.rollback(:invalid_amount)
+
+        unless is_nil(total) || total in -9_000_000_000_000..9_000_000_000_000,
+          do: Repo.rollback(:invalid_amount)
 
         row
         |> Map.put("basis_override", override)
@@ -115,12 +118,17 @@ defmodule Ep.Finance.JournalRows do
               do: if(side == "credit", do: 1, else: -1),
               else: if(side == "debit", do: 1, else: -1)
 
+          value =
+            if side == "debit", do: row["amount_minor"], else: row["credit_total_minor"] || 0
+
+          debit? = if value < 0, do: side == "credit", else: side == "debit"
+
           %{
             "id" => row[side <> "_line_id"],
             "account_id" => a && a.id,
             "reference" => row["reference"],
-            "debit_minor" => if(side == "debit", do: row["amount_minor"], else: 0),
-            "credit_minor" => if(side == "credit", do: row["credit_total_minor"] || 0, else: 0),
+            "debit_minor" => if(debit?, do: abs(value), else: 0),
+            "credit_minor" => if(debit?, do: 0, else: abs(value)),
             "vat_entry_id" => vat,
             "net_minor" => if(vat, do: sign * row["amount_minor"]),
             "assessed_vat_minor" => nil
@@ -158,7 +166,7 @@ defmodule Ep.Finance.JournalRows do
               else: VatRules.calculate(rule, date, amount, nil)
 
           case result do
-            {:ok, quote} -> quote.invoice_total_minor
+            {:ok, quote} -> quote.amounts["net"]
             _ -> nil
           end
         end

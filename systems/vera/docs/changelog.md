@@ -171,3 +171,9 @@ Verification: 196 EP tests and 91 VERA tests (793 assertions) pass. Tests cover 
 Removed the slash requirement: two characters trigger a case-insensitive substring search across account number/name and VAT/category code/name. Restored Up/Down result navigation with input focus retained and a return to input navigation beyond either list boundary. Enter selects the highlighted account; Escape closes and arrows reopen the lookup.
 
 Verification: 196 EP tests and 91 VERA tests (793 assertions) pass, with RuboCop, Zeitwerk and JavaScript syntax checks. EP tests cover number/name/VAT substring matching, case folding, minimum length and literal punctuation. Playwright verified no one-character request, plain 53 matching 1530/2530, both arrow boundaries, Escape/reopen and selected stable IDs. VERA graph refreshed.
+
+## 2026-11-04 — Net credit suggestion and signed VAT split
+
+Corrected automatic credit from invoice total to net: 1,125 including configured 25% VAT suggests credit 900 and VAT 225. Negative entries are supported with exact localized parsing and reversed draft sides; −1,125 gives −900/−225 and an outgoing VAT indication. Manual overrides and rule provenance remain intact.
+
+Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop, Zeitwerk and JavaScript syntax checks pass. EP tests verify both exact 1125/900/225 signs, side reversal, stable IDs and overrides. Browser checks verify positive/negative credit and VAT values with incoming/outgoing hover details. VERA graph refreshed.

@@ -117,7 +117,7 @@ class JournalWorkEditor extends HTMLElement {
     if (event.target.closest("[data-work-cancel]")) return this.cancel(form);
     if (event.target.closest("[data-work-edit]")) {
       if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first.");
-      this.querySelectorAll("[data-work-row]").forEach(row => this.editing(row,false)); this.editing(form,true); form.querySelector("input[name=reference]").focus();
+      this.querySelectorAll("[data-work-row]").forEach(row => this.editing(row,false)); this.editing(form,true); form.querySelector("input[name=reference]").focus(); this.preview(form);
     }
   }
   editing(form,on) {
@@ -187,7 +187,7 @@ class JournalWorkEditor extends HTMLElement {
         const data = await response.json();
         if (sequence !== this.previewSequence || !form.isConnected) return;
         if (form.querySelector("[data-credit-override]").value !== "true") credit.value=data.row?.credit_total_minor == null ? "" : this.money(data.row.credit_total_minor);
-        const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)}`);
+        const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)}${l.vat.posting_direction ? " · "+(l.vat.posting_direction === "output" ? "Outgoing VAT" : "Incoming VAT") : ""}`);
         const quotes=data.validation.lines.filter(l=>l.vat).map(l=>l.vat);
         out.textContent=quotes.some(q=>q.error) ? "—" : this.money(quotes.reduce((sum,q)=>sum+BigInt(q.amounts.vat),0n));
         this.vatHint(out,(values.length > 1 ? values.map((v,i)=>`${i===0 ? "Debit" : "Credit"} ${v}`) : values).join(" · ") || "No VAT configured");

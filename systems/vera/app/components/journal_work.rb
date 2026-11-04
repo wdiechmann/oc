@@ -171,7 +171,7 @@ class Components::JournalWork < Components::Base
     entries = Array(selected.dig("validation", "lines")).select { |l| [ row["debit_line_id"], row["credit_line_id"], row["id"] ].compact.include?(l["id"]) }
     quotes = entries.filter_map { |l| l["vat"] }
     errors = quotes.filter_map { |q| q["error"]&.tr("_", " ") }
-    explanation = quotes.map { |q| q["error"] ? q["error"].tr("_", " ") : "#{q['code']}: #{money(q['amounts']['vat'])}" }.join(" · ")
+    explanation = quotes.map { |q| q["error"] ? q["error"].tr("_", " ") : "#{q['code']}: #{money(q['amounts']['vat'])}#{q['posting_direction'] ? ' · '+(q['posting_direction'] == 'output' ? 'Outgoing VAT' : 'Incoming VAT') : ''}" }.join(" · ")
     { amount: errors.any? ? "—" : money(quotes.sum { |q| q.dig("amounts", "vat") || 0 }), explanation: explanation.presence || "No VAT configured" }
   end
   def credit_value(row)
