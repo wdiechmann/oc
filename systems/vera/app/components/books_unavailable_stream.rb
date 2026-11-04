@@ -4,6 +4,7 @@ class Components::BooksUnavailableStream < Components::Base
     @message, @check = message, check_url
   end
   def view_template
+    turbo_stream(action: "update", target: "shared-dialog-host") { template { } }
     turbo_stream(action: "update", target: "vera-book-content") do
       template do
         p(role: "alert", class: "rounded-xl border border-amber-200 bg-amber-50 p-5") { @message }

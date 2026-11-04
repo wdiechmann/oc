@@ -189,6 +189,40 @@ defmodule Ep.Finance.JournalWorkTest do
     r
   end
 
+  test "save and next allocates exactly one new line atomically and replays both IDs", c do
+    did = create(c)
+    save(c, did, row(c), "first")
+    old = Repo.one!(JournalRow)
+
+    payload =
+      body(c, did, Map.put(row(c, old.id), "reference", "Completed"))
+      |> Map.put("append_row", true)
+
+    assert {:error, :forced} =
+             Repo.transaction(fn ->
+               assert {:ok, _} =
+                        JournalWork.save(c.actor, c.tid, c.bid, "row", payload, "rollback-next")
+
+               Repo.rollback(:forced)
+             end)
+
+    assert Repo.get!(JournalCounter, c.bid).last_number == 1
+    assert {:ok, result} = JournalWork.save(c.actor, c.tid, c.bid, "row", payload, "next")
+    assert result["row_id"] == old.id
+    assert result["posting_id"] == 1
+    assert result["next_posting_id"] == 2
+
+    assert {:ok, %{"replayed" => true, "next_row_id" => next_id}} =
+             JournalWork.save(c.actor, c.tid, c.bid, "row", payload, "next")
+
+    assert next_id == result["next_row_id"]
+    assert Repo.get!(JournalCounter, c.bid).last_number == 2
+    [next, edited] = Repo.get!(JournalDraft, did).data["rows"]
+    assert next["id"] == next_id
+    assert next["amount_minor"] == 0
+    assert edited["reference"] == "Completed"
+  end
+
   test "initial empty line has an immutable posting ID and accepts attachments immediately", c do
     {:ok, d} = Journals.get(c.actor, c.tid, c.bid)
 

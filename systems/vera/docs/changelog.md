@@ -159,3 +159,9 @@ Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript 
 Right-aligned debit/credit amounts and both VAT columns, including headings; shortened Posting ID to ID. Journal creation atomically creates its initial empty numbered row. New line persists a fresh row before entry, allowing attachments immediately, with the same ID retained through edits and receipt retries.
 
 Verification: 195 EP tests and 89 VERA tests (766 assertions) pass, along with RuboCop, Zeitwerk and JavaScript syntax checks. EP tests cover atomic creation/replay and attaching before account/amount entry. Playwright checked initial ID, pre-entry PDF binding, New line numbering, editing without renumbering, and right-aligned values/headings. VERA graph refreshed.
+
+## 2026-11-04 — Streamed enclosure dialog and Enter-to-next
+
+Attachment icons now open a reusable Phlex shared dialog through Turbo Streams. File picker, staged review, binding and original-receipt recovery remain in the modal; binding refreshes enclosure counts and journal fences. Added native focus trapping, Escape/Close and focus return. Enter saves the row and atomically prepends its next numbered line; journal load focuses the first row reference.
+
+Verification: 196 EP tests and 91 VERA tests (793 assertions) pass. Tests cover save/next rollback and replay plus streamed file review, uncertain binding outcome, receipt check and unchanged retry. Playwright checked the complete modal upload/bind flow without navigation, refreshed row versions/counts, Enter-to-next, initial focus, desktop/mobile modal bounds and Escape focus return; no console errors. RuboCop, Zeitwerk and JavaScript syntax checks pass; Brakeman reports zero warnings/errors. VERA graph refreshed.

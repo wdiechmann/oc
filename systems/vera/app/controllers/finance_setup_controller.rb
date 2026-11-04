@@ -17,7 +17,7 @@ class FinanceSetupController < ApplicationController
     session[:finance_operation] = { "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>command_type(@action), "key"=>form.fetch("key"), "attrs"=>@attrs.stringify_keys, "action"=>@action }
     result = execute_command(@action, @attrs, form.fetch("key"))
     session.delete(:finance_operation)
-    redirect_to destination(result), notice: accepted_notice(result), status: :see_other
+    respond_accepted(result, notice: accepted_notice(result))
   end
 
   def retry
@@ -28,7 +28,7 @@ class FinanceSetupController < ApplicationController
     @action, @attrs = op.fetch("action"), op.fetch("attrs").symbolize_keys
     result = execute_command(@action, @attrs, op.fetch("key"))
     session.delete(:finance_operation)
-    redirect_to destination(result), notice: "EP confirms the original request at revision #{result.fetch('stream_version')}.", status: :see_other
+    respond_accepted(result, notice: "EP confirms the original request at revision #{result.fetch('stream_version')}.")
   end
 
   def completion
@@ -38,7 +38,7 @@ class FinanceSetupController < ApplicationController
     if result["status"] == "accepted"
       @action, @attrs = op["action"], op.fetch("attrs", {}).symbolize_keys
       session.delete(:finance_operation)
-      redirect_to destination(result["result"]), notice: "EP confirms your setup request was accepted.", status: :see_other
+      respond_accepted(result["result"], notice: "EP confirms your setup request was accepted.")
     else
       session[:finance_operation] = op.merge("checked"=>true)
       pending_feedback
@@ -51,6 +51,9 @@ class FinanceSetupController < ApplicationController
     return if signed_in?
     reset_session
     protected_feedback("Your sign-in has expired. Sign in again before continuing.", 401)
+  end
+  def respond_accepted(result, notice:)
+    redirect_to destination(result), notice: notice, status: :see_other
   end
   def accepted_notice(result) = "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating."
   def command_type(action) = "FinanceSetup:#{action}"

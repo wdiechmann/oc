@@ -23,6 +23,7 @@ class Components::Layout < Components::Base
         stylesheet_link_tag "tailwind", "application"
         javascript_include_tag "turbo", type: "module", defer: true
         javascript_include_tag "chart_order_editor", type: "module", defer: true
+        javascript_include_tag "shared_dialog", type: "module", defer: true
         javascript_include_tag "context_menu", type: "module", defer: true
         javascript_include_tag "journal_work_editor", type: "module", defer: true
         javascript_include_tag "chart_editor", type: "module", defer: true
@@ -47,6 +48,7 @@ class Components::Layout < Components::Base
             p(role: "alert", class: "mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert
           end
           yield
+          div(id: "shared-dialog-host")
         end
         footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") do
           plain "One financial workspace for every occasion."

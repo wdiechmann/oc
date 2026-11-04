@@ -61,3 +61,6 @@ textarea.coa-input { min-height: 34px; resize: vertical; }
 }
 .vera-menu-item { display: block; width: 100%; border: 0; padding: .5rem .75rem; text-align: left; font-size: .875rem; cursor: pointer; border-radius: .25rem; }
 .vera-menu-item:hover, .vera-menu-item:focus-visible { background: #f0fdfa; outline: 2px solid #115e59; outline-offset: -2px; }
+
+.vera-shared-dialog { width: min(48rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); margin: auto; border: 0; border-radius: .75rem; padding: 1.5rem; color: #292524; background: white; overflow-y: auto; box-shadow: 0 16px 48px #0003; }
+.vera-shared-dialog::backdrop { background: #0005; }

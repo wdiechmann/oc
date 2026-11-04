@@ -51,9 +51,27 @@ defmodule Ep.Finance.JournalWork do
 
           result =
             if mode == "row" || (mode == "create" && p["initial_row"] == true) do
-              id = get_in(p, ["row", "id"]) || hd(review.plan["data"]["rows"])["id"]
+              id =
+                get_in(p, ["row", "id"]) ||
+                  Enum.at(
+                    review.plan["data"]["rows"],
+                    if(p["append_row"] == true, do: 1, else: 0)
+                  )["id"]
+
               saved_row = Repo.get!(JournalRow, id)
               Map.merge(result, %{"row_id" => id, "posting_id" => saved_row.posting_id})
+            else
+              result
+            end
+
+          result =
+            if p["append_row"] == true do
+              next = hd(Repo.get!(JournalDraft, result["draft_id"]).data["rows"])
+
+              Map.merge(result, %{
+                "next_row_id" => next["id"],
+                "next_posting_id" => next["posting_id"]
+              })
             else
               result
             end
@@ -194,6 +212,20 @@ defmodule Ep.Finance.JournalWork do
     end)
   end
 
+  defp empty_row do
+    %{
+      "id" => nil,
+      "reference" => "",
+      "debit_account_id" => nil,
+      "credit_account_id" => nil,
+      "amount_minor" => 0,
+      "amount_basis" => nil,
+      "basis_override" => false,
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+  end
+
   defp build!(principal, tid, bid, mode, p, app) do
     allowed =
       case mode do
@@ -203,10 +235,16 @@ defmodule Ep.Finance.JournalWork do
         "attachment" -> ~w(contexts draft_id expected_draft_version expected_version upload_id)
       end
 
-    checked = if mode == "create", do: Map.delete(p, "initial_row"), else: p
+    checked =
+      case mode do
+        "create" -> Map.delete(p, "initial_row")
+        "row" -> Map.delete(p, "append_row")
+        _ -> p
+      end
 
     unless Enum.sort(Map.keys(checked)) == allowed &&
-             (mode != "create" || is_boolean(Map.get(p, "initial_row", false))),
+             (mode != "create" || is_boolean(Map.get(p, "initial_row", false))) &&
+             (mode != "row" || is_boolean(Map.get(p, "append_row", false))),
            do: Repo.rollback(:invalid_journal)
 
     if mode in ~w(create details) &&
@@ -262,6 +300,14 @@ defmodule Ep.Finance.JournalWork do
             if row["id"],
               do: Enum.map(data["rows"], fn r -> if r["id"] == row["id"], do: row, else: r end),
               else: [row | data["rows"]]
+
+          rows =
+            if p["append_row"] == true do
+              if length(rows) >= 100, do: Repo.rollback(:journal_limit)
+              [empty_row() | rows]
+            else
+              rows
+            end
 
           Map.put(data, "rows", rows)
 

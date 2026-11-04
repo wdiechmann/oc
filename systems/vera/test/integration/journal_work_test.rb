@@ -104,6 +104,53 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "#work-row-row2 [data-menu-trigger][aria-expanded=false]"
     assert_select "#work-row-row2 [role=menu] [data-work-save]", count: 1
   end
+  test "Enter intent requests atomic save and next line" do
+    view
+    get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+    command = stub_request(:post, "#{api}/work/row").with { |request| JSON.parse(request.body)["append_row"] == true }.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: row_form(token("#work-row-new")).merge(intent: "next_row")
+    assert_redirected_to "#{path}?draft_id=#{JID}"
+    assert_requested command
+  end
+  test "attachment picker review and binding render shared dialog streams and refresh journal fences" do
+    rid = "cd763842-2538-4ccb-8445-17e232c37d84"
+    upload_id = "dd763842-2538-4ccb-8445-17e232c37d84"
+    info = { draft_id: JID, row_id: rid, posting_id: 1, attachments: [] }
+    stub_request(:get, "#{api}/rows/#{rid}/attachments").to_return(status: 200, body: info.to_json)
+    view
+    headers = { "Accept"=>"text/vnd.turbo-stream.html" }
+    get "#{path}/attachments", params: { row_id: rid }, headers: headers
+    assert_response :success
+    assert_equal "text/vnd.turbo-stream.html", response.media_type
+    assert_select "turbo-stream[target=shared-dialog-host] dialog[aria-labelledby=shared-dialog-title]"
+    assert_select "input[type=file]"
+    upload = { upload_id: upload_id, filename: "receipt.pdf", byte_size: 20 }
+    stub_request(:post, "#{api}/rows/#{rid}/attachments/stage").to_return(status: 200, body: upload.to_json)
+    file = Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4\nSynthetic"), "application/pdf", original_filename: "receipt.pdf")
+    post "#{path}/upload_attachment", params: { row_id: rid, file: file }, headers: headers
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #attach-enclosure"
+    signed_token = token("#attach-enclosure")
+    binding = stub_request(:post, "#{api}/work/attachment").to_timeout
+    refreshed = data.merge(source_version: 2, latest_version: 2)
+    refreshed[:selected][:version] = 2
+    view(refreshed)
+    patch path, params: { form_token: signed_token, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s) }, headers: headers
+    assert_response :service_unavailable
+    assert_select "turbo-stream[target=shared-dialog-host] a[href='#{path}/completion']"
+    decoded = Rails.application.message_verifier(:finance_setup).verified(signed_token, purpose: :finance_setup)
+    stub_request(:get, "#{EP}/me/commands").with(query: { command_type: "FinanceJournalWork:attachment", idempotency_key: decoded.fetch("key") }).to_return(status: 200, body: { status: "unknown" }.to_json)
+    get "#{path}/completion", headers: headers
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] form[action='#{path}/retry']"
+    binding.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    post "#{path}/retry", headers: headers
+    assert_response :success
+    assert_requested binding, times: 2
+    assert_select "turbo-stream[target=vera-book-content] input[name=expected_draft_version][value='2']"
+    assert_select "turbo-stream[target=shared-dialog-host] input[type=file]"
+    assert_not_includes response.body, "<html"
+  end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")
     assert_equal ".", JournalMoney.separator("en-GB")

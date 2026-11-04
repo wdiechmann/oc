@@ -31,7 +31,7 @@ class Components::JournalWork < Components::Base
     header = selected.fetch("data")
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
     p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
-    p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; press Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys keep normal input navigation. Enter saves the current row; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
+    p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; press Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys keep normal input navigation. Enter saves the current row and creates the next numbered line; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
     p(class: "mt-2 text-sm text-stone-600") { "New lines are created immediately with an ID from the book sequence and can receive attachments before accounts or amounts are entered. IDs remain on voided rows. Authorization, verification and final posting follow in a later workflow." }
     if @data["validation_stale"]
       p(role: "status", class: "mt-3 rounded-lg bg-amber-50 p-3 text-sm") { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." }
@@ -98,6 +98,7 @@ class Components::JournalWork < Components::Base
       f.hidden_field(:draft_id, value: selected["id"])
       f.hidden_field(:row_id, value: row["id"])
       f.hidden_field(:expected_draft_version, value: selected["version"])
+      f.hidden_field(:intent, value: "", data: { row_intent: true })
       f.hidden_field(:void, value: row["void"].to_s)
       fences(f)
       output(class: "py-2 text-sm font-semibold tabular-nums", data: { posting_id: row["posting_id"] }) { label }
@@ -107,7 +108,7 @@ class Components::JournalWork < Components::Base
       end
       div do
         if row["posting_id"]
-          a(href: attachments_tenant_book_journals_path(@tid, @bid, row_id: row["id"]), aria_label: "Attachments for posting #{label}", class: "inline-flex whitespace-nowrap rounded px-1 py-2 text-sm text-teal-900", data: { work_attachment: true }) { "📎 #{Array(row['attachments']).length}" }
+          a(href: attachments_tenant_book_journals_path(@tid, @bid, row_id: row["id"]), aria_label: "Attachments for posting #{label}", class: "inline-flex whitespace-nowrap rounded px-1 py-2 text-sm text-teal-900", id: "attachments-#{row['id']}", data: { work_attachment: true, turbo: true, turbo_stream: true }) { "📎 #{Array(row['attachments']).length}" }
         else
           span(title: "Save the row to attach enclosures", aria_label: "Save row before adding attachments", class: "block px-2 py-2 text-stone-400") { "📎" }
         end

@@ -24,6 +24,12 @@ class JournalsController < FinanceSetupController
     redirect_to tenant_book_journals_path(params[:tenant_id], params[:book_id], review_id: result.fetch("review_id")), status: :see_other
   end
 
+  def completion
+    @attachment_row_id = session.dig(:finance_operation, "row_id")
+    @action = session.dig(:finance_operation, "action")
+    super
+  end
+
   def accounts
     render json: ep.journal_accounts(params[:tenant_id], params[:book_id], params[:q].to_s)
   end
@@ -34,7 +40,7 @@ class JournalsController < FinanceSetupController
   def attachments
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
-    render Views::Journals::Attachments.new(data: data, info: info, upload: nil, token: method(:work_token), signed_in: signed_in?)
+    render_attachments(data, info)
   end
   def upload_attachment
     return pending_feedback if session[:finance_operation]
@@ -43,7 +49,7 @@ class JournalsController < FinanceSetupController
     upload = ep.stage_journal_attachment(params[:tenant_id], params[:book_id], params[:row_id], { filename: file.original_filename, content_type: file.content_type, content: Base64.strict_encode64(file.read) })
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
-    render Views::Journals::Attachments.new(data: data, info: info, upload: upload, token: method(:work_token), signed_in: signed_in?)
+    render_attachments(data, info, upload: upload)
   end
   def download_attachment
     file = ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])
@@ -57,6 +63,10 @@ class JournalsController < FinanceSetupController
   end
   def command_type(action) = action == "journal_save" ? "FinanceJournalDraft:save" : "FinanceJournalWork:#{work_mode(action)}"
   def execute_command(action, attrs, key)
+    if action == "journal_attachment"
+      @attachment_row_id ||= session.dig(:finance_operation, "row_id")
+      session[:finance_operation]["row_id"] = @attachment_row_id if session[:finance_operation]
+    end
     action == "journal_save" ? ep.accept_journal(params[:tenant_id], params[:book_id], attrs, key) : ep.journal_work(params[:tenant_id], params[:book_id], work_mode(action), attrs, key)
   end
   def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: result && result["draft_id"])
@@ -75,7 +85,9 @@ class JournalsController < FinanceSetupController
       when "journal_row"
         @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "void").merge("id"=>signed["row_id"])
         attrs[:row] = work_row_attributes(signed["row_id"])
+        attrs[:append_row] = true if params[:intent] == "next_row"
       when "journal_attachment"
+        @attachment_row_id = signed.fetch("row_id")
         attrs[:upload_id] = signed.fetch("upload_id")
       else raise Ep::Client::Error.new(422, code: "invalid_journal")
       end
@@ -86,6 +98,11 @@ class JournalsController < FinanceSetupController
     { review_id: id, digest: signed.fetch("digest"), expected_version: signed.fetch("expected_version") }
   end
   def show_setup(status: 200, message: nil)
+    if request.format.turbo_stream? && @action == "journal_attachment" && @attachment_row_id
+      info = ep.journal_attachments(params[:tenant_id], params[:book_id], @attachment_row_id)
+      data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
+      return render_attachments(data, info, message: message, status: status)
+    end
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence, version: params[:version].presence })
     review_id = params[:review_id].presence || @attrs && @attrs[:review_id]
     review = ep.journal_review(params[:tenant_id], params[:book_id], review_id) if review_id
@@ -98,6 +115,26 @@ class JournalsController < FinanceSetupController
     end
     token = review_token(review) if review && !review["accepted_command_id"] && data.dig("permissions", "prepare") && data["status"] == "ready" && !session[:finance_operation]
     render Views::Journals::Show.new(work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+  end
+  def feedback(message, status:)
+    return super unless request.format.turbo_stream? && @action == "journal_attachment"
+    content = Components::SharedDialogFeedback.new(message: message, check_url: completion_url, retry_url: retry_url)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: status
+  end
+  def respond_accepted(result, notice:)
+    return super unless request.format.turbo_stream? && @action == "journal_attachment" && @attachment_row_id
+    info = ep.journal_attachments(params[:tenant_id], params[:book_id], @attachment_row_id)
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: result.fetch("draft_id") })
+    render_attachments(data, info, refresh: true, message: notice)
+  end
+  def render_attachments(data, info, upload: nil, refresh: false, message: nil, status: 200)
+    if request.format.turbo_stream?
+      content = Components::JournalAttachments.new(data: data, info: info, upload: upload, token: method(:work_token), message: message, check_url: completion_url, retry_url: retry_url)
+      journal = refresh ? Views::Journals::Show.new(fragment: true, work_token: method(:work_token), decimal_separator: decimal_separator, data: data, signed_in: signed_in?) : nil
+      render Components::SharedDialogStream.new(content: content, journal: journal), content_type: "text/vnd.turbo-stream.html", status: status
+    else
+      render Views::Journals::Attachments.new(data: data, info: info, upload: upload, token: method(:work_token), signed_in: signed_in?), status: status
+    end
   end
   def decimal_separator = @decimal_separator || JournalMoney.separator(request.headers["Accept-Language"])
   def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details" }.fetch(action)
@@ -134,6 +171,11 @@ class JournalsController < FinanceSetupController
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>"journal_save", "account_id"=>review.fetch("review_id"), "digest"=>review.fetch("digest"), "expected_version"=>review.fetch("expected_version"), "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 1.hour)
   end
   def setup_error(error)
+    if request.format.turbo_stream? && action_name == "upload_attachment" && [ 409, 422 ].include?(error.status)
+      info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
+      data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
+      return render_attachments(data, info, message: error_message(error.code), status: error.status)
+    end
     if action_name.in?(%w[accounts row_preview])
       reset_session if error.status == 401
       return render json: { error: error.code }, status: error.status

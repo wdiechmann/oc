@@ -845,6 +845,11 @@
                         "description": "Optional credit override; null derives the invoice total from debit amount and VAT choice."
                       }
                     }
+                  },
+                  "append_row": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Atomically save this row and prepend a new empty numbered line. Receipt includes next_row_id and next_posting_id; maximum 100 rows."
                   }
                 }
               }

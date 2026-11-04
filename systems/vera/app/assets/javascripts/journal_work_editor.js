@@ -21,7 +21,7 @@ class JournalWorkEditor extends HTMLElement {
     this.querySelectorAll("[data-account-lookup]").forEach(host => { if (host.querySelector("[data-account-id]").value) host.querySelector("[data-account-search]").dataset.chosenLabel = host.querySelector("[data-account-search]").value; });
     this.querySelectorAll("[data-work-row]").forEach(form=>{ form.originalInputs = [...form.querySelectorAll("input")].map(input=>({input,value:input.value,checked:input.checked,dataset:{...input.dataset}})); if (form.dataset.editing === "true") this.accountBasis(form); else this.paintBasis(form); });
     this.querySelectorAll("[data-work-vat]").forEach(out => { out.dataset.original = out.textContent; out.dataset.originalTitle=out.title; });
-    if (!this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("[data-work-row][data-editing=true] input[name=reference]")?.focus();
+    if (!document.querySelector("dialog[open]") && !this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("[data-work-row] input[name=reference]")?.focus();
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
   disconnectedCallback() { clearTimeout(this.refreshTimer); this.abort.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
@@ -91,6 +91,10 @@ class JournalWorkEditor extends HTMLElement {
     this.lookupInput = null; this.results = []; this.index = -1;
   }
   click(event) {
+    if (event.target.closest("[data-work-attachment]")) {
+      this.closeLookup();
+      if (this.dirty) {event.preventDefault(); return this.status("Save or cancel your row before attaching enclosures.");}
+    }
     const option = event.target.closest("[data-result-index]"); if (option) { event.preventDefault(); return this.choose(Number(option.dataset.resultIndex)); }
     const form = event.target.closest("[data-work-row]"); if (!form) return;
     if (event.target.closest("[data-credit-default]")) {
@@ -99,6 +103,7 @@ class JournalWorkEditor extends HTMLElement {
       this.dirty=form; return this.preview(form);
     }
     if (event.target.closest("[data-basis-default]")) { if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first."); form.querySelector("[data-basis-override]").value="false"; this.accountBasis(form); this.dirty=form; return this.preview(form); }
+    if (event.target.closest("[data-work-save]")) form.querySelector("[data-row-intent]").value="";
     if (event.target.closest("[data-work-cancel]")) return this.cancel(form);
     if (event.target.closest("[data-work-edit]")) {
       if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first.");
@@ -137,6 +142,14 @@ class JournalWorkEditor extends HTMLElement {
       event.preventDefault(); event.stopPropagation();
       if (event.key === "Escape") return this.closeLookup();
       return this.choose(Math.max(0,this.index));
+    }
+    if (event.key === "Enter" && row && event.target.matches("input[type=text],[data-work-included]")) {
+      event.preventDefault();
+      if (this.dirty && this.dirty !== row) return this.status("Save or cancel your current row first.");
+      if (row.dataset.editing !== "true") return;
+      row.querySelector("[data-row-intent]").value=this.querySelectorAll("[data-work-row]").length < 100 ? "next_row" : "";
+      row.requestSubmit(row.querySelector("[data-work-save]"));
+      return;
     }
     if (event.key === "Escape" && event.target.form) { event.preventDefault(); this.cancel(event.target.form); }
   }
