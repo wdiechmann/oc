@@ -32,7 +32,7 @@ class Components::JournalWork < Components::Base
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
     p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
     p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; press Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys keep normal input navigation. Enter saves the current row; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
-    p(class: "mt-2 text-sm text-stone-600") { "Posting IDs are assigned on save from one book sequence and remain on voided rows. Authorization, verification and final posting follow in a later workflow." }
+    p(class: "mt-2 text-sm text-stone-600") { "New lines are created immediately with an ID from the book sequence and can receive attachments before accounts or amounts are entered. IDs remain on voided rows. Authorization, verification and final posting follow in a later workflow." }
     if @data["validation_stale"]
       p(role: "status", class: "mt-3 rounded-lg bg-amber-50 p-3 text-sm") { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." }
     end
@@ -58,24 +58,38 @@ class Components::JournalWork < Components::Base
       end
     end
     rows = header["rows"] || legacy_rows(header)
+    @entry_row_id = rows.select { |row| blank_row?(row) }.max_by { |row| row["posting_id"] || 0 }&.fetch("id")
     journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do
       p(role: "status", aria_live: "polite", data: { work_status: true }, class: "mb-3 text-sm text-amber-900")
       div(class: "journal-grid-container max-w-full overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         div(class: "journal-grid") do
           div(class: "journal-columns grid gap-2 border-b border-stone-200 bg-stone-100 p-3 text-xs font-semibold uppercase text-stone-600") do
-            [ "Posting ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(title: index == 5 ? "Checked: debit amount includes VAT. Unchecked: VAT is added. Defaults to the selected account; each posting can override it." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
+            [ "ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(class: [ 4, 5, 7, 8 ].include?(index) ? "text-right" : nil, title: index == 5 ? "Checked: debit amount includes VAT. Unchecked: VAT is added. Defaults to the selected account; each posting can override it." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
           end
-          row_form(selected, { "id"=>nil, "reference"=>"", "amount_minor"=>0, "amount_basis"=>nil, "basis_override"=>false, "void"=>false }) if @editable && rows.length < 100
+          new_line_form(selected) if @editable && rows.length < 100
           rows.sort_by { |row| -(row["posting_id"] || 0) }.each { |row| row_form(selected, row) }
           p(class: "p-3 text-sm text-stone-600") { "This journal has 100 rows. Create another journal to continue; posting IDs continue in the same book sequence." } if @editable && rows.length >= 100
         end
       end
     end
   end
+  def new_line_form(selected)
+    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-new", data: { turbo: false }) do |f|
+      f.hidden_field(:form_token, value: @token.call("journal_row", selected["id"]))
+      f.hidden_field(:draft_id, value: selected["id"])
+      f.hidden_field(:expected_draft_version, value: selected["version"])
+      fences(f)
+      { reference: "", amount: "0", basis_override: "false", void: "false" }.each { |key, value| f.hidden_field(key, value: value) }
+      f.submit("New line", class: "m-3 rounded border border-teal-800 px-3 py-2 text-sm text-teal-900")
+    end
+  end
+  def blank_row?(row)
+    !row["void"] && row["reference"].blank? && row["debit_account_id"].blank? && row["credit_account_id"].blank? && row["amount_minor"].to_i.zero?
+  end
   def row_form(selected, row)
     is_draft = @draft && @draft["id"] == row["id"]
     values = is_draft ? row.merge(@draft) : row
-    editing = is_draft || row["id"].nil?
+    editing = is_draft || (@editable && !@draft && row["id"] == @entry_row_id)
     credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
     override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
     label = row["posting_id"] ? row["posting_id"].to_s : row["id"] ? "On next save" : "On save"
@@ -100,17 +114,17 @@ class Components::JournalWork < Components::Base
       end
       lookup(f, values, "debit", editing)
       div do
-        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_amount: true })
+        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_amount: true })
       end
       div do
         input(type: "hidden", name: "amount_basis", value: values["amount_basis"], data: { work_basis: true })
         input(type: "hidden", name: "basis_override", value: override.to_s, data: { basis_override: true })
-        input(type: "checkbox", checked: values["amount_basis"] == "gross", disabled: !editing, aria_label: "VAT included #{label}", title: basis_title(values), class: "mt-3 mx-auto block", data: { work_included: true })
+        input(type: "checkbox", checked: values["amount_basis"] == "gross", disabled: !editing, aria_label: "VAT included #{label}", title: basis_title(values), class: "mt-3 ml-auto block", data: { work_included: true })
       end
       lookup(f, values, "credit", editing)
       div do
         input(type: "hidden", name: "credit_override", value: credit_override.to_s, data: { credit_override: true })
-        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_credit: true })
+        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_credit: true })
       end
       vat = vat_display(selected, row)
       output(class: "py-2 text-right text-sm tabular-nums text-stone-600", title: vat[:explanation], aria_label: vat[:explanation], data: { work_vat: true }) { vat[:amount] }

@@ -68,6 +68,7 @@ class JournalsController < FinanceSetupController
       attrs.merge!(draft_id: id, expected_draft_version: work_version(params[:expected_draft_version])) unless action == "journal_create"
       case action
       when "journal_create", "journal_details"
+        attrs[:initial_row] = true if action == "journal_create"
         attrs[:data] = { name: params[:name].to_s, posting_date: params[:posting_date].to_s, reference: params[:reference].to_s }
         @work_header = attrs[:data].stringify_keys
         raise Ep::Client::Error.new(422, code: "invalid_journal") unless @work_header["name"].length <= 120 && @work_header["reference"].length <= 120 && @work_header["posting_date"].length <= 10

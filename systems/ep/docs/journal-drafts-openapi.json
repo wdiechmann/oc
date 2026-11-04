@@ -517,6 +517,11 @@
                         "maxLength": 120
                       }
                     }
+                  },
+                  "initial_row": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Atomically creates the first empty numbered line, ready for attachments. VERA sends true."
                   }
                 }
               }

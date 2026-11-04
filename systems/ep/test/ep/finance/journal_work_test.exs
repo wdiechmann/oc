@@ -189,6 +189,48 @@ defmodule Ep.Finance.JournalWorkTest do
     r
   end
 
+  test "initial empty line has an immutable posting ID and accepts attachments immediately", c do
+    {:ok, d} = Journals.get(c.actor, c.tid, c.bid)
+
+    request = %{
+      "initial_row" => true,
+      "expected_version" => d.latest_version,
+      "contexts" => d.contexts,
+      "data" => %{
+        "name" => "Ready for enclosures",
+        "posting_date" => "2026-06-01",
+        "reference" => ""
+      }
+    }
+
+    assert {:ok, result} = JournalWork.save(c.actor, c.tid, c.bid, "create", request, "initial")
+    assert result["posting_id"] == 1
+
+    assert {:ok, %{"replayed" => true, "row_id" => row_id}} =
+             JournalWork.save(c.actor, c.tid, c.bid, "create", request, "initial")
+
+    assert row_id == result["row_id"]
+    did = result["draft_id"]
+    [initial] = Repo.get!(JournalDraft, did).data["rows"]
+    assert initial["id"] == row_id
+    assert initial["amount_minor"] == 0
+    assert is_nil(initial["debit_account_id"])
+
+    assert {:ok, upload} =
+             JournalWork.stage(c.actor, c.tid, c.bid, row_id, %{
+               "filename" => "first.pdf",
+               "content_type" => "application/pdf",
+               "content" => Base.encode64("%PDF-1.4\nEnclosure before entry")
+             })
+
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    payload = body(c, did, row(c)) |> Map.delete("row") |> Map.put("upload_id", upload.upload_id)
+    assert {:ok, _} = JournalWork.save(c.actor, c.tid, c.bid, "attachment", payload, "first-file")
+    assert Repo.get!(JournalCounter, c.bid).last_number == 1
+    assert Repo.one!(JournalAttachment).row_id == row_id
+    assert hd(Repo.get!(JournalDraft, did).data["rows"])["posting_id"] == 1
+  end
+
   test "metadata creates an empty work journal and saved rows share one unbroken book sequence",
        c do
     did = create(c)

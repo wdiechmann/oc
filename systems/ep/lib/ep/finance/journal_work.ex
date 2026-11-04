@@ -50,8 +50,8 @@ defmodule Ep.Finance.JournalWork do
             )
 
           result =
-            if mode == "row" do
-              id = p["row"]["id"] || hd(review.plan["data"]["rows"])["id"]
+            if mode == "row" || (mode == "create" && p["initial_row"] == true) do
+              id = get_in(p, ["row", "id"]) || hd(review.plan["data"]["rows"])["id"]
               saved_row = Repo.get!(JournalRow, id)
               Map.merge(result, %{"row_id" => id, "posting_id" => saved_row.posting_id})
             else
@@ -203,7 +203,11 @@ defmodule Ep.Finance.JournalWork do
         "attachment" -> ~w(contexts draft_id expected_draft_version expected_version upload_id)
       end
 
-    unless Enum.sort(Map.keys(p)) == allowed, do: Repo.rollback(:invalid_journal)
+    checked = if mode == "create", do: Map.delete(p, "initial_row"), else: p
+
+    unless Enum.sort(Map.keys(checked)) == allowed &&
+             (mode != "create" || is_boolean(Map.get(p, "initial_row", false))),
+           do: Repo.rollback(:invalid_journal)
 
     if mode in ~w(create details) &&
          (!is_map(p["data"]) || Enum.sort(Map.keys(p["data"])) != ~w(name posting_date reference)),
@@ -217,7 +221,27 @@ defmodule Ep.Finance.JournalWork do
 
     data =
       if mode == "create",
-        do: Map.put(p["data"], "rows", []),
+        do:
+          Map.put(
+            p["data"],
+            "rows",
+            if(p["initial_row"] == true,
+              do: [
+                %{
+                  "id" => nil,
+                  "reference" => "",
+                  "debit_account_id" => nil,
+                  "credit_account_id" => nil,
+                  "amount_minor" => 0,
+                  "amount_basis" => nil,
+                  "basis_override" => false,
+                  "credit_amount_minor" => nil,
+                  "void" => false
+                }
+              ],
+              else: []
+            )
+          ),
         else:
           Map.take(draft.data, ~w(name posting_date reference))
           |> Map.put("rows", inputs(draft.data))

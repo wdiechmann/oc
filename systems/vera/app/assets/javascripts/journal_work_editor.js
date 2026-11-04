@@ -16,12 +16,12 @@ class JournalWorkEditor extends HTMLElement {
         if (host.querySelector("[data-account-search]").value && !host.querySelector("[data-account-id]").value) { event.preventDefault(); return this.status("Choose an account from the lookup results."); }
       }
     },opts);
-    document.addEventListener("submit",event=>{ if (this.isConnected && this.dirty && event.target.matches("[data-journal-details]")) { event.preventDefault(); this.status("Save or cancel your row before changing journal details."); } },opts);
+    document.addEventListener("submit",event=>{ if (this.isConnected && this.dirty && event.target.matches("[data-journal-details],#work-row-new")) { event.preventDefault(); this.status("Save or cancel your row before changing journal details or creating another line."); } },opts);
     document.addEventListener("turbo:before-visit", event => { if (this.isConnected && this.dirty) { event.preventDefault(); this.status("Save or cancel your current row before leaving the journal."); } },opts);
     this.querySelectorAll("[data-account-lookup]").forEach(host => { if (host.querySelector("[data-account-id]").value) host.querySelector("[data-account-search]").dataset.chosenLabel = host.querySelector("[data-account-search]").value; });
     this.querySelectorAll("[data-work-row]").forEach(form=>{ form.originalInputs = [...form.querySelectorAll("input")].map(input=>({input,value:input.value,checked:input.checked,dataset:{...input.dataset}})); if (form.dataset.editing === "true") this.accountBasis(form); else this.paintBasis(form); });
     this.querySelectorAll("[data-work-vat]").forEach(out => { out.dataset.original = out.textContent; out.dataset.originalTitle=out.title; });
-    if (!this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("#work-row-new input[name=reference]")?.focus();
+    if (!this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("[data-work-row][data-editing=true] input[name=reference]")?.focus();
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
   disconnectedCallback() { clearTimeout(this.refreshTimer); this.abort.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }

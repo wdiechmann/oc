@@ -17,7 +17,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
   def api = "#{EP}/tenants/#{TID}/finance/books/#{BID}/journals"
   def contexts = { setup_version: 5, period_version: 2, book_version: 1, base_currency: "DKK", accounting_authority: "ep" }
   def data
-    { work_rows_enabled: true, tenant_id: TID, book_id: BID, book_name: "Book", book_status: "draft", base_currency: "DKK", accounting_authority: "ep", status: "ready", source_version: 1, latest_version: 1, contexts: contexts, permissions: { prepare: true }, drafts: [], accounts: [ { id: PID, number: "0010", name: "Purchases", active: true }, { id: QID, number: "0020", name: "Bank", active: true } ], vat_entries: [], selected: { id: JID, version: 1, contexts: contexts, data: { name: "Work journal", posting_date: "2026-06-01", reference: "INV", rows: [] }, validation: { lines: [] } } }
+    { work_rows_enabled: true, tenant_id: TID, book_id: BID, book_name: "Book", book_status: "draft", base_currency: "DKK", accounting_authority: "ep", status: "ready", source_version: 1, latest_version: 1, contexts: contexts, permissions: { prepare: true }, drafts: [], accounts: [ { id: PID, number: "0010", name: "Purchases", active: true }, { id: QID, number: "0020", name: "Bank", active: true } ], vat_entries: [], selected: { id: JID, version: 1, contexts: contexts, data: { name: "Work journal", posting_date: "2026-06-01", reference: "INV", rows: [ { id: "cd763842-2538-4ccb-8445-17e232c37d84", posting_id: 1, reference: "", credit_total_minor: 0, credit_amount_minor: nil, amount_minor: 0, amount_basis: nil, basis_override: false, void: false } ] }, validation: { lines: [] } } }
   end
   def view(d = data)
     stub_request(:get, api).with(query: { draft_id: JID }).to_return(status: 200, body: d.to_json)
@@ -26,7 +26,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
   def row_form(t)
     { form_token: t, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s), reference: "Receipt", amount: "125,50", amount_basis: "gross", debit_account_id: PID, credit_account_id: QID, debit_label: "0010 · Purchases", credit_label: "0020 · Bank" }
   end
-  test "metadata creates a work journal before any row or number exists" do
+  test "metadata creates a work journal with its initial numbered line" do
     stub_request(:get, api).to_return(status: 200, body: data.merge(selected: nil).to_json)
     get path, headers: { "Accept-Language"=>"da-DK" }
     assert_select "#journal-create"
@@ -34,7 +34,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "input[name=posting_date]"
     assert_select "input[name=reference]"
     assert_select "[data-work-row]", count: 0
-    command = stub_request(:post, "#{api}/work/create").with(body: { expected_version: 1, contexts: contexts, data: { name: "Draft", posting_date: "2026-06-01", reference: "INV" } }).to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    command = stub_request(:post, "#{api}/work/create").with(body: { initial_row: true, expected_version: 1, contexts: contexts, data: { name: "Draft", posting_date: "2026-06-01", reference: "INV" } }).to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
     patch path, params: { form_token: token("#journal-create"), name: "Draft", posting_date: "2026-06-01", reference: "INV", expected_version: "1", contexts: contexts.transform_values(&:to_s) }
     assert_redirected_to "#{path}?draft_id=#{JID}"
     assert_requested command
@@ -80,7 +80,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     d[:selected][:data][:rows] = [ 1, 2 ].map { |n| { id: "row#{n}", posting_id: n, reference: "Line #{n}", amount_minor: 10000, amount_basis: "gross", credit_total_minor: 10000, void: false } }
     view(d)
     get path, params: { draft_id: JID }
-    assert_equal [ "work-row-new", "work-row-row2", "work-row-row1" ], css_select("[data-work-row]").map { |form| form["id"] }
+    assert_equal [ "work-row-row2", "work-row-row1" ], css_select("[data-work-row]").map { |form| form["id"] }
     columns = css_select("#work-row-row2 > :not(input)")
     assert_equal "2", columns.first.text
     assert columns[5].at_css("[data-work-included]")
@@ -90,15 +90,19 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_equal "No VAT configured", columns[8]["title"]
     assert_select "#main-content.w-full"
     assert_select "#main-content.max-w-6xl", count: 0
-    assert columns[7].at_css("[data-work-credit]")
+    assert columns[7].at_css("[data-work-credit].text-right")
+    assert columns[4].at_css("[data-work-amount].text-right")
+    assert columns[5].at_css("[data-work-included].ml-auto")
+    assert_select ".journal-columns > .text-right", minimum: 4
+    assert_select "#work-row-new input[type=submit][value='New line']"
     assert_equal "context-menu", columns[9].name
     assert columns[9].at_css("[data-menu-trigger] svg")
     assert_equal "menu", columns[9].at_css("[data-menu-trigger]")["aria-haspopup"]
     assert_equal "auto", columns[9].at_css("[role=menu]")["popover"]
     assert_equal [ "Edit", "Void" ], columns[9].css("[role=menuitem]:not([hidden])").map(&:text)
     assert columns[9].at_css("[data-work-edit]").ancestors("[role=menu]").any?
-    assert_select "#work-row-new [data-menu-trigger][aria-expanded=false]"
-    assert_select "#work-row-new [role=menu] [data-work-save]", count: 1
+    assert_select "#work-row-row2 [data-menu-trigger][aria-expanded=false]"
+    assert_select "#work-row-row2 [role=menu] [data-work-save]", count: 1
   end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")

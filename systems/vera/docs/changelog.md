@@ -153,3 +153,9 @@ Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript 
 Home/End now focus the first/last row; Page Up/Down move one row, preserving the input column and unsaved entries. Arrow Up/Down retain native input behavior, including account search. Enter/click still chooses lookup results and More-menu keyboard navigation remains independent.
 
 Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright verified first/last/previous/next rows, boundary clamping, unsaved text retention, same-column focus, native arrow events and independent menu navigation. VERA graph refreshed.
+
+## 2026-11-04 — Immediate row IDs and amount alignment
+
+Right-aligned debit/credit amounts and both VAT columns, including headings; shortened Posting ID to ID. Journal creation atomically creates its initial empty numbered row. New line persists a fresh row before entry, allowing attachments immediately, with the same ID retained through edits and receipt retries.
+
+Verification: 195 EP tests and 89 VERA tests (766 assertions) pass, along with RuboCop, Zeitwerk and JavaScript syntax checks. EP tests cover atomic creation/replay and attaching before account/amount entry. Playwright checked initial ID, pre-entry PDF binding, New line numbering, editing without renumbering, and right-aligned values/headings. VERA graph refreshed.
