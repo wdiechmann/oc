@@ -13,7 +13,8 @@
 11. Complete locally: accepted chart formula rehearsal with explicit test balances, pinned reference breakdowns, exact nested arithmetic, row errors and revision-fenced read-only EP API.
 12. Complete locally: reviewed versioned report definitions, stable signed account mappings, pinned line totals, history/coverage diagnostics and historical test-balance previews.
 13. Complete locally: reviewed unposted journal drafts, exact debit/credit validation, effective VAT/period evidence, context fences, immutable correction history, projection recovery and private receipts.
-14. Next: explicit financial posting authority and atomic posting guards, including VAT posting-account policy. Broader finance roles, financial controls, journals, settlement, consolidation and operational payments follow system_2_plan.md.
+14. Complete locally: work-in-progress paired line editor, Carla-style lookup, locale decimals, account-driven VAT, transactional per-book posting IDs and private enclosures.
+15. Next: explicit financial posting authority and atomic posting guards, including VAT posting-account policy. Broader finance roles, financial controls, journals, settlement, consolidation and operational payments follow system_2_plan.md.
 
 Regional CSV upload: separator detection and empty-row skipping happen in VERA’s bounded string parser; EP’s review and financial validation remain authoritative.
 

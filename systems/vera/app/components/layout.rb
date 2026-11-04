@@ -23,6 +23,7 @@ class Components::Layout < Components::Base
         stylesheet_link_tag "tailwind", "application"
         javascript_include_tag "turbo", type: "module", defer: true
         javascript_include_tag "chart_order_editor", type: "module", defer: true
+        javascript_include_tag "journal_work_editor", type: "module", defer: true
         javascript_include_tag "chart_editor", type: "module", defer: true
       end
       body(class: "min-h-screen bg-stone-50 text-stone-900 antialiased") do

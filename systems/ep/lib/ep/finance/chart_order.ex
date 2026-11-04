@@ -16,7 +16,7 @@ defmodule Ep.Finance.ChartOrder do
 
   @command_type "FinanceChartOrder:accept"
   @max_rows 2000
-  @fields ~w(id tenant_id book_id number name kind position active retired formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version actor_identity_id application_id)a
+  @fields ~w(id tenant_id book_id number name kind position active retired formula formula_refs vat_basis vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version actor_identity_id application_id)a
 
   def get(principal, tid, bid) do
     scoped(principal, tid, bid, fn tid, bid, book ->

@@ -203,4 +203,103 @@ defmodule EpWeb.JournalControllerTest do
              "error"
            ] == "not_found"
   end
+
+  test "work-row and enclosure endpoints keep one posting number across edits", c do
+    conn = Plug.Conn.put_req_header(c.conn, "authorization", "Bearer " <> c.token)
+    path = "/api/v1/tenants/#{c.tid}/finance/books/#{c.bid}/journals"
+    data = json_response(get(conn, path), 200)
+
+    created =
+      json_response(
+        post(
+          Plug.Conn.put_req_header(conn, "idempotency-key", "new-work"),
+          path <> "/work/create",
+          %{
+            "contexts" => data["contexts"],
+            "expected_version" => 0,
+            "data" => %{"name" => "Work", "posting_date" => "2026-06-01", "reference" => ""}
+          }
+        ),
+        200
+      )
+
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    [a, b] = data["accounts"]
+
+    params = %{
+      "draft_id" => created["draft_id"],
+      "contexts" => data["contexts"],
+      "expected_version" => 1,
+      "expected_draft_version" => 1,
+      "row" => %{
+        "id" => nil,
+        "reference" => "Receipt",
+        "debit_account_id" => a["id"],
+        "credit_account_id" => b["id"],
+        "amount_minor" => 12550,
+        "amount_basis" => "gross",
+        "void" => false
+      }
+    }
+
+    saved =
+      json_response(
+        post(
+          Plug.Conn.put_req_header(conn, "idempotency-key", "row-work"),
+          path <> "/work/row",
+          params
+        ),
+        200
+      )
+
+    {:ok, _} = JournalProjector.deliver(c.tid)
+
+    selected =
+      json_response(get(conn, path, %{"draft_id" => created["draft_id"]}), 200)["selected"]
+
+    row = hd(selected["data"]["rows"])
+    assert row["posting_id"] == 1
+    assert row["amount_minor"] == 12550
+
+    assert json_response(get(conn, path <> "/accounts", %{"q" => "001"}), 200)["results"]
+           |> hd()
+           |> Map.get("number") == "0010"
+
+    content = Base.encode64("%PDF-1.4\nTest")
+
+    upload =
+      json_response(
+        post(conn, path <> "/rows/" <> row["id"] <> "/attachments/stage", %{
+          "filename" => "receipt.pdf",
+          "content_type" => "application/pdf",
+          "content" => content
+        }),
+        200
+      )
+
+    pointer =
+      Map.drop(params, ["row"])
+      |> Map.merge(%{
+        "expected_version" => saved["stream_version"],
+        "expected_draft_version" => saved["stream_version"],
+        "upload_id" => upload["upload_id"]
+      })
+
+    assert json_response(
+             post(
+               Plug.Conn.put_req_header(conn, "idempotency-key", "file-work"),
+               path <> "/work/attachment",
+               pointer
+             ),
+             200
+           )["draft_id"] == created["draft_id"]
+
+    files = json_response(get(conn, path <> "/rows/" <> row["id"] <> "/attachments"), 200)
+    assert files["posting_id"] == 1
+
+    download =
+      json_response(get(conn, path <> "/attachments/" <> hd(files["attachments"])["id"]), 200)
+
+    assert download["content"] == content
+  end
 end

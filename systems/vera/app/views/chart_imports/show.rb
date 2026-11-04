@@ -115,7 +115,7 @@ class Views::ChartImports::Show < Views::Base
       h3(class: "font-semibold") { label }
       if data
         dl(class: "mt-2 text-sm") do
-          %w[kind number name vat_entry_id vat_code category_entry_id category position formula active retired].each do |field|
+          %w[kind number name vat_basis vat_entry_id vat_code category_entry_id category position formula active retired].each do |field|
             dt(class: "mt-2 font-medium") { field }
             dd(class: "whitespace-pre-wrap break-all") { data[field].to_s }
           end

@@ -9,7 +9,7 @@ class ChartImportsController < FinanceSetupController
 
   def preview
     return pending_feedback if session[:finance_operation]
-    mapping = params.fetch(:mapping, ActionController::Parameters.new).permit(*%w[schema_version tenant_id book_id source_version account_id account_version type number name vat_entry_id vat_code category_entry_id category_code position formula active]).to_h.reject { |_, value| value.blank? }
+    mapping = params.fetch(:mapping, ActionController::Parameters.new).permit(*%w[schema_version tenant_id book_id source_version account_id account_version type number name vat_basis vat_entry_id vat_code category_entry_id category_code position formula active]).to_h.reject { |_, value| value.blank? }
     data = ep.preview_chart(params[:tenant_id], params[:book_id], params[:import_id], mapping, create_codes: params[:create_codes] == "1", mode: params[:mode].presence || "replace")
     render_review(data)
   end

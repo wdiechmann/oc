@@ -10,6 +10,7 @@ defmodule Ep.Finance.Account do
     field :category_entry_id, :binary_id
     field :vat_entry_version, :integer
     field :category_entry_version, :integer
+    field :vat_basis, :string
     field :vat_code, :string
     field :category, :string
     field :position, :integer

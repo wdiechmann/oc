@@ -257,6 +257,42 @@ defmodule Ep.Finance.VatRules do
     end
   end
 
+  def calculate_gross(rule, date, gross) do
+    if rule.direction in ~w(input output) && is_integer(gross) && abs(gross) <= 9_000_000_000_000 do
+      vat = round_ratio(gross * rule.rate_bps, 10000 + rule.rate_bps)
+      net = gross - vat
+      {:ok, q} = calculate(rule, date, net)
+      deductible = round_ratio(vat * rule.deductible_bps, 10000)
+
+      amounts = %{
+        "net" => net,
+        "vat" => vat,
+        "deductible_vat" => deductible,
+        "non_deductible_vat" => vat - deductible
+      }
+
+      reporting =
+        Enum.reduce(rule.mappings["lines"], %{}, fn m, acc ->
+          Map.update(
+            acc,
+            m["box"],
+            amounts[m["component"]] * m["sign"],
+            &(&1 + amounts[m["component"]] * m["sign"])
+          )
+        end)
+
+      {:ok,
+       Map.merge(q, %{
+         amounts: amounts,
+         reporting: reporting,
+         invoice_total_minor: gross,
+         amount_basis: "gross"
+       })}
+    else
+      calculate(rule, date, gross)
+    end
+  end
+
   def project(snapshot, old, event) do
     previous = Map.new((old || %{})["vat_rules"] || [], &{&1["id"], &1})
 

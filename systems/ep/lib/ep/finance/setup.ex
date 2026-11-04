@@ -462,7 +462,8 @@ defmodule Ep.Finance.Setup do
         else: ~w(name kind expected_version)
 
     allowed =
-      required ++ ~w(number vat_code category vat_entry_id category_entry_id position formula)
+      required ++
+        ~w(number vat_code category vat_entry_id category_entry_id position formula vat_basis)
 
     unless Enum.all?(required, &Map.has_key?(p, &1)) && Enum.all?(Map.keys(p), &(&1 in allowed)),
       do: Repo.rollback(:invalid_setup)
@@ -520,6 +521,7 @@ defmodule Ep.Finance.Setup do
             :category_entry_id,
             :vat_entry_version,
             :category_entry_version,
+            :vat_basis,
             :vat_code,
             :category,
             :position,

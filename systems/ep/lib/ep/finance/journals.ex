@@ -88,6 +88,8 @@ defmodule Ep.Finance.Journals do
       contexts = contexts(book, setup.latest_version, period_version)
 
       %{
+        work_rows_enabled: true,
+        historical: !is_nil(params["version"]),
         tenant_id: tid,
         book_id: bid,
         book_name: book.name,
@@ -109,7 +111,7 @@ defmodule Ep.Finance.Journals do
           setup.accounts
           |> Setup.normalize_accounts()
           |> Enum.filter(&(&1["kind"] == "posting"))
-          |> Enum.map(&Map.take(&1, ~w(id number name active vat_entry_id))),
+          |> Enum.map(&Map.take(&1, ~w(id number name active vat_entry_id vat_basis))),
         vat_entries: Enum.filter(setup.catalogue_entries, &(&1["kind"] == "vat" && &1["active"])),
         drafts:
           Enum.map(drafts, fn d ->
@@ -157,6 +159,10 @@ defmodule Ep.Finance.Journals do
       if !old && Repo.aggregate(from(j in JournalDraft, where: j.book_id == ^bid), :count) >= 100,
         do: Repo.rollback(:journal_limit)
 
+      if old && old.data["rows"] &&
+           (!is_map(params["data"]) || !Map.has_key?(params["data"], "rows")),
+         do: Repo.rollback(:invalid_journal)
+
       data = data!(tid, bid, params["data"])
       validation = validate(tid, bid, data)
 
@@ -197,6 +203,28 @@ defmodule Ep.Finance.Journals do
       )
 
       present(row)
+    end)
+  end
+
+  def preview_row(principal, tid, bid, p) do
+    scoped(principal, tid, bid, false, fn tid, bid, book, _ ->
+      current = ready!(tid, bid, book)
+
+      draft =
+        Repo.get_by(JournalDraft, id: uuid!(p["draft_id"]), tenant_id: tid, book_id: bid) ||
+          Repo.rollback(:not_found)
+
+      unless p["expected_draft_version"] === draft.version &&
+               p["contexts"] === current["contexts"],
+             do: Repo.rollback(:version_conflict)
+
+      data =
+        draft.data
+        |> Map.take(~w(name posting_date reference))
+        |> Map.put("rows", [p["row"]])
+        |> then(&data!(tid, bid, &1))
+
+      %{validation: validate(tid, bid, data), row: hd(data["rows"])}
     end)
   end
 
@@ -255,8 +283,11 @@ defmodule Ep.Finance.Journals do
           eid = Ecto.UUID.generate()
           version = current["journal_version"] + 1
 
+          numbered_data =
+            Ep.Finance.JournalRows.assign!(tid, bid, if(old, do: old.id, else: eid), plan["data"])
+
           attrs = %{
-            data: plan["data"],
+            data: numbered_data,
             validation: plan["validation"],
             contexts: plan["contexts"],
             version: version,
@@ -333,9 +364,21 @@ defmodule Ep.Finance.Journals do
     end)
   end
 
-  defp data!(tid, bid, p) do
+  defp data!(tid, bid, %{"rows" => _} = p) do
+    unless Enum.sort(Map.keys(p)) == ~w(name posting_date reference rows),
+      do: Repo.rollback(:invalid_journal)
+
+    base = data!(tid, bid, p |> Map.delete("rows") |> Map.put("lines", []))
+    {rows, lines} = Ep.Finance.JournalRows.expand!(tid, bid, Map.put(base, "rows", p["rows"]))
+    normalized = line_data!(tid, bid, Map.put(base, "lines", lines), 200)
+    Map.put(normalized, "rows", rows)
+  end
+
+  defp data!(tid, bid, p), do: line_data!(tid, bid, p, 100)
+
+  defp line_data!(tid, bid, p, limit) do
     unless is_map(p) && Enum.sort(Map.keys(p)) == ~w(lines name posting_date reference) &&
-             is_list(p["lines"]) && length(p["lines"]) in 1..100,
+             is_list(p["lines"]) && length(p["lines"]) in 0..limit,
            do: Repo.rollback(:invalid_journal)
 
     date =
@@ -466,7 +509,22 @@ defmodule Ep.Finance.Journals do
                 %{"error" => "vat_rule_missing"}
 
               true ->
-                case VatRules.calculate(rule, date, l["net_minor"], l["assessed_vat_minor"]) do
+                row =
+                  Enum.find(data["rows"] || [], fn row ->
+                    row["debit_line_id"] == l["id"] || row["credit_line_id"] == l["id"]
+                  end)
+
+                quote =
+                  if row && row["amount_basis"] == "gross",
+                    do: VatRules.calculate_gross(rule, date, l["net_minor"]),
+                    else: VatRules.calculate(rule, date, l["net_minor"], l["assessed_vat_minor"])
+
+                quote =
+                  if row && is_nil(row["amount_basis"]),
+                    do: {:error, :vat_basis_required},
+                    else: quote
+
+                case quote do
                   {:ok, q} ->
                     q |> Jason.encode!() |> Jason.decode!() |> Map.put("code", entry.code)
 

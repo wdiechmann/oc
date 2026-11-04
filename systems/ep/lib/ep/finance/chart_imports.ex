@@ -18,10 +18,10 @@ defmodule Ep.Finance.ChartImports do
     SetupWorker
   }
 
-  @columns ~w(schema_version tenant_id book_id source_version account_id account_version type number name vat_entry_id vat_code category_entry_id category_code position formula active)
+  @columns ~w(schema_version tenant_id book_id source_version account_id account_version type number name vat_basis vat_entry_id vat_code category_entry_id category_code position formula active)
   @max_rows 500
   @max_bytes 2_097_152
-  @fields ~w(id tenant_id book_id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired actor_identity_id application_id)a
+  @fields ~w(id tenant_id book_id number name kind position active formula formula_refs vat_basis vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired actor_identity_id application_id)a
 
   def info(principal, tid, bid) do
     with {:ok, data} <- Setup.get(principal, tid, bid) do
@@ -75,6 +75,7 @@ defmodule Ep.Finance.ChartImports do
             "type" => a["kind"],
             "number" => a["number"],
             "name" => a["name"],
+            "vat_basis" => a["vat_basis"],
             "vat_entry_id" => a["vat_entry_id"],
             "vat_code" => vat && vat["code"],
             "category_entry_id" => a["category_entry_id"],

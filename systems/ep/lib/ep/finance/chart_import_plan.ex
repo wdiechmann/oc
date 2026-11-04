@@ -3,8 +3,8 @@ defmodule Ep.Finance.ChartImportPlan do
   alias Ep.Finance.{AccountRules, Formula, CatalogueEntry}
   alias Ep.Repo
 
-  @fields ~w(id number name kind position active formula formula_refs vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired)a
-  @material ~w(number name kind position active formula formula_refs vat_entry_id category_entry_id retired)a
+  @fields ~w(id number name kind position active formula formula_refs vat_basis vat_entry_id category_entry_id vat_entry_version category_entry_version vat_code category version retired)a
+  @material ~w(number name kind position active formula formula_refs vat_basis vat_entry_id category_entry_id retired)a
 
   def build(
         tid,
@@ -273,7 +273,8 @@ defmodule Ep.Finance.ChartImportPlan do
       end
 
     fields =
-      Enum.reduce(~w(number name position formula active), %{"kind" => kind}, fn field, p ->
+      Enum.reduce(~w(number name position formula active vat_basis), %{"kind" => kind}, fn field,
+                                                                                           p ->
         if mapping[field], do: Map.put(p, field, value(record, mapping, field)), else: p
       end)
 
@@ -290,7 +291,8 @@ defmodule Ep.Finance.ChartImportPlan do
   defp defaults(params, previous) do
     defaults =
       if previous,
-        do: previous |> Map.take(~w(number name position formula active)a) |> stringify(),
+        do:
+          previous |> Map.take(~w(number name position formula active vat_basis)a) |> stringify(),
         else: %{"active" => true, "number" => nil, "formula" => nil}
 
     defaults =

@@ -46,6 +46,12 @@ module Ep
       suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
+    def journal_work(tid, bid, mode, attrs, key) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/work/#{mode}", body: attrs, key: key)
+    def journal_accounts(tid, bid, query) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/accounts", query: { q: query })
+    def journal_row_preview(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/row-preview", body: attrs)
+    def journal_attachments(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(id)}/attachments")
+    def stage_journal_attachment(tid, bid, id, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(id)}/attachments/stage", body: attrs)
+    def journal_attachment(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/attachments/#{uuid!(id)}")
     def journals(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals", query: query.compact)
     def review_journal(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/reviews", body: attrs)
     def journal_review(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/reviews/#{uuid!(id)}")

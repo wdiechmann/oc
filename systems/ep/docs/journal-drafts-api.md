@@ -1,4 +1,6 @@
-# Reviewed unposted journal preparation
+# Unposted journal preparation
+
+The current UI uses [work-in-progress paired rows](journal-work-api.md). The explicit review API below remains supported for legacy clients and audit workflows; an empty journal can now be created before any lines are entered.
 
 All routes under `/api/v1/tenants/:tenant_id/finance/books/:book_id/journals` require a registered backend and current EP session. Current explicit book configuration stewards may prepare/revise unposted drafts; tenant administrators may inspect. This narrowly extends draft preparation, not approval, posting, payment, account balances or external accounting execution. No financial posting endpoint is introduced. Book hierarchy grants no authority. All amounts are exact whole minor units of the book's base currency; no FX conversion is inferred.
 

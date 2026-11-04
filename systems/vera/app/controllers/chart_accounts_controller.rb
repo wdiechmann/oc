@@ -12,6 +12,7 @@ class ChartAccountsController < FinanceSetupController
   def attributes_for(action, account_id)
     attrs = super
     attrs[:number] = nil unless params[:kind] == "posting"
+    attrs[:vat_basis] = params[:vat_basis].presence if params.key?(:vat_basis)
     attrs.merge!(position: Integer(params[:position], exception: false), formula: params[:formula].presence)
     if params.key?(:vat_entry_id) || params.key?(:category_entry_id)
       attrs.merge!(vat_entry_id: params[:vat_entry_id].presence, category_entry_id: params[:category_entry_id].presence)

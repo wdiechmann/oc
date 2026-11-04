@@ -88,7 +88,7 @@ class FinanceSetupController < ApplicationController
   def completion_url
     op = session[:finance_operation]
     return unless op
-    if op["action"] == "journal_save"
+    if op["action"].to_s.start_with?("journal_")
       completion_tenant_book_journals_path(op["tenant_id"], op["book_id"])
     elsif op["action"] == "report_save"
       completion_tenant_book_reports_path(op["tenant_id"], op["book_id"])
@@ -111,7 +111,7 @@ class FinanceSetupController < ApplicationController
   def retry_url
     op = session[:finance_operation]
     return unless op && op["checked"]
-    if op["action"] == "journal_save"
+    if op["action"].to_s.start_with?("journal_")
       retry_tenant_book_journals_path(op["tenant_id"], op["book_id"])
     elsif op["action"] == "report_save"
       retry_tenant_book_reports_path(op["tenant_id"], op["book_id"])

@@ -24,12 +24,62 @@ class JournalsController < FinanceSetupController
     redirect_to tenant_book_journals_path(params[:tenant_id], params[:book_id], review_id: result.fetch("review_id")), status: :see_other
   end
 
+  def accounts
+    render json: ep.journal_accounts(params[:tenant_id], params[:book_id], params[:q].to_s)
+  end
+  def row_preview
+    row = work_row_attributes
+    render json: ep.journal_row_preview(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id], expected_draft_version: Integer(params[:expected_draft_version], exception: false), contexts: work_contexts, row: row })
+  end
+  def attachments
+    info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
+    render Views::Journals::Attachments.new(data: data, info: info, upload: nil, token: method(:work_token), signed_in: signed_in?)
+  end
+  def upload_attachment
+    return pending_feedback if session[:finance_operation]
+    file = params[:file]
+    raise Ep::Client::Error.new(422, code: "invalid_attachment") unless file.is_a?(ActionDispatch::Http::UploadedFile) && file.size.between?(1, 5_242_880)
+    upload = ep.stage_journal_attachment(params[:tenant_id], params[:book_id], params[:row_id], { filename: file.original_filename, content_type: file.content_type, content: Base64.strict_encode64(file.read) })
+    info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
+    render Views::Journals::Attachments.new(data: data, info: info, upload: upload, token: method(:work_token), signed_in: signed_in?)
+  end
+  def download_attachment
+    file = ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    send_data Base64.strict_decode64(file.fetch("content")), filename: file.fetch("filename"), type: file.fetch("content_type"), disposition: "attachment"
+  end
+
   private
-  def accepted_notice(result) = "Journal draft saved at revision #{result.fetch('stream_version')}. It remains unposted."
-  def command_type(_action) = "FinanceJournalDraft:save"
-  def execute_command(_action, attrs, key) = ep.accept_journal(params[:tenant_id], params[:book_id], attrs, key)
+  def accepted_notice(result)
+    result["posting_id"] ? "Posting ID #{result['posting_id']} saved. The journal remains work in progress." : "Journal draft saved. Continue working on its lines."
+  end
+  def command_type(action) = action == "journal_save" ? "FinanceJournalDraft:save" : "FinanceJournalWork:#{work_mode(action)}"
+  def execute_command(action, attrs, key)
+    action == "journal_save" ? ep.accept_journal(params[:tenant_id], params[:book_id], attrs, key) : ep.journal_work(params[:tenant_id], params[:book_id], work_mode(action), attrs, key)
+  end
   def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: result && result["draft_id"])
   def attributes_for(action, id)
+    unless action == "journal_save"
+      signed = Rails.application.message_verifier(:finance_setup).verified(params[:form_token].to_s, purpose: :finance_setup)
+      @decimal_separator = signed.fetch("decimal_separator")
+      attrs = { expected_version: work_version(params[:expected_version]), contexts: work_contexts }
+      attrs.merge!(draft_id: id, expected_draft_version: work_version(params[:expected_draft_version])) unless action == "journal_create"
+      case action
+      when "journal_create", "journal_details"
+        attrs[:data] = { name: params[:name].to_s, posting_date: params[:posting_date].to_s, reference: params[:reference].to_s }
+        @work_header = attrs[:data].stringify_keys
+        raise Ep::Client::Error.new(422, code: "invalid_journal") unless @work_header["name"].length <= 120 && @work_header["reference"].length <= 120 && @work_header["posting_date"].length <= 10
+      when "journal_row"
+        @work_draft = params.to_unsafe_h.slice("reference", "amount", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "void").merge("id"=>signed["row_id"])
+        attrs[:row] = work_row_attributes(signed["row_id"])
+      when "journal_attachment"
+        attrs[:upload_id] = signed.fetch("upload_id")
+      else raise Ep::Client::Error.new(422, code: "invalid_journal")
+      end
+      return attrs
+    end
     signed = Rails.application.message_verifier(:finance_setup).verified(params[:form_token].to_s, purpose: :finance_setup)
     raise Ep::Client::Error.new(422, code: "invalid_journal") unless action == "journal_save" && signed["digest"].present? && signed["expected_version"].is_a?(Integer)
     { review_id: id, digest: signed.fetch("digest"), expected_version: signed.fetch("expected_version") }
@@ -42,17 +92,49 @@ class JournalsController < FinanceSetupController
       @editing = review.fetch("plan").slice("draft_id", "expected_draft_version", "data", "contexts").merge("expected_version"=>review.fetch("expected_version"), "saved_validation"=>review.dig("plan", "validation"))
       review = nil
     end
-    if !@editing && params[:edit] == "1" && data["selected"]
+    if !@editing && params[:edit] == "1" && data["selected"] && !(data["work_rows_enabled"] && data.dig("selected", "data", "rows"))
       @editing = { "draft_id"=>data["selected"]["id"], "expected_draft_version"=>data["selected"]["version"], "expected_version"=>data["latest_version"], "contexts"=>data["contexts"], "data"=>data["selected"]["data"], "saved_validation"=>data["selected"]["validation"] }
     end
     token = review_token(review) if review && !review["accepted_command_id"] && data.dig("permissions", "prepare") && data["status"] == "ready" && !session[:finance_operation]
-    render Views::Journals::Show.new(data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+    render Views::Journals::Show.new(work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+  end
+  def decimal_separator = @decimal_separator || JournalMoney.separator(request.headers["Accept-Language"])
+  def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details" }.fetch(action)
+  def work_token(action, draft_id = nil, row_id = nil, upload = nil)
+    session[:finance_form_nonce] ||= SecureRandom.hex(16)
+    Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>action, "account_id"=>draft_id, "row_id"=>row_id, "upload_id"=>upload && upload["upload_id"], "decimal_separator"=>decimal_separator, "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 4.hours)
+  end
+  def work_version(value)
+    text = value.to_s
+    text.match?(/\A\d{1,19}\z/) ? text.to_i : nil
+  end
+  def work_contexts
+    raise Ep::Client::Error.new(422, code: "invalid_journal") unless params[:contexts].is_a?(ActionController::Parameters)
+    currency, authority = params.dig(:contexts, :base_currency).to_s, params.dig(:contexts, :accounting_authority).to_s
+    raise Ep::Client::Error.new(422, code: "invalid_journal") if currency.length > 3 || authority.length > 20
+    %w[setup_version period_version book_version].to_h { |k| [ k, work_version(params.dig(:contexts, k)) ] }.merge("base_currency"=>currency, "accounting_authority"=>authority)
+  end
+  def work_row_attributes(id = params[:row_id].presence)
+    raise Ep::Client::Error.new(422, code: "invalid_journal") if params[:reference].to_s.length > 120
+    [ params[:debit_account_id].presence, params[:credit_account_id].presence, id ].compact.each do |value|
+      raise Ep::Client::Error.new(422, code: "invalid_account_reference") unless value.is_a?(String) && value.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)
+    end
+    %w[debit credit].each do |side|
+      raise Ep::Client::Error.new(422, code: "invalid_account_reference") if params["#{side}_label"].present? && params["#{side}_account_id"].blank?
+    end
+    minor = JournalMoney.parse(params[:amount], separator: decimal_separator)
+    raise Ep::Client::Error.new(422, code: "invalid_amount") if minor.nil?
+    { id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
   end
   def review_token(review)
     session[:finance_form_nonce] ||= SecureRandom.hex(16)
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>"journal_save", "account_id"=>review.fetch("review_id"), "digest"=>review.fetch("digest"), "expected_version"=>review.fetch("expected_version"), "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 1.hour)
   end
   def setup_error(error)
+    if action_name.in?(%w[accounts row_preview])
+      reset_session if error.status == 401
+      return render json: { error: error.code }, status: error.status
+    end
     if error.code == "review_expired"
       session.delete(:finance_operation)
       return protected_feedback(error_message(error.code), 410)
@@ -68,8 +150,14 @@ class JournalsController < FinanceSetupController
   def error_message(code)
     case code
     when "version_conflict" then "The journal, chart, VAT rules, book or periods changed. Compare your draft with the current saved version and review again explicitly."
-    when "invalid_journal" then "Check the name, date, references and lines. Use whole minor units; optional VAT bases require an explicitly selected VAT entry."
-    when "invalid_amount" then "Debit and credit must be nonnegative whole minor units, up to 9,000,000,000,000 per line. VAT bases and assessed amounts may be signed."
+    when "invalid_attachment" then "Choose a PDF, PNG or JPEG file up to 5 MiB with a simple filename."
+    when "numbered_row_cannot_disappear" then "Numbered rows remain in the audit trail. Void the row instead of removing it."
+    when "invalid_journal"
+      return "Check the draft name/date, account choices and whether the amount includes VAT." if @action.to_s.start_with?("journal_") && @action != "journal_save"
+      "Check the name, date, references and lines. Use whole minor units; optional VAT bases require an explicitly selected VAT entry."
+    when "invalid_amount"
+      return "Enter a nonnegative amount with #{decimal_separator} as decimal point, at most two decimals and no thousands separators." if @action == "journal_row"
+      "Debit and credit must be nonnegative whole minor units, up to 9,000,000,000,000 per line. VAT bases and assessed amounts may be signed."
     when "invalid_account_reference", "invalid_vat_reference" then "Choose accounts and VAT entries from this book. Unavailable saved choices are retained for comparison."
     when "view_pending" then "A journal, setup or period view is updating. Refresh before reviewing."
     when "review_expired" then "This private review expired. Review the journal again before saving."
@@ -78,6 +166,7 @@ class JournalsController < FinanceSetupController
     end
   end
   def unavailable
+    return render(json: { error: "unavailable" }, status: 503) if action_name.in?(%w[accounts row_preview])
     return super if action_name.in?(%w[update retry completion])
     protected_feedback("Journal drafts are temporarily unavailable. Changes require explicit reviewed draft acceptance.", 503)
   end

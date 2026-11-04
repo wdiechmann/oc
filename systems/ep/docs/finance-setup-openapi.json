@@ -840,6 +840,16 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "vat_basis": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "gross",
+              "net",
+              null
+            ],
+            "description": "Posting account default VAT inclusion; omitted on revise preserves current value. Header/calculation clears it."
           }
         },
         "description": "Type-specific fields: header name/position; calculation name/position/formula; posting number/name/VAT/category/position. Irrelevant fields are cleared. See finance-setup-api.md."
@@ -916,6 +926,16 @@
             "type": "string",
             "format": "uuid",
             "nullable": true
+          },
+          "vat_basis": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "gross",
+              "net",
+              null
+            ],
+            "description": "Posting account default VAT inclusion; omitted on revise preserves current value. Header/calculation clears it."
           }
         },
         "description": "Type-specific fields: header name/position; calculation name/position/formula; posting number/name/VAT/category/position. Irrelevant fields are cleared. See finance-setup-api.md."

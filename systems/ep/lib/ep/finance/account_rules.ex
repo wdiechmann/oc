@@ -61,6 +61,10 @@ defmodule Ep.Finance.AccountRules do
         }
       end
 
+    basis = if kind == "posting", do: Map.get(p, "vat_basis", previous && previous.vat_basis)
+    basis = if basis == "", do: nil, else: basis
+    unless basis in [nil, "gross", "net"], do: reject!(:invalid_setup)
+
     formula = if kind == "calculation", do: p["formula"]
     candidate = %{id: id, number: number, kind: kind, formula_refs: %{}}
     chart = [candidate | Enum.reject(rows, &(&1.id == id))]
@@ -76,6 +80,7 @@ defmodule Ep.Finance.AccountRules do
       end
 
     %{
+      vat_basis: basis,
       number: number,
       name: String.trim(name),
       kind: kind,

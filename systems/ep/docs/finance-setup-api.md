@@ -28,3 +28,5 @@ Current chart queries exclude retired accounts. `GET /setup/accounts?retired=1` 
 Native reviewed row/block ordering and position rebalancing are specified in [chart-order-api.md](chart-order-api.md) and [chart-order-openapi.json](chart-order-openapi.json). These position-only commands preserve all account fields and formula references.
 
 Effective VAT configuration attached to VAT entry UUIDs is described in [vat-rules-api.md](vat-rules-api.md) and [vat-rules-openapi.json](vat-rules-openapi.json). Labels never infer statutory rules.
+
+Posting accounts optionally configure `vat_basis`: `gross` (VAT included), `net` (excluded), or null (unspecified). Omission during account revision preserves the current value; empty string clears it. Other account types clear it. Journal rows use this default unless a per-posting override is selected. Existing accounts remain unspecified.

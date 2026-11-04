@@ -21,6 +21,11 @@ Rails.application.routes.draw do
         post :retry
       end
       resource :journals, only: %i[show update], controller: "journals" do
+        get :accounts
+        post :row_preview
+        get :attachments
+        post :upload_attachment
+        get :download_attachment
         post :review
         get :completion
         post :retry

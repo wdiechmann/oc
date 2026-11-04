@@ -55,6 +55,83 @@ defmodule EpWeb.JournalController do
         )
       )
 
+  def work(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.save(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["mode"],
+          Map.drop(p, ~w(tenant_id book_id mode)),
+          List.first(get_req_header(conn, "idempotency-key")),
+          conn.assigns.backend_id
+        )
+      )
+
+  def lookup(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.lookup(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["q"]
+        )
+      )
+
+  def preview_row(conn, p),
+    do:
+      reply(
+        conn,
+        Journals.preview_row(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          Map.drop(p, ~w(tenant_id book_id))
+        )
+      )
+
+  def attachments(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.attachments(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["row_id"]
+        )
+      )
+
+  def stage(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.stage(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["row_id"],
+          Map.drop(p, ~w(tenant_id book_id row_id)),
+          conn.assigns.backend_id
+        )
+      )
+
+  def download(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.download(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["attachment_id"]
+        )
+      )
+
   defp reply(conn, {:ok, data}),
     do: conn |> put_resp_header("cache-control", "no-store") |> json(data)
 
