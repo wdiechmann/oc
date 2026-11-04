@@ -20,6 +20,12 @@ Rails.application.routes.draw do
         get :completion
         post :retry
       end
+      resource :reports, only: %i[show update], controller: "reports" do
+        post :review
+        post :preview
+        get :completion
+        post :retry
+      end
       resource :formula_preview, only: %i[show create], controller: "formula_previews"
       resource :chart_order, only: %i[show update], controller: "chart_orders" do
         post :preview

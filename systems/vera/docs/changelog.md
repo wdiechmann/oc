@@ -111,3 +111,9 @@ Verification: 162 EP tests and 67 VERA tests (553 assertions); RuboCop and Zeitw
 Added a dedicated formula rehearsal page with explicit test balances, stable-ID reference breakdowns, exact nested arithmetic and clear per-row errors. Shared parsing preserves the accepted grammar; source revision, authority, input and complexity guards live in EP. No configuration or ledger writes and no persistent test balances.
 
 Verification: 172 EP tests and 71 VERA tests (588 assertions) pass; RuboCop/Zeitwerk pass and Brakeman reports zero warnings/errors. Playwright checked pinned renumbered references, inactive account labels, explicit missing-balance errors, signed fractional rounding and desktop/mobile fit with synthetic data. The VERA code graph is refreshed. No migration or real accounting data changes were required.
+
+## 2026-11-04 — Reviewed report definitions and mappings
+
+Added named report definitions with header/mapping/total lines, stable IDs and reserved codes, signed posting mappings and pinned formula references. Private expiring reviews show before/after and coverage warnings before atomic setup acceptance; history retains account labels/cutoffs through chart replacement. Exact historical test previews never persist balances or post journals. Unknown outcomes use the original small review pointer and receipt.
+
+Verification: 179 EP tests and 77 VERA tests (634 assertions) pass; RuboCop/Zeitwerk pass and Brakeman reports zero warnings/errors. Playwright rehearsed creation, adding lines, coverage review, explicit acceptance, signed exact previews, report revision and historic-version reopening with desktop/mobile fit against synthetic data. The storage migration is applied and the VERA code graph refreshed. No real report definitions or financial transactions were created.

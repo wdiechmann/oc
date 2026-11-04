@@ -87,7 +87,9 @@ class FinanceSetupController < ApplicationController
   def completion_url
     op = session[:finance_operation]
     return unless op
-    if op["action"].to_s.start_with?("vat_rule_")
+    if op["action"] == "report_save"
+      completion_tenant_book_reports_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("vat_rule_")
       completion_tenant_book_vat_rules_path(op["tenant_id"], op["book_id"])
     elsif op["type"] == "FinanceChartOrder:accept"
       completion_tenant_book_chart_order_path(op["tenant_id"], op["book_id"])
@@ -106,7 +108,9 @@ class FinanceSetupController < ApplicationController
   def retry_url
     op = session[:finance_operation]
     return unless op && op["checked"]
-    if op["action"].to_s.start_with?("vat_rule_")
+    if op["action"] == "report_save"
+      retry_tenant_book_reports_path(op["tenant_id"], op["book_id"])
+    elsif op["action"].to_s.start_with?("vat_rule_")
       retry_tenant_book_vat_rules_path(op["tenant_id"], op["book_id"])
     elsif op["type"] == "FinanceChartOrder:accept"
       retry_tenant_book_chart_order_path(op["tenant_id"], op["book_id"])

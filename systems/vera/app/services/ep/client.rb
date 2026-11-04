@@ -46,6 +46,11 @@ module Ep
       suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
+    def reports(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/reports", query: query.compact)
+    def review_report(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/reports/reviews", body: attrs)
+    def report_review(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/reports/reviews/#{uuid!(id)}")
+    def accept_report(tid, bid, attrs, key) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/reports/accept", body: attrs, key: key)
+    def preview_report(tid, bid, id, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/reports/#{uuid!(id)}/preview", body: attrs)
     def formula_preview(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/formula-preview")
     def calculate_formula_preview(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/formula-preview", body: attrs)
     def chart_order(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-order")

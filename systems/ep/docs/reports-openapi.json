@@ -1,0 +1,478 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EP reviewed report definitions",
+    "version": "1.0.0",
+    "description": "See reports-api.md for identity/version/policy contracts."
+  },
+  "security": [
+    {
+      "backend": [],
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/reports": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "report_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized report data, review, acceptance or read-only preview"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision/freshness/digest/idempotency conflict"
+          },
+          "410": {
+            "description": "Private review expired"
+          },
+          "422": {
+            "description": "Invalid fields/references/balances, reserved code or limits"
+          },
+          "503": {
+            "description": "Projection stopped or unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/reports/reviews": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized report data, review, acceptance or read-only preview"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision/freshness/digest/idempotency conflict"
+          },
+          "410": {
+            "description": "Private review expired"
+          },
+          "422": {
+            "description": "Invalid fields/references/balances, reserved code or limits"
+          },
+          "503": {
+            "description": "Projection stopped or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "report_id",
+                  "expected_report_version",
+                  "expected_version",
+                  "name",
+                  "active",
+                  "lines"
+                ],
+                "properties": {
+                  "report_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "nullable": true
+                  },
+                  "expected_report_version": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "nullable": true
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "active": {
+                    "type": "boolean"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "id",
+                        "code",
+                        "name",
+                        "kind",
+                        "position",
+                        "account_ids",
+                        "sign",
+                        "formula"
+                      ],
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "format": "uuid",
+                          "nullable": true
+                        },
+                        "code": {
+                          "type": "string",
+                          "pattern": "^[A-Za-z][A-Za-z0-9._-]{0,39}$"
+                        },
+                        "name": {
+                          "type": "string",
+                          "maxLength": 120,
+                          "minLength": 1
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "header",
+                            "mapping",
+                            "total"
+                          ]
+                        },
+                        "position": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 2000000000
+                        },
+                        "account_ids": {
+                          "type": "array",
+                          "maxItems": 2000,
+                          "uniqueItems": true,
+                          "items": {
+                            "type": "string",
+                            "format": "uuid"
+                          }
+                        },
+                        "sign": {
+                          "type": "integer",
+                          "enum": [
+                            -1,
+                            1
+                          ]
+                        },
+                        "formula": {
+                          "type": "string",
+                          "nullable": true,
+                          "description": "Total lines only; maximum 2,000 bytes."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/reports/reviews/{review_id}": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "review_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized report data, review, acceptance or read-only preview"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision/freshness/digest/idempotency conflict"
+          },
+          "410": {
+            "description": "Private review expired"
+          },
+          "422": {
+            "description": "Invalid fields/references/balances, reserved code or limits"
+          },
+          "503": {
+            "description": "Projection stopped or unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/reports/accept": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized report data, review, acceptance or read-only preview"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision/freshness/digest/idempotency conflict"
+          },
+          "410": {
+            "description": "Private review expired"
+          },
+          "422": {
+            "description": "Invalid fields/references/balances, reserved code or limits"
+          },
+          "503": {
+            "description": "Projection stopped or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "review_id",
+                  "digest",
+                  "expected_version"
+                ],
+                "properties": {
+                  "review_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "digest": {
+                    "type": "string"
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/reports/{report_id}/preview": {
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Authorized report data, review, acceptance or read-only preview"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or authority unavailable"
+          },
+          "409": {
+            "description": "Revision/freshness/digest/idempotency conflict"
+          },
+          "410": {
+            "description": "Private review expired"
+          },
+          "422": {
+            "description": "Invalid fields/references/balances, reserved code or limits"
+          },
+          "503": {
+            "description": "Projection stopped or unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "report_version",
+                  "balances"
+                ],
+                "properties": {
+                  "report_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "balances": {
+                    "type": "object",
+                    "maxProperties": 2000,
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": -9000000000000,
+                      "maximum": 9000000000000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "backend": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

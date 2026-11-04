@@ -1,0 +1,109 @@
+defmodule EpWeb.ReportController do
+  use EpWeb, :controller
+  plug EpWeb.Plugs.Backend
+  alias Ep.Finance.{Reports, Setup}
+
+  def index(conn, p),
+    do:
+      reply(
+        conn,
+        Reports.get(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          Map.drop(p, ~w(tenant_id book_id))
+        )
+      )
+
+  def review(conn, p),
+    do:
+      reply(
+        conn,
+        Reports.review(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          Map.drop(p, ~w(tenant_id book_id)),
+          conn.assigns.backend_id
+        )
+      )
+
+  def show_review(conn, p),
+    do:
+      reply(
+        conn,
+        Reports.get_review(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["review_id"],
+          conn.assigns.backend_id
+        )
+      )
+
+  def accept(conn, p),
+    do:
+      reply(
+        conn,
+        Setup.command(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          "report_save",
+          Map.drop(p, ~w(tenant_id book_id)),
+          List.first(get_req_header(conn, "idempotency-key")),
+          conn.assigns.backend_id
+        )
+      )
+
+  def preview(conn, p),
+    do:
+      reply(
+        conn,
+        Reports.preview(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["report_id"],
+          Map.drop(p, ~w(tenant_id book_id report_id))
+        )
+      )
+
+  defp reply(conn, {:ok, data}),
+    do: conn |> put_resp_header("cache-control", "no-store") |> json(data)
+
+  defp reply(conn, {:error, reason}) do
+    status =
+      case reason do
+        :unauthenticated ->
+          401
+
+        :not_found ->
+          404
+
+        :view_stopped ->
+          503
+
+        :review_expired ->
+          410
+
+        r
+        when r in [
+               :version_conflict,
+               :view_pending,
+               :digest_conflict,
+               :idempotency_conflict,
+               :review_already_accepted
+             ] ->
+          409
+
+        _ ->
+          422
+      end
+
+    conn
+    |> put_status(status)
+    |> put_resp_header("cache-control", "no-store")
+    |> json(%{error: Atom.to_string(reason)})
+  end
+end

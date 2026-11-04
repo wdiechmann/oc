@@ -6,7 +6,7 @@ defmodule Ep.Finance.Setup do
   alias Ep.Events.{CommandReceipt, Outbox}
   alias Ep.Projections.Control
 
-  @actions ~w(vat_rule_create vat_rule_revise catalogue_initialize catalogue_create catalogue_revise steward reopening_authority binding account_create account_revise)
+  @actions ~w(report_save vat_rule_create vat_rule_revise catalogue_initialize catalogue_create catalogue_revise steward reopening_authority binding account_create account_revise)
 
   def get(principal, tid, bid) do
     with {:ok, tid} <- uuid(tid), {:ok, bid} <- uuid(bid) do
@@ -31,6 +31,7 @@ defmodule Ep.Finance.Setup do
           retired_accounts: Enum.filter(data["accounts"] || [], &(&1["retired"] == true)),
           catalogue_entries: data["catalogue_entries"] || [],
           vat_rules: data["vat_rules"] || [],
+          reports: data["reports"] || [],
           catalogues_initialized: data["catalogues_initialized"] || false,
           bindings: data["bindings"],
           stewards: if(admin, do: stewards(bid), else: []),
@@ -70,7 +71,7 @@ defmodule Ep.Finance.Setup do
 
       {:ok,
        data
-       |> Map.drop([:stewards, :candidates, :occasions, :bindings, :retired_accounts])
+       |> Map.drop([:stewards, :candidates, :occasions, :bindings, :retired_accounts, :reports])
        |> Map.merge(%{
          retired: params["retired"] == "1",
          permissions:
@@ -219,6 +220,11 @@ defmodule Ep.Finance.Setup do
                 ]
               )
 
+            if action == "report_save" do
+              review = Repo.get!(Ep.Finance.ChartImport, params["review_id"])
+              Repo.update!(Ecto.Changeset.change(review, accepted_command_id: cid))
+            end
+
             Repo.update!(Ecto.Changeset.change(state, version: event.stream_version))
             Repo.insert!(%Outbox{tenant_id: tid, event_id: event.id})
             Oban.insert!(SetupWorker.new(%{tenant_id: tid}))
@@ -297,6 +303,9 @@ defmodule Ep.Finance.Setup do
     unless admin || steward, do: Repo.rollback(:not_found)
     {book, not is_nil(admin), not is_nil(steward)}
   end
+
+  defp mutate!(tid, bid, "report_save", p, eid, version, actor, app),
+    do: Ep.Finance.Reports.mutate!(tid, bid, p, eid, version, actor, app)
 
   defp mutate!(tid, bid, action, p, eid, version, actor, app)
        when action in ~w(vat_rule_create vat_rule_revise),
@@ -500,6 +509,7 @@ defmodule Ep.Finance.Setup do
       "catalogues_initialized" => Ep.Finance.Catalogues.initialized?(bid),
       "catalogue_entries" => Ep.Finance.Catalogues.snapshot(bid),
       "vat_rules" => Ep.Finance.VatRules.snapshot(bid),
+      "reports" => Ep.Finance.Reports.snapshot(bid),
       "accounts" =>
         Enum.map(
           accounts,
