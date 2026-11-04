@@ -17,7 +17,7 @@ class FinanceSetupController < ApplicationController
     session[:finance_operation] = { "tenant_id"=>params[:tenant_id], "book_id"=>params[:book_id], "type"=>command_type(@action), "key"=>form.fetch("key"), "attrs"=>@attrs.stringify_keys, "action"=>@action }
     result = execute_command(@action, @attrs, form.fetch("key"))
     session.delete(:finance_operation)
-    redirect_to destination(result), notice: "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating.", status: :see_other
+    redirect_to destination(result), notice: accepted_notice(result), status: :see_other
   end
 
   def retry
@@ -52,6 +52,7 @@ class FinanceSetupController < ApplicationController
     reset_session
     protected_feedback("Your sign-in has expired. Sign in again before continuing.", 401)
   end
+  def accepted_notice(result) = "Setup accepted at revision #{result.fetch('stream_version')}. Refresh if the view is still updating."
   def command_type(action) = "FinanceSetup:#{action}"
   def execute_command(action, attrs, key) = ep.configure_finance(params[:tenant_id], params[:book_id], action, attrs, key)
   def destination(_result = nil)
@@ -87,7 +88,9 @@ class FinanceSetupController < ApplicationController
   def completion_url
     op = session[:finance_operation]
     return unless op
-    if op["action"] == "report_save"
+    if op["action"] == "journal_save"
+      completion_tenant_book_journals_path(op["tenant_id"], op["book_id"])
+    elsif op["action"] == "report_save"
       completion_tenant_book_reports_path(op["tenant_id"], op["book_id"])
     elsif op["action"].to_s.start_with?("vat_rule_")
       completion_tenant_book_vat_rules_path(op["tenant_id"], op["book_id"])
@@ -108,7 +111,9 @@ class FinanceSetupController < ApplicationController
   def retry_url
     op = session[:finance_operation]
     return unless op && op["checked"]
-    if op["action"] == "report_save"
+    if op["action"] == "journal_save"
+      retry_tenant_book_journals_path(op["tenant_id"], op["book_id"])
+    elsif op["action"] == "report_save"
       retry_tenant_book_reports_path(op["tenant_id"], op["book_id"])
     elsif op["action"].to_s.start_with?("vat_rule_")
       retry_tenant_book_vat_rules_path(op["tenant_id"], op["book_id"])

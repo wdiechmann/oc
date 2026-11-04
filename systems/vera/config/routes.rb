@@ -20,6 +20,11 @@ Rails.application.routes.draw do
         get :completion
         post :retry
       end
+      resource :journals, only: %i[show update], controller: "journals" do
+        post :review
+        get :completion
+        post :retry
+      end
       resource :reports, only: %i[show update], controller: "reports" do
         post :review
         post :preview

@@ -182,16 +182,33 @@ defmodule Ep.Finance.VatRules do
 
         rule = lock_rule!(tid, bid, entry_id, date)
 
+        case calculate(rule, date!(date), net_minor, assessed_vat_minor) do
+          {:ok, result} -> result
+          {:error, reason} -> Repo.rollback(reason)
+        end
+      end)
+    else
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc "Pure exact arithmetic for an already scoped, selected rule. Selection and financial authority remain the caller's responsibility."
+  def calculate(rule, %Date{} = date, net_minor, assessed_vat_minor \\ nil) do
+    if !is_integer(net_minor) || abs(net_minor) > 9_000_000_000_000 do
+      {:error, :invalid_amount}
+    else
+      try do
         vat =
           if rule.assessment_basis == "import_statement" do
-            unless is_integer(assessed_vat_minor) && abs(assessed_vat_minor) <= 9_000_000_000_000 &&
+            unless is_integer(assessed_vat_minor) &&
+                     abs(assessed_vat_minor) <= 9_000_000_000_000 &&
                      (net_minor == 0 || assessed_vat_minor == 0 ||
                         net_minor < 0 == assessed_vat_minor < 0),
-                   do: Repo.rollback(:assessment_required)
+                   do: throw(:assessment_required)
 
             assessed_vat_minor
           else
-            unless is_nil(assessed_vat_minor), do: Repo.rollback(:invalid_amount)
+            unless is_nil(assessed_vat_minor), do: throw(:invalid_amount)
             round_ratio(net_minor * rule.rate_bps, 10000)
           end
 
@@ -214,24 +231,29 @@ defmodule Ep.Finance.VatRules do
             )
           end)
 
-        %{
+        result = %{
           rounding: "nearest_minor_half_away_from_zero",
           rule_id: rule.id,
           rule_version: rule.version,
           vat_entry_id: rule.vat_entry_id,
-          date: date!(date),
+          date: date,
           direction: rule.direction,
           assessment_basis: rule.assessment_basis,
           rate_bps: rule.rate_bps,
           deductible_bps: rule.deductible_bps,
           amounts: amounts,
           invoice_total_minor:
-            if(rule.direction in ~w(reverse_charge none), do: net_minor, else: net_minor + vat),
+            if(rule.direction in ~w(reverse_charge none),
+              do: net_minor,
+              else: net_minor + vat
+            ),
           reporting: reports
         }
-      end)
-    else
-      _ -> {:error, :not_found}
+
+        {:ok, result}
+      catch
+        reason when reason in [:assessment_required, :invalid_amount] -> {:error, reason}
+      end
     end
   end
 

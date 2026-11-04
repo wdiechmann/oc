@@ -59,6 +59,15 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/journals", JournalController, :index
+    post "/tenants/:tenant_id/finance/books/:book_id/journals/reviews", JournalController, :review
+
+    get "/tenants/:tenant_id/finance/books/:book_id/journals/reviews/:review_id",
+        JournalController,
+        :show_review
+
+    post "/tenants/:tenant_id/finance/books/:book_id/journals/accept", JournalController, :accept
+
     get "/tenants/:tenant_id/finance/books/:book_id/reports", ReportController, :index
     post "/tenants/:tenant_id/finance/books/:book_id/reports/reviews", ReportController, :review
 

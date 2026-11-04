@@ -46,6 +46,10 @@ module Ep
       suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
+    def journals(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals", query: query.compact)
+    def review_journal(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/reviews", body: attrs)
+    def journal_review(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/reviews/#{uuid!(id)}")
+    def accept_journal(tid, bid, attrs, key) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/accept", body: attrs, key: key)
     def reports(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/reports", query: query.compact)
     def review_report(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/reports/reviews", body: attrs)
     def report_review(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/reports/reviews/#{uuid!(id)}")

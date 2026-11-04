@@ -44,6 +44,7 @@ class Components::Chart < Components::Base
           a(href: export_tenant_book_chart_import_path(@tid, @bid, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export accepted chart" }
           a(href: export_tenant_book_chart_import_path(@tid, @bid, q: @query, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export filtered chart" } if @query.present?
           a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false, chart_export: true }) { "CSV template" }
+          a(href: tenant_book_journals_path(@tid, @bid)) { "Journal drafts" } if @data["status"] == "ready" && !@check
           a(href: tenant_book_reports_path(@tid, @bid)) { "Report definitions" } if @data["status"] == "ready" && !@check
           a(href: tenant_book_formula_preview_path(@tid, @bid)) { "Formula preview" } if @data["status"] == "ready" && !@check
           a(href: tenant_book_chart_order_path(@tid, @bid)) { "Reorder / rebalance" } if @data.dig("permissions", "configure") && @data["status"] == "ready" && @data["catalogues_initialized"] && !@check
