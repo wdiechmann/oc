@@ -129,3 +129,9 @@ Verification: 187 EP tests and 83 VERA tests (686 assertions) pass; RuboCop/Zeit
 Journal creation now takes header fields only and opens the line editor immediately. Added paired account lookup, localized decimal entry, exact gross/net VAT previews, stable book-wide posting IDs with rollback/retry/void retention and private PDF/image enclosures. Account VAT inclusion defaults are editable in the chart, survive import/reorder, and can be overridden per posting or restored with Use account default. Existing unspecified defaults are preserved. Work remains a draft for the later authorization/verification/posting workflow.
 
 Verification: 194 EP tests and 87 VERA tests (731 assertions) pass; RuboCop/Zeitwerk and JavaScript syntax checks pass, with zero Brakeman warnings/errors. Playwright checked header-only creation, keyboard slash lookup and blur preservation, comma amount/VAT preview, row save, enclosure staging/binding/download, void retention, numbering continuing in another journal and desktop/mobile grid fit. Number-allocation tests cover rollback, retries, book isolation, header edits and blocked row removal. Migration applied; no real business journals or enclosures were created. VERA code graph refreshed.
+
+## 2026-11-04 — Journal column order and credit amount
+
+Moved posting ID first and VAT inclusion into its own column immediately after debit amount. New entry rows and newly saved rows prepend the list. Added a localized editable credit amount, calculated by EP from debit and VAT configuration, with a manual override/reset. Existing posting numbers and saved credit values remain stable.
+
+Verification: 194 EP tests and 89 VERA tests (743 assertions) pass. Browser checks cover VAT included/excluded credit prefill (125,00 → 125,00 or 156,25), manual override/reset, newest-first saves, ten grid columns and mobile overflow containment. RuboCop, Zeitwerk and JavaScript syntax checks pass; VERA graph refreshed.

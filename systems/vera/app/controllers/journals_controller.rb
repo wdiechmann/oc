@@ -72,7 +72,7 @@ class JournalsController < FinanceSetupController
         @work_header = attrs[:data].stringify_keys
         raise Ep::Client::Error.new(422, code: "invalid_journal") unless @work_header["name"].length <= 120 && @work_header["reference"].length <= 120 && @work_header["posting_date"].length <= 10
       when "journal_row"
-        @work_draft = params.to_unsafe_h.slice("reference", "amount", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "void").merge("id"=>signed["row_id"])
+        @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "void").merge("id"=>signed["row_id"])
         attrs[:row] = work_row_attributes(signed["row_id"])
       when "journal_attachment"
         attrs[:upload_id] = signed.fetch("upload_id")
@@ -124,7 +124,9 @@ class JournalsController < FinanceSetupController
     end
     minor = JournalMoney.parse(params[:amount], separator: decimal_separator)
     raise Ep::Client::Error.new(422, code: "invalid_amount") if minor.nil?
-    { id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
+    credit = params[:credit_override] == "true" ? JournalMoney.parse(params[:credit_amount], separator: decimal_separator) : nil
+    raise Ep::Client::Error.new(422, code: "invalid_amount") if params[:credit_override] == "true" && credit.nil?
+    { credit_amount_minor: credit, id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
   end
   def review_token(review)
     session[:finance_form_nonce] ||= SecureRandom.hex(16)

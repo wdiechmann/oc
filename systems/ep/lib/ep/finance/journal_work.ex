@@ -51,7 +51,7 @@ defmodule Ep.Finance.JournalWork do
 
           result =
             if mode == "row" do
-              id = p["row"]["id"] || List.last(review.plan["data"]["rows"])["id"]
+              id = p["row"]["id"] || hd(review.plan["data"]["rows"])["id"]
               saved_row = Repo.get!(JournalRow, id)
               Map.merge(result, %{"row_id" => id, "posting_id" => saved_row.posting_id})
             else
@@ -237,7 +237,7 @@ defmodule Ep.Finance.JournalWork do
           rows =
             if row["id"],
               do: Enum.map(data["rows"], fn r -> if r["id"] == row["id"], do: row, else: r end),
-              else: data["rows"] ++ [row]
+              else: [row | data["rows"]]
 
           Map.put(data, "rows", rows)
 

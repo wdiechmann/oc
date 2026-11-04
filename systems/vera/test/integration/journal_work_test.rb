@@ -51,9 +51,11 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "input[name=basis_override][value=false]"
     assert_select "select[name=amount_basis]", count: 0
     assert_select "input[name=amount][type=text][inputmode=decimal]"
+    assert_select "input[name=credit_amount][type=text][inputmode=decimal]"
+    assert_select "input[name=credit_override][value=false]"
     t = token("#work-row-new")
     key = Rails.application.message_verifier(:finance_setup).verified(t, purpose: :finance_setup).fetch("key")
-    attrs = { expected_version: 1, contexts: contexts, draft_id: JID, expected_draft_version: 1, row: { id: nil, reference: "Receipt", debit_account_id: PID, credit_account_id: QID, amount_minor: 12550, amount_basis: "gross", basis_override: true, void: false } }
+    attrs = { expected_version: 1, contexts: contexts, draft_id: JID, expected_draft_version: 1, row: { id: nil, reference: "Receipt", debit_account_id: PID, credit_account_id: QID, amount_minor: 12550, credit_amount_minor: nil, amount_basis: "gross", basis_override: true, void: false } }
     command = stub_request(:post, "#{api}/work/row").with(body: attrs, headers: { "Idempotency-Key"=>key }).to_timeout
     patch path, params: row_form(t)
     assert_response :service_unavailable
@@ -64,6 +66,25 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     post "#{path}/retry"
     assert_redirected_to "#{path}?draft_id=#{JID}"
     assert_requested command, times: 2
+  end
+  test "manual credit amount uses locale parsing and remains an explicit override" do
+    view
+    get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+    command = stub_request(:post, "#{api}/work/row").with { |request| JSON.parse(request.body).dig("row", "credit_amount_minor") == 15000 }.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: row_form(token("#work-row-new")).merge(credit_override: "true", credit_amount: "150,00")
+    assert_redirected_to "#{path}?draft_id=#{JID}"
+    assert_requested command
+  end
+  test "posting ID leads the grid and the new row precedes saved rows newest first" do
+    d = data
+    d[:selected][:data][:rows] = [ 1, 2 ].map { |n| { id: "row#{n}", posting_id: n, reference: "Line #{n}", amount_minor: 10000, amount_basis: "gross", credit_total_minor: 10000, void: false } }
+    view(d)
+    get path, params: { draft_id: JID }
+    assert_equal [ "work-row-new", "work-row-row2", "work-row-row1" ], css_select("[data-work-row]").map { |form| form["id"] }
+    columns = css_select("#work-row-row2 > :not(input)")
+    assert_equal "2", columns.first.text
+    assert columns[5].at_css("[data-work-included]")
+    assert columns[7].at_css("[data-work-credit]")
   end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")

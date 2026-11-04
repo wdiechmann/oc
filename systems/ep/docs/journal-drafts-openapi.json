@@ -831,6 +831,13 @@
                       "basis_override": {
                         "type": "boolean",
                         "description": "False uses current selected account VAT inclusion default; true pins the posting gross/net choice."
+                      },
+                      "credit_amount_minor": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 9000000000000,
+                        "description": "Optional credit override; null derives the invoice total from debit amount and VAT choice."
                       }
                     }
                   }
@@ -1168,6 +1175,13 @@
                       "basis_override": {
                         "type": "boolean",
                         "description": "False uses current selected account VAT inclusion default; true pins the posting gross/net choice."
+                      },
+                      "credit_amount_minor": {
+                        "type": "integer",
+                        "nullable": true,
+                        "minimum": 0,
+                        "maximum": 9000000000000,
+                        "description": "Optional credit override; null derives the invoice total from debit amount and VAT choice."
                       }
                     }
                   }

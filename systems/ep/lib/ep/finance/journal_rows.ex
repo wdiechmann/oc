@@ -2,9 +2,13 @@ defmodule Ep.Finance.JournalRows do
   @moduledoc "Paired work rows with transactional, never-reused per-book enclosure numbers."
   import Ecto.Query
   alias Ep.Repo
-  alias Ep.Finance.{Account, JournalAttachment, JournalCounter, JournalRow, VatRule}
+  alias Ep.Finance.{Account, JournalAttachment, JournalCounter, JournalRow, VatRule, VatRules}
   @keys ~w(id reference debit_account_id credit_account_id amount_minor amount_basis void)
-  def input(row), do: Map.take(row, @keys ++ ["basis_override"])
+  def input(row) do
+    row
+    |> Map.take(@keys ++ ["basis_override", "credit_amount_minor"])
+    |> Map.put_new("credit_amount_minor", if(row["posting_id"], do: row["amount_minor"]))
+  end
 
   def expand!(tid, bid, data) do
     rows = data["rows"]
@@ -13,10 +17,14 @@ defmodule Ep.Finance.JournalRows do
     rows =
       Enum.map(rows, fn row ->
         unless is_map(row) &&
-                 Enum.sort(Map.keys(Map.delete(row, "basis_override"))) == Enum.sort(@keys) &&
+                 Enum.sort(Map.keys(Map.drop(row, ["basis_override", "credit_amount_minor"]))) ==
+                   Enum.sort(@keys) &&
                  is_integer(row["amount_minor"]) && row["amount_minor"] in 0..9_000_000_000_000 &&
                  row["amount_basis"] in [nil, "gross", "net"] &&
                  is_boolean(Map.get(row, "basis_override", !is_nil(row["amount_basis"]))) &&
+                 (is_nil(row["credit_amount_minor"]) ||
+                    (is_integer(row["credit_amount_minor"]) &&
+                       row["credit_amount_minor"] in 0..9_000_000_000_000)) &&
                  is_boolean(row["void"]) &&
                  is_binary(row["reference"]) && String.length(row["reference"]) <= 120 &&
                  !Regex.match?(~r/[\p{Cc}\p{Cf}]/u, row["reference"]),
@@ -51,7 +59,23 @@ defmodule Ep.Finance.JournalRows do
         override = Map.get(row, "basis_override", !is_nil(row["amount_basis"]))
         if override && is_nil(row["amount_basis"]), do: Repo.rollback(:invalid_journal)
         basis = if override, do: row["amount_basis"], else: default_basis(accounts)
-        row |> Map.put("basis_override", override) |> Map.put("amount_basis", basis)
+
+        suggested =
+          suggested_credit(
+            accounts,
+            basis,
+            row["amount_minor"],
+            Date.from_iso8601!(data["posting_date"])
+          )
+
+        total = row["credit_amount_minor"] || suggested
+        unless is_nil(total) || total in 0..9_000_000_000_000, do: Repo.rollback(:invalid_amount)
+
+        row
+        |> Map.put("basis_override", override)
+        |> Map.put("amount_basis", basis)
+        |> Map.put("suggested_credit_minor", suggested)
+        |> Map.put("credit_total_minor", total)
       end)
 
     unless length(Enum.uniq_by(rows, & &1["id"])) == length(rows),
@@ -96,7 +120,7 @@ defmodule Ep.Finance.JournalRows do
             "account_id" => a && a.id,
             "reference" => row["reference"],
             "debit_minor" => if(side == "debit", do: row["amount_minor"], else: 0),
-            "credit_minor" => if(side == "credit", do: row["amount_minor"], else: 0),
+            "credit_minor" => if(side == "credit", do: row["credit_total_minor"] || 0, else: 0),
             "vat_entry_id" => vat,
             "net_minor" => if(vat, do: sign * row["amount_minor"]),
             "assessed_vat_minor" => nil
@@ -105,6 +129,40 @@ defmodule Ep.Finance.JournalRows do
       end)
 
     {rows, lines}
+  end
+
+  defp suggested_credit(accounts, basis, amount, date) do
+    account = Enum.find(accounts, & &1.vat_entry_id)
+
+    cond do
+      is_nil(account) ->
+        amount
+
+      is_nil(basis) ->
+        nil
+
+      true ->
+        rule =
+          Repo.one(
+            from r in VatRule,
+              where:
+                r.book_id == ^account.book_id and
+                  r.vat_entry_id == ^account.vat_entry_id and r.active and r.valid_from <= ^date and
+                  (is_nil(r.valid_until) or r.valid_until >= ^date)
+          )
+
+        if rule do
+          result =
+            if basis == "gross",
+              do: VatRules.calculate_gross(rule, date, amount),
+              else: VatRules.calculate(rule, date, amount, nil)
+
+          case result do
+            {:ok, quote} -> quote.invoice_total_minor
+            _ -> nil
+          end
+        end
+    end
   end
 
   defp default_basis(accounts) do

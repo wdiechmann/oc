@@ -40,8 +40,12 @@ class JournalWorkEditor extends HTMLElement {
       form.querySelector("[data-work-basis]").value=event.target.checked ? "gross" : "net";
       event.target.indeterminate=false;
     } else if (event.target.matches("[data-account-search]")) this.accountBasis(form);
+    if (event.target.matches("[data-work-credit]")) {
+      form.querySelector("[data-credit-override]").value="true";
+      form.querySelector("[data-credit-default]").hidden=false;
+    }
     this.paintBasis(form);
-    if (event.target.matches("[data-account-search],[data-work-amount],[data-work-included]")) this.preview(form);
+    if (event.target.matches("[data-account-search],[data-work-amount],[data-work-included],[data-work-credit]")) this.preview(form);
   }
   async search(input) {
     this.closeLookup();
@@ -89,6 +93,11 @@ class JournalWorkEditor extends HTMLElement {
   click(event) {
     const option = event.target.closest("[data-result-index]"); if (option) { event.preventDefault(); return this.choose(Number(option.dataset.resultIndex)); }
     const form = event.target.closest("[data-work-row]"); if (!form) return;
+    if (event.target.closest("[data-credit-default]")) {
+      if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first.");
+      form.querySelector("[data-credit-override]").value="false"; form.querySelector("[data-credit-default]").hidden=true;
+      this.dirty=form; return this.preview(form);
+    }
     if (event.target.closest("[data-basis-default]")) { if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first."); form.querySelector("[data-basis-override]").value="false"; this.accountBasis(form); this.dirty=form; return this.preview(form); }
     if (event.target.closest("[data-work-cancel]")) return this.cancel(form);
     if (event.target.closest("[data-work-edit]")) {
@@ -101,6 +110,7 @@ class JournalWorkEditor extends HTMLElement {
     form.querySelectorAll("input[type=text]").forEach(input => input.readOnly = !on);
     form.querySelector("[data-work-included]").disabled = !on;
     if (on) this.accountBasis(form); else this.paintBasis(form);
+    form.querySelector("[data-credit-default]").hidden=!on || form.querySelector("[data-credit-override]").value !== "true";
     if (form.querySelector("[data-work-edit]")) form.querySelector("[data-work-edit]").hidden = on;
     if (form.querySelector("[data-work-save]")) form.querySelector("[data-work-save]").hidden = !on;
     if (form.querySelector("[data-work-cancel]")) form.querySelector("[data-work-cancel]").hidden = !on;
@@ -120,6 +130,8 @@ class JournalWorkEditor extends HTMLElement {
   preview(form) {
     const sequence = this.previewSequence = (this.previewSequence || 0) + 1;
     clearTimeout(this.vatTimer); this.previewAbort?.abort();
+    const credit = form.querySelector("[data-work-credit]");
+    if (form.querySelector("[data-credit-override]").value !== "true") credit.value="";
     const out = form.querySelector("[data-work-vat]"); out.textContent = "VAT pending account and amount choices";
     if (!form.elements.amount.value) return;
     if ([...form.querySelectorAll("[data-account-search]")].some(input=>input.value && !input.closest("[data-account-lookup]").querySelector("[data-account-id]").value)) return;
@@ -132,6 +144,7 @@ class JournalWorkEditor extends HTMLElement {
         if (!response.ok) throw new Error();
         const data = await response.json();
         if (sequence !== this.previewSequence || !form.isConnected) return;
+        if (form.querySelector("[data-credit-override]").value !== "true") credit.value=data.row?.credit_total_minor == null ? "" : this.money(data.row.credit_total_minor);
         const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)}`);
         out.textContent = (values.length > 1 ? values.map((v,i)=>`${i===0 ? "Debit" : "Credit"} ${v}`) : values).join(" · ") || "No VAT configured";
       } catch (error) { if (error.name !== "AbortError") out.textContent = "VAT unavailable — save will revalidate"; }

@@ -238,8 +238,8 @@ defmodule Ep.Finance.JournalWorkTest do
     assert Repo.get!(JournalCounter, c.bid).last_number == 3
     assert {:ok, :ok} = JournalProjector.rebuild(c.tid)
     {:ok, d} = Journals.get(c.actor, c.tid, c.bid, %{"draft_id" => did})
-    assert hd(d.selected["data"]["rows"])["posting_id"] == 1
-    assert hd(d.selected["data"]["rows"])["void"]
+    assert Enum.map(d.selected["data"]["rows"], & &1["posting_id"]) == [2, 1]
+    assert List.last(d.selected["data"]["rows"])["void"]
   end
 
   test "lookup preserves account numbers and read-only previews allocate no numbers", c do
@@ -311,6 +311,7 @@ defmodule Ep.Finance.JournalWorkTest do
     assert q["amounts"]["vat"] == 2500
     assert q["amounts"]["net"] == 10000
     [saved] = draft.data["rows"]
+    assert saved["credit_total_minor"] == 12500
     assert saved["amount_basis"] == "gross"
     refute saved["basis_override"]
 
@@ -323,6 +324,24 @@ defmodule Ep.Finance.JournalWorkTest do
 
     overridden = Repo.get!(JournalDraft, did)
     assert hd(overridden.validation["lines"])["vat"]["amounts"]["vat"] == 3125
+    assert hd(overridden.data["rows"])["credit_total_minor"] == 15625
+    assert List.last(overridden.data["lines"])["credit_minor"] == 15625
+
+    save(
+      c,
+      did,
+      Map.merge(row(c, saved["id"]), %{
+        "amount_basis" => "net",
+        "basis_override" => true,
+        "credit_amount_minor" => 15000
+      }),
+      "custom-credit"
+    )
+
+    custom = Repo.get!(JournalDraft, did)
+    assert hd(custom.data["rows"])["suggested_credit_minor"] == 15625
+    assert hd(custom.data["rows"])["credit_total_minor"] == 15000
+    assert hd(custom.data["rows"])["posting_id"] == saved["posting_id"]
     assert Repo.get!(Ep.Finance.Account, account.id).vat_basis == "gross"
     {:ok, setup} = Setup.get(c.actor, c.tid, c.bid)
     current = Repo.get!(Ep.Finance.Account, account.id)
@@ -360,6 +379,7 @@ defmodule Ep.Finance.JournalWorkTest do
     unspecified = Repo.get!(JournalDraft, did)
     assert hd(unspecified.validation["lines"])["vat"]["error"] == "vat_basis_required"
     assert hd(unspecified.data["rows"])["posting_id"] == saved["posting_id"]
+    assert is_nil(hd(unspecified.data["rows"])["credit_total_minor"])
     rule = Repo.get!(Ep.Finance.VatRule, hd(r["event_ids"]))
 
     assert {:ok, %{amounts: %{"net" => 2, "vat" => 0}}} =
