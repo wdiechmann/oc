@@ -17,7 +17,8 @@ class Components::Catalogues < Components::Base
         a(href: tenant_book_chart_path(@tid, @bid), class: "text-sm font-medium text-teal-900 hover:underline") { "Chart of accounts" }
       end
       p(class: "mt-4 max-w-3xl text-sm leading-relaxed text-stone-600") { "Manage classification labels for this book. Accounts keep stable references when codes or names change. Inactive entries remain on existing accounts but cannot be selected for new associations." }
-      p(class: "mt-3 text-xs text-stone-500") { "VAT entries are setup labels. Tax rates, calculations and posting rules are configured in later work." }
+      p(class: "mt-3 text-xs text-stone-500") { "Assign effective-dated rates, deductible shares and reporting mappings to VAT entries through VAT rules." }
+      a(href: tenant_book_vat_rules_path(@tid, @bid), class: "mt-3 block text-sm font-medium text-teal-900 underline") { "Effective VAT rules" }
       p(role: "alert", class: "mt-5 rounded-lg bg-amber-50 p-4 text-sm") { @message } if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }

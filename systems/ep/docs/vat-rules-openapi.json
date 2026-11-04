@@ -1,0 +1,455 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EP effective VAT rules",
+    "version": "1.0.0",
+    "description": "Explicit book-local VAT rule configuration and read-only calculation previews. See vat-rules-api.md."
+  },
+  "security": [
+    {
+      "backend": [],
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/vat-rules": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules, accepted command or quote"
+          },
+          "401": {
+            "description": "Session/backend required"
+          },
+          "404": {
+            "description": "Scope/authority/rule unavailable"
+          },
+          "409": {
+            "description": "Revision, overlap, idempotency or initialization conflict"
+          },
+          "422": {
+            "description": "Invalid rule/reference/amount or no effective rule"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules, accepted command or quote"
+          },
+          "401": {
+            "description": "Session/backend required"
+          },
+          "404": {
+            "description": "Scope/authority/rule unavailable"
+          },
+          "409": {
+            "description": "Revision, overlap, idempotency or initialization conflict"
+          },
+          "422": {
+            "description": "Invalid rule/reference/amount or no effective rule"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vat_entry_id",
+                  "valid_from",
+                  "valid_until",
+                  "direction",
+                  "rate_bps",
+                  "deductible_bps",
+                  "expected_version",
+                  "mappings"
+                ],
+                "properties": {
+                  "vat_entry_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "valid_from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "valid_until": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "input",
+                      "output",
+                      "reverse_charge",
+                      "none"
+                    ]
+                  },
+                  "rate_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "deductible_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "mappings": {
+                    "type": "array",
+                    "maxItems": 4,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "box",
+                        "component",
+                        "sign"
+                      ],
+                      "properties": {
+                        "box": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 60
+                        },
+                        "component": {
+                          "type": "string",
+                          "enum": [
+                            "net",
+                            "vat",
+                            "deductible_vat",
+                            "non_deductible_vat"
+                          ]
+                        },
+                        "sign": {
+                          "type": "integer",
+                          "enum": [
+                            -1,
+                            1
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/vat-rules/{rule_id}": {
+      "patch": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules, accepted command or quote"
+          },
+          "401": {
+            "description": "Session/backend required"
+          },
+          "404": {
+            "description": "Scope/authority/rule unavailable"
+          },
+          "409": {
+            "description": "Revision, overlap, idempotency or initialization conflict"
+          },
+          "422": {
+            "description": "Invalid rule/reference/amount or no effective rule"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "vat_entry_id",
+                  "valid_from",
+                  "valid_until",
+                  "direction",
+                  "rate_bps",
+                  "deductible_bps",
+                  "expected_version",
+                  "mappings",
+                  "expected_rule_version",
+                  "active"
+                ],
+                "properties": {
+                  "vat_entry_id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "valid_from": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "valid_until": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "input",
+                      "output",
+                      "reverse_charge",
+                      "none"
+                    ]
+                  },
+                  "rate_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "deductible_bps": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000
+                  },
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "mappings": {
+                    "type": "array",
+                    "maxItems": 4,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "box",
+                        "component",
+                        "sign"
+                      ],
+                      "properties": {
+                        "box": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 60
+                        },
+                        "component": {
+                          "type": "string",
+                          "enum": [
+                            "net",
+                            "vat",
+                            "deductible_vat",
+                            "non_deductible_vat"
+                          ]
+                        },
+                        "sign": {
+                          "type": "integer",
+                          "enum": [
+                            -1,
+                            1
+                          ]
+                        }
+                      }
+                    }
+                  },
+                  "expected_rule_version": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "active": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/vat-rules/quote": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "vat_entry_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "net_minor",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rules, accepted command or quote"
+          },
+          "401": {
+            "description": "Session/backend required"
+          },
+          "404": {
+            "description": "Scope/authority/rule unavailable"
+          },
+          "409": {
+            "description": "Revision, overlap, idempotency or initialization conflict"
+          },
+          "422": {
+            "description": "Invalid rule/reference/amount or no effective rule"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "backend": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

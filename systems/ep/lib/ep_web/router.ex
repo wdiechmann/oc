@@ -59,6 +59,15 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/vat-rules", VatRuleController, :index
+    post "/tenants/:tenant_id/finance/books/:book_id/vat-rules", VatRuleController, :create
+
+    patch "/tenants/:tenant_id/finance/books/:book_id/vat-rules/:rule_id",
+          VatRuleController,
+          :update
+
+    get "/tenants/:tenant_id/finance/books/:book_id/vat-rules/quote", VatRuleController, :quote
+
     get "/tenants/:tenant_id/finance/books/:book_id/chart-order", ChartOrderController, :show
 
     post "/tenants/:tenant_id/finance/books/:book_id/chart-order/reviews",

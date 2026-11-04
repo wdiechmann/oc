@@ -28,7 +28,7 @@ class CataloguesController < FinanceSetupController
     when "code_taken" then "That code is already reserved in this book’s catalogue. Choose another code."
     when "catalogues_initialized" then "This book’s catalogues have already been initialized. Refresh to see them."
     when "catalogue_not_initialized" then "Initialize this book’s catalogues before adding entries."
-    when "invalid_catalogue" then "Check the code and name. Codes use 1–40 letters, digits, dots, underscores or hyphens."
+    when "invalid_catalogue" then "Check the code and name. Codes accept up to 120 characters, including descriptive Danish text."
     else super
     end
   end

@@ -26,3 +26,5 @@ Reviewed chart CSV import/export is specified in [chart-csv-api.md](chart-csv-ap
 Current chart queries exclude retired accounts. `GET /setup/accounts?retired=1` provides paginated read-only retired rows with original identities/positions and configure=false; it uses the same scope, freshness and authority guards. Retirement differs from ordinary inactivity. Single-line edits cannot mutate retired rows; import review can explicitly restore the original ID.
 
 Native reviewed row/block ordering and position rebalancing are specified in [chart-order-api.md](chart-order-api.md) and [chart-order-openapi.json](chart-order-openapi.json). These position-only commands preserve all account fields and formula references.
+
+Effective VAT configuration attached to VAT entry UUIDs is described in [vat-rules-api.md](vat-rules-api.md) and [vat-rules-openapi.json](vat-rules-openapi.json). Labels never infer statutory rules.

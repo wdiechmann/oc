@@ -26,6 +26,11 @@ module Ep
     def workspaces = request(:get, "/me/workspaces")
     def sign_out = request(:delete, "/auth/session")
 
+    def vat_rules(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/vat-rules")
+    def vat_rule_command(tid, bid, action, attrs, key)
+      suffix = action == "revise" ? "/#{uuid!(attrs[:rule_id])}" : ""
+      request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/vat-rules#{suffix}", body: attrs.except(:rule_id), key: key)
+    end
     def catalogues(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/setup/catalogues")
     def catalogue_command(tid, bid, action, attrs, key)
       suffix = case action

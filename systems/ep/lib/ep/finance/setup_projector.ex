@@ -6,7 +6,7 @@ defmodule Ep.Finance.SetupProjector do
   alias Ep.Finance.{Setup, SetupView, SetupWorker}
   alias Ep.Projections.Inbox
   @consumer "finance_setup:v1"
-  @types ~w(CataloguesInitialized CatalogueEntryCreated CatalogueEntryRevised CatalogueEntryDeactivated CatalogueEntryReactivated PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountRetired AccountRestored AccountCreated AccountRevised AccountDeactivated AccountReactivated)
+  @types ~w(VatRuleCreated VatRuleRevised VatRuleDeactivated VatRuleReactivated CataloguesInitialized CatalogueEntryCreated CatalogueEntryRevised CatalogueEntryDeactivated CatalogueEntryReactivated PeriodReopeningAuthorized PeriodReopeningRevoked FinanceStewardAssigned FinanceStewardRevoked OccasionBookBound OccasionBookUnbound AccountRetired AccountRestored AccountCreated AccountRevised AccountDeactivated AccountReactivated)
 
   def deliver(tid) do
     Repo.transaction(fn ->
@@ -136,6 +136,7 @@ defmodule Ep.Finance.SetupProjector do
             row && row.data,
             event
           )
+          |> Ep.Finance.VatRules.project(row && row.data, event)
       }
 
       if row,

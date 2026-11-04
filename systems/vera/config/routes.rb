@@ -8,6 +8,10 @@ Rails.application.routes.draw do
   resources :tenants, only: [] do
     resources :books, only: %i[index new create show update] do
       get :completion, on: :collection
+      resource :vat_rules, only: %i[show update], controller: "vat_rules" do
+        get :completion
+        post :retry
+      end
       resource :catalogues, only: %i[show update], controller: "catalogues" do
         get :completion
         post :retry

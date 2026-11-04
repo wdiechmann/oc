@@ -6,7 +6,7 @@ defmodule Ep.Finance.Setup do
   alias Ep.Events.{CommandReceipt, Outbox}
   alias Ep.Projections.Control
 
-  @actions ~w(catalogue_initialize catalogue_create catalogue_revise steward reopening_authority binding account_create account_revise)
+  @actions ~w(vat_rule_create vat_rule_revise catalogue_initialize catalogue_create catalogue_revise steward reopening_authority binding account_create account_revise)
 
   def get(principal, tid, bid) do
     with {:ok, tid} <- uuid(tid), {:ok, bid} <- uuid(bid) do
@@ -30,6 +30,7 @@ defmodule Ep.Finance.Setup do
           accounts: Enum.reject(data["accounts"] || [], &(&1["retired"] == true)),
           retired_accounts: Enum.filter(data["accounts"] || [], &(&1["retired"] == true)),
           catalogue_entries: data["catalogue_entries"] || [],
+          vat_rules: data["vat_rules"] || [],
           catalogues_initialized: data["catalogues_initialized"] || false,
           bindings: data["bindings"],
           stewards: if(admin, do: stewards(bid), else: []),
@@ -298,6 +299,10 @@ defmodule Ep.Finance.Setup do
   end
 
   defp mutate!(tid, bid, action, p, eid, version, actor, app)
+       when action in ~w(vat_rule_create vat_rule_revise),
+       do: Ep.Finance.VatRules.mutate!(tid, bid, action, p, eid, version, actor, app)
+
+  defp mutate!(tid, bid, action, p, eid, version, actor, app)
        when action in ~w(catalogue_initialize catalogue_create catalogue_revise),
        do: Ep.Finance.Catalogues.mutate!(tid, bid, action, p, eid, version, actor, app)
 
@@ -494,6 +499,7 @@ defmodule Ep.Finance.Setup do
     %{
       "catalogues_initialized" => Ep.Finance.Catalogues.initialized?(bid),
       "catalogue_entries" => Ep.Finance.Catalogues.snapshot(bid),
+      "vat_rules" => Ep.Finance.VatRules.snapshot(bid),
       "accounts" =>
         Enum.map(
           accounts,
