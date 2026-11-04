@@ -31,7 +31,7 @@ class Components::JournalWork < Components::Base
     header = selected.fetch("data")
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
     p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
-    p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; use ↑/↓ and Enter to choose. Enter saves the current row; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
+    p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; press Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys keep normal input navigation. Enter saves the current row; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
     p(class: "mt-2 text-sm text-stone-600") { "Posting IDs are assigned on save from one book sequence and remain on voided rows. Authorization, verification and final posting follow in a later workflow." }
     if @data["validation_stale"]
       p(role: "status", class: "mt-3 rounded-lg bg-amber-50 p-3 text-sm") { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." }

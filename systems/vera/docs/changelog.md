@@ -147,3 +147,9 @@ Verification: 89 Rails tests (751 assertions), RuboCop, Zeitwerk and JavaScript 
 Moved journal row actions and VAT/credit resets behind a vertical-dot More icon, following Carla’s SVG/context-menu and shared-dialog focus conventions. Added reusable VERA SVG and context-menu components, native popover positioning, keyboard navigation, outside dismissal and focus return. Menus retain the existing row form and financial commands; the action column is narrower.
 
 Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright checked state-specific actions, keyboard edit, Enter save, Escape without cancelling edits, cancel, void/restore, outside dismissal and mobile menu bounds. VERA graph refreshed.
+
+## 2026-11-04 — Journal row keyboard navigation
+
+Home/End now focus the first/last row; Page Up/Down move one row, preserving the input column and unsaved entries. Arrow Up/Down retain native input behavior, including account search. Enter/click still chooses lookup results and More-menu keyboard navigation remains independent.
+
+Verification: 89 Rails tests (760 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright verified first/last/previous/next rows, boundary clamping, unsaved text retention, same-column focus, native arrow events and independent menu navigation. VERA graph refreshed.

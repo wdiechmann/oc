@@ -117,15 +117,28 @@ class JournalWorkEditor extends HTMLElement {
   }
   cancel(form) { form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.vatHint(form.querySelector("[data-work-vat]"), form.querySelector("[data-work-vat]").dataset.originalTitle); this.dirty = null; this.editing(form,false); this.status(""); }
   key(event) {
-    if (this.lookupInput === event.target && ["ArrowDown","ArrowUp","Enter","Escape"].includes(event.key)) {
+    if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const row = event.target.closest("[data-work-row]");
+    if (row && !event.target.closest("[role=menu],[role=listbox]") && ["Home","End","PageUp","PageDown"].includes(event.key)) {
+      event.preventDefault(); event.stopPropagation();
+      const rows=[...this.querySelectorAll("[data-work-row]")];
+      const index=rows.indexOf(row);
+      const next=event.key === "Home" ? 0 : event.key === "End" ? rows.length-1 : Math.max(0,Math.min(rows.length-1,index+(event.key === "PageDown" ? 1 : -1)));
+      this.closeLookup();
+      const target=rows[next];
+      const name=event.target.getAttribute("name");
+      const field=name && [...target.querySelectorAll("input:not([type=hidden])")].find(input=>input.name === name && !input.disabled);
+      const control=event.target.matches("[data-menu-trigger]") ? target.querySelector("[data-menu-trigger]:not(:disabled)") : field;
+      (control || target.querySelector("input[name=reference]")).focus({preventScroll:true});
+      target.scrollIntoView({block:"nearest",inline:"nearest"});
+      return;
+    }
+    if (this.lookupInput === event.target && ["Enter","Escape"].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
       if (event.key === "Escape") return this.closeLookup();
-      if (event.key === "Enter") return this.choose(Math.max(0,this.index));
-      this.index = Math.max(0,Math.min(this.results.length-1,this.index+(event.key === "ArrowDown" ? 1 : -1)));
-      const options = this.lookupInput.closest("[data-account-lookup]").querySelectorAll("[role=option]");
-      options.forEach((option,i) => { option.setAttribute("aria-selected",String(i===this.index)); option.classList.toggle("bg-teal-100",i===this.index); });
-      if (options[this.index]) { this.lookupInput.setAttribute("aria-activedescendant",options[this.index].id); options[this.index].scrollIntoView({block: "nearest"}); }
-    } else if (event.key === "Escape" && event.target.form) { event.preventDefault(); this.cancel(event.target.form); }
+      return this.choose(Math.max(0,this.index));
+    }
+    if (event.key === "Escape" && event.target.form) { event.preventDefault(); this.cancel(event.target.form); }
   }
   preview(form) {
     const sequence = this.previewSequence = (this.previewSequence || 0) + 1;
