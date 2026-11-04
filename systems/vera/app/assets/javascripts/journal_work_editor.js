@@ -20,7 +20,7 @@ class JournalWorkEditor extends HTMLElement {
     document.addEventListener("turbo:before-visit", event => { if (this.isConnected && this.dirty) { event.preventDefault(); this.status("Save or cancel your current row before leaving the journal."); } },opts);
     this.querySelectorAll("[data-account-lookup]").forEach(host => { if (host.querySelector("[data-account-id]").value) host.querySelector("[data-account-search]").dataset.chosenLabel = host.querySelector("[data-account-search]").value; });
     this.querySelectorAll("[data-work-row]").forEach(form=>{ form.originalInputs = [...form.querySelectorAll("input")].map(input=>({input,value:input.value,checked:input.checked,dataset:{...input.dataset}})); if (form.dataset.editing === "true") this.accountBasis(form); else this.paintBasis(form); });
-    this.querySelectorAll("[data-work-vat]").forEach(out => out.dataset.original = out.textContent);
+    this.querySelectorAll("[data-work-vat]").forEach(out => { out.dataset.original = out.textContent; out.dataset.originalTitle=out.title; });
     if (!this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("#work-row-new input[name=reference]")?.focus();
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
@@ -115,7 +115,7 @@ class JournalWorkEditor extends HTMLElement {
     if (form.querySelector("[data-work-save]")) form.querySelector("[data-work-save]").hidden = !on;
     if (form.querySelector("[data-work-cancel]")) form.querySelector("[data-work-cancel]").hidden = !on;
   }
-  cancel(form) { form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.dirty = null; this.editing(form,false); this.status(""); }
+  cancel(form) { form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.vatHint(form.querySelector("[data-work-vat]"), form.querySelector("[data-work-vat]").dataset.originalTitle); this.dirty = null; this.editing(form,false); this.status(""); }
   key(event) {
     if (this.lookupInput === event.target && ["ArrowDown","ArrowUp","Enter","Escape"].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
@@ -132,11 +132,11 @@ class JournalWorkEditor extends HTMLElement {
     clearTimeout(this.vatTimer); this.previewAbort?.abort();
     const credit = form.querySelector("[data-work-credit]");
     if (form.querySelector("[data-credit-override]").value !== "true") credit.value="";
-    const out = form.querySelector("[data-work-vat]"); out.textContent = "VAT pending account and amount choices";
+    const out = form.querySelector("[data-work-vat]"); out.textContent = "…"; this.vatHint(out,"VAT pending account and amount choices");
     if (!form.elements.amount.value) return;
     if ([...form.querySelectorAll("[data-account-search]")].some(input=>input.value && !input.closest("[data-account-lookup]").querySelector("[data-account-id]").value)) return;
     this.vatTimer = setTimeout(async () => {
-      this.previewAbort = new AbortController(); out.textContent = "Calculating VAT…";
+      this.previewAbort = new AbortController(); out.textContent = "…"; this.vatHint(out,"Calculating VAT…");
       const body = new FormData(form); body.delete("_method");
       try {
         const response = await fetch(this.dataset.previewUrl,{method: "POST",body,signal: this.previewAbort.signal,headers: {Accept: "application/json","X-CSRF-Token":document.querySelector("meta[name=csrf-token]").content}});
@@ -146,8 +146,10 @@ class JournalWorkEditor extends HTMLElement {
         if (sequence !== this.previewSequence || !form.isConnected) return;
         if (form.querySelector("[data-credit-override]").value !== "true") credit.value=data.row?.credit_total_minor == null ? "" : this.money(data.row.credit_total_minor);
         const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)}`);
-        out.textContent = (values.length > 1 ? values.map((v,i)=>`${i===0 ? "Debit" : "Credit"} ${v}`) : values).join(" · ") || "No VAT configured";
-      } catch (error) { if (error.name !== "AbortError") out.textContent = "VAT unavailable — save will revalidate"; }
+        const quotes=data.validation.lines.filter(l=>l.vat).map(l=>l.vat);
+        out.textContent=quotes.some(q=>q.error) ? "—" : this.money(quotes.reduce((sum,q)=>sum+BigInt(q.amounts.vat),0n));
+        this.vatHint(out,(values.length > 1 ? values.map((v,i)=>`${i===0 ? "Debit" : "Credit"} ${v}`) : values).join(" · ") || "No VAT configured");
+      } catch (error) { if (error.name !== "AbortError") { out.textContent="—"; this.vatHint(out,"VAT unavailable — save will revalidate"); } }
     },200);
   }
   accountBasis(form) {
@@ -162,9 +164,10 @@ class JournalWorkEditor extends HTMLElement {
   paintBasis(form) {
     const basis=form.querySelector("[data-work-basis]").value, override=form.querySelector("[data-basis-override]").value === "true", toggle=form.querySelector("[data-work-included]");
     toggle.checked=basis === "gross"; toggle.indeterminate=!basis;
-    form.querySelector("[data-basis-label]").textContent=override ? "Posting override" : basis ? "Account default" : "Default unspecified";
+    toggle.title=`${override ? "Posting override" : "Account default"}: ${basis === "gross" ? "VAT included in debit amount" : basis === "net" ? "VAT added to debit amount" : "VAT inclusion unspecified"}. Toggle to override this posting; Use account default restores the account setting.`;
     form.querySelector("[data-basis-default]").hidden=form.dataset.editing !== "true" || !override;
   }
+  vatHint(out,text) { out.title=text || ""; out.setAttribute("aria-label",text || ""); }
   money(value) { const n = BigInt(value), abs = n<0n ? -n : n; return `${n<0n ? "−" : ""}${abs/100n}${this.dataset.decimalSeparator}${String(abs%100n).padStart(2,"0")}`; }
   clearProtected() { const area = this.closest("#vera-book-content"), p = document.createElement("p"); p.textContent = "Journal access is no longer available. Sign in or refresh your access."; area.replaceChildren(p); }
 }

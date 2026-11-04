@@ -84,6 +84,12 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     columns = css_select("#work-row-row2 > :not(input)")
     assert_equal "2", columns.first.text
     assert columns[5].at_css("[data-work-included]")
+    assert_equal "", columns[5].text.strip
+    assert_includes columns[5].at_css("[data-work-included]")["title"], "VAT included"
+    assert_equal "0.00", columns[8].text
+    assert_equal "No VAT configured", columns[8]["title"]
+    assert_select "#main-content.w-full"
+    assert_select "#main-content.max-w-6xl", count: 0
     assert columns[7].at_css("[data-work-credit]")
   end
   test "money punctuation is strict and never uses floating point" do

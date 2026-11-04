@@ -41,3 +41,13 @@ textarea.coa-input { min-height: 34px; resize: vertical; }
 
 .order-row[data-selected="true"] { background: #f0fdfa; }
 .order-row { scroll-margin-block: 1rem; }
+
+/* Reference absorbs spare width first; accounts contract before amounts. */
+.journal-grid-container { container-type: inline-size; }
+.journal-grid { min-width: 962px; }
+.journal-columns {
+  --journal-account-width: clamp(140px, calc((100cqw - 1042px) / 2 + 140px), 220px);
+  --journal-amount-width: clamp(90px, calc((100cqw - 962px) / 2 + 90px), 130px);
+  grid-template-columns: 64px minmax(100px, 1fr) 36px var(--journal-account-width) var(--journal-amount-width) 36px var(--journal-account-width) var(--journal-amount-width) 90px 80px;
+}
+.journal-columns > * { min-width: 0; }

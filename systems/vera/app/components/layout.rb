@@ -5,8 +5,8 @@ class Components::Layout < Components::Base
   include Phlex::Rails::Helpers::JavascriptIncludeTag
   include Phlex::Rails::Helpers::FormWith
 
-  def initialize(signed_in: false, notice: nil, alert: nil)
-    @signed_in, @notice, @alert = signed_in, notice, alert
+  def initialize(signed_in: false, notice: nil, alert: nil, full_width: false)
+    @signed_in, @notice, @alert, @full_width = signed_in, notice, alert, full_width
   end
 
   def view_template(&block)
@@ -40,7 +40,7 @@ class Components::Layout < Components::Base
             end
           end
         end
-        main(id: "main-content", class: "mx-auto max-w-6xl px-6 py-12 sm:py-20") do
+        main(id: "main-content", class: "mx-auto #{@full_width ? 'w-full' : 'max-w-6xl'} px-6 py-12 sm:py-20") do
           div(id: "vera-feedback", aria_live: "polite", aria_atomic: "true") do
             p(role: "status", class: "mb-6 rounded-xl border border-teal-200 bg-teal-50 p-4") { @notice } if @notice
             p(role: "alert", class: "mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert

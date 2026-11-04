@@ -1,7 +1,7 @@
 class Views::Journals::Show < Views::Base
   ERRORS = { "account_required"=>"Select a posting account.", "posting_account_required"=>"Headers and calculations cannot be journal accounts.", "account_inactive_or_retired"=>"The account is inactive or retired.", "choose_one_nonzero_side"=>"Enter a nonzero amount on exactly one side.", "inactive_vat_entry"=>"The selected VAT entry is inactive.", "vat_rule_missing"=>"No active VAT rule covers this date.", "invalid_amount"=>"Enter a signed whole-minor-unit VAT base; assessed overrides apply only to import statements.", "assessment_required"=>"Enter the signed VAT amount from the import statement.", "journal_unbalanced"=>"Debit and credit totals differ.", "two_nonzero_lines_required"=>"The journal needs at least two lines and a nonzero total.", "period_not_open"=>"The posting date is not in an open period.", "account_vat_not_selected"=>"This account has a VAT selection; confirm the explicit no-VAT choice or select a rule." }.freeze
   def initialize(data:, work_token: nil, work_draft: nil, work_header: nil, decimal_separator: ".", review: nil, token: nil, editing: nil, extra_line: false, message: nil, check_url: nil, retry_url: nil, **options)
-    super(**options)
+    super(**options, full_width: true)
     @data, @review, @token, @editing, @extra, @message, @check, @retry = data, review, token, editing, extra_line, message, check_url, retry_url
     @work_token, @work_draft, @work_header, @decimal_separator = work_token, work_draft, work_header, decimal_separator
     @tid, @bid = data.fetch("tenant_id"), data.fetch("book_id")

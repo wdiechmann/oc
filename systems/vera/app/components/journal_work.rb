@@ -60,10 +60,10 @@ class Components::JournalWork < Components::Base
     rows = header["rows"] || legacy_rows(header)
     journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do
       p(role: "status", aria_live: "polite", data: { work_status: true }, class: "mb-3 text-sm text-amber-900")
-      div(class: "max-w-full overflow-x-auto rounded-lg border border-stone-200 bg-white") do
-        div(class: "min-w-[1350px]") do
-          div(class: "grid grid-cols-[80px_130px_40px_190px_120px_130px_190px_120px_160px_80px] gap-2 border-b border-stone-200 bg-stone-100 p-3 text-xs font-semibold uppercase text-stone-600") do
-            [ "Posting ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT included", "Credit account", "Credit amount", "VAT", "" ].each { |label| div { label } }
+      div(class: "journal-grid-container max-w-full overflow-x-auto rounded-lg border border-stone-200 bg-white") do
+        div(class: "journal-grid") do
+          div(class: "journal-columns grid gap-2 border-b border-stone-200 bg-stone-100 p-3 text-xs font-semibold uppercase text-stone-600") do
+            [ "Posting ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(title: index == 5 ? "Checked: debit amount includes VAT. Unchecked: VAT is added. Defaults to the selected account; each posting can override it." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
           end
           row_form(selected, { "id"=>nil, "reference"=>"", "amount_minor"=>0, "amount_basis"=>nil, "basis_override"=>false, "void"=>false }) if @editable && rows.length < 100
           rows.sort_by { |row| -(row["posting_id"] || 0) }.each { |row| row_form(selected, row) }
@@ -76,8 +76,9 @@ class Components::JournalWork < Components::Base
     is_draft = @draft && @draft["id"] == row["id"]
     values = is_draft ? row.merge(@draft) : row
     editing = is_draft || row["id"].nil?
+    override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
     label = row["posting_id"] ? row["posting_id"].to_s : row["id"] ? "On next save" : "On save"
-    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "grid grid-cols-[80px_130px_40px_190px_120px_130px_190px_120px_160px_80px] items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, draft: is_draft.to_s, editing: editing.to_s }) do |f|
+    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "journal-columns grid items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, draft: is_draft.to_s, editing: editing.to_s }) do |f|
       f.hidden_field(:form_token, value: @token.call("journal_row", selected["id"], row["id"]))
       f.hidden_field(:draft_id, value: selected["id"])
       f.hidden_field(:row_id, value: row["id"])
@@ -86,7 +87,7 @@ class Components::JournalWork < Components::Base
       fences(f)
       output(class: "py-2 text-sm font-semibold tabular-nums", data: { posting_id: row["posting_id"] }) { label }
       div do
-        f.text_field(:reference, value: values["reference"], maxlength: 120, aria_label: "Line reference #{label}", class: "w-full rounded border border-stone-300 px-2 py-2 text-sm", readonly: !editing)
+        f.text_field(:reference, value: values["reference"], maxlength: 120, aria_label: "Line reference #{label}", class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", readonly: !editing)
         span(class: "mt-1 block text-xs text-stone-500") { "Voided — number retained" } if row["void"]
       end
       div do
@@ -98,28 +99,24 @@ class Components::JournalWork < Components::Base
       end
       lookup(f, values, "debit", editing)
       div do
-        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", readonly: !editing, class: "w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_amount: true })
+        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_amount: true })
       end
       div do
         input(type: "hidden", name: "amount_basis", value: values["amount_basis"], data: { work_basis: true })
-        override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
         input(type: "hidden", name: "basis_override", value: override.to_s, data: { basis_override: true })
-        label(class: "mt-1 flex items-center gap-1 text-xs") do
-          input(type: "checkbox", checked: values["amount_basis"] == "gross", disabled: !editing, aria_label: "VAT included #{label}", data: { work_included: true })
-          plain "VAT included"
-        end
-        span(class: "block text-xs text-stone-500", data: { basis_label: true }) { override ? "Posting override" : "Account default" }
-        button(type: "button", hidden: !editing || !override, data: { basis_default: true }, class: "text-xs text-teal-900 underline") { "Use account default" }
+        input(type: "checkbox", checked: values["amount_basis"] == "gross", disabled: !editing, aria_label: "VAT included #{label}", title: basis_title(values), class: "mt-3 mx-auto block", data: { work_included: true })
       end
       lookup(f, values, "credit", editing)
       div do
         credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
         input(type: "hidden", name: "credit_override", value: credit_override.to_s, data: { credit_override: true })
-        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_credit: true })
+        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { work_credit: true })
         button(type: "button", hidden: !editing || !credit_override, data: { credit_default: true }, class: "text-xs text-teal-900 underline") { "Use calculated amount" }
       end
-      output(class: "break-words py-2 text-xs text-stone-600", data: { work_vat: true }) { vat_text(selected, row) }
+      vat = vat_display(selected, row)
+      output(class: "py-2 text-right text-sm tabular-nums text-stone-600", title: vat[:explanation], aria_label: vat[:explanation], data: { work_vat: true }) { vat[:amount] }
       div(class: "flex flex-wrap gap-2") do
+        button(type: "button", hidden: !editing || !override, data: { basis_default: true }, class: "text-xs text-teal-900 underline") { "Use account default" }
         button(type: "button", hidden: editing, data: { work_edit: true }, class: "text-sm text-teal-900 underline") { "Edit" } if @editable && !row["void"]
         f.submit("Save", class: "rounded bg-teal-950 px-3 py-2 text-sm text-white", hidden: !editing, data: { work_save: true }) if @editable
         button(type: "button", hidden: !editing, data: { work_cancel: true }, class: "text-xs text-teal-900 underline") { "Cancel" } if @editable
@@ -135,9 +132,9 @@ class Components::JournalWork < Components::Base
       a = saved && saved["account"]
     end
     label = @draft && @draft["id"] == row["id"] ? @draft[side+"_label"] : a ? "#{a['number']} · #{a['name']}#{unavailable ? ' · Unavailable' : a['active'] ? '' : ' · Inactive'}" : row[side+"_account_id"] ? "Unavailable account" : ""
-    div(class: "relative", data: { account_lookup: side }) do
+    div(class: "relative min-w-0", data: { account_lookup: side }) do
       input(type: "hidden", name: side+"_account_id", value: row[side+"_account_id"], data: { account_id: true })
-      input(type: "text", name: side+"_label", value: label, readonly: !editing, autocomplete: "off", placeholder: "/ account number or name", role: "combobox", aria: { label: "#{side.capitalize} posting account", autocomplete: "list", expanded: "false" }, class: "w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { account_search: true, account_basis: a && a["vat_basis"], account_vat: a && a["vat_entry_id"] })
+      input(type: "text", name: side+"_label", value: label, readonly: !editing, autocomplete: "off", placeholder: "/ account number or name", role: "combobox", aria: { label: "#{side.capitalize} posting account", autocomplete: "list", expanded: "false" }, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { account_search: true, account_basis: a && a["vat_basis"], account_vat: a && a["vat_entry_id"] })
       div(hidden: true, role: "listbox", popover: "manual", class: "absolute z-20 mt-1 max-h-60 w-72 overflow-y-auto rounded border border-stone-300 bg-white shadow-lg", data: { account_results: true })
     end
   end
@@ -148,12 +145,18 @@ class Components::JournalWork < Components::Base
   def legacy_rows(data)
     data["lines"].map { |l| { "id"=>l["id"], "reference"=>l["reference"], "debit_account_id"=>l["debit_minor"]>0 ? l["account_id"] : nil, "credit_account_id"=>l["credit_minor"]>0 ? l["account_id"] : nil, "amount_minor"=>l["debit_minor"]+l["credit_minor"], "amount_basis"=>"net", "basis_override"=>true, "void"=>false } }
   end
-  def vat_text(selected, row)
-    entries = selected.dig("validation", "lines") || []
-    entries = entries.select { |l| [ row["debit_line_id"], row["credit_line_id"], row["id"] ].compact.include?(l["id"]) }
-    values = entries.filter_map { |l| l["vat"] && (l["vat"]["error"] ? l["vat"]["error"].tr("_", " ") : "#{l['vat']['code']}: #{money(l['vat']['amounts']['vat'])}") }
-    values = values.each_with_index.map { |value, i| "#{i.zero? ? 'Debit' : 'Credit'} #{value}" } if values.length > 1
-    values.empty? ? "No VAT configured" : values.join(" · ")
+  def basis_title(row)
+    override = [ true, "true" ].include?(row["basis_override"])
+    source = override ? "Posting override" : "Account default"
+    basis = { "gross"=>"VAT included in debit amount", "net"=>"VAT added to debit amount" }[row["amount_basis"]] || "VAT inclusion unspecified; select an account default or toggle this posting"
+    "#{source}: #{basis}. Toggle to override this posting; Use account default restores the account setting."
+  end
+  def vat_display(selected, row)
+    entries = Array(selected.dig("validation", "lines")).select { |l| [ row["debit_line_id"], row["credit_line_id"], row["id"] ].compact.include?(l["id"]) }
+    quotes = entries.filter_map { |l| l["vat"] }
+    errors = quotes.filter_map { |q| q["error"]&.tr("_", " ") }
+    explanation = quotes.map { |q| q["error"] ? q["error"].tr("_", " ") : "#{q['code']}: #{money(q['amounts']['vat'])}" }.join(" · ")
+    { amount: errors.any? ? "—" : money(quotes.sum { |q| q.dig("amounts", "vat") || 0 }), explanation: explanation.presence || "No VAT configured" }
   end
   def credit_value(row)
     value = row.key?("credit_total_minor") ? row["credit_total_minor"] : row["credit_amount_minor"] || row["amount_minor"]
