@@ -105,3 +105,9 @@ Verification: 160 EP tests, 66 VERA tests (538 assertions) and 51 TOM regression
 Added 16 explicitly selected Danish VAT drafts with reviewed conditions, source links, versioned accepted provenance and customization tracking. Existing labels can suggest a unique active VAT entry but never accept a rule; dates require review. Imported-goods rules require the customs-assessed VAT amount. Preset data is configuration assistance, not automatic tax filing.
 
 Verification: 162 EP tests and 67 VERA tests (553 assertions); RuboCop and Zeitwerk pass, with zero Brakeman warnings/errors. Playwright checked preset selection, blank dates, matched/unmatched VAT entries, source links, explicit save and desktop/mobile fit against synthetic data. The provenance/assessment migration is applied; existing books receive no automatic rules. The VERA code graph was refreshed.
+
+## 2026-11-04 — Read-only chart formula preview
+
+Added a dedicated formula rehearsal page with explicit test balances, stable-ID reference breakdowns, exact nested arithmetic and clear per-row errors. Shared parsing preserves the accepted grammar; source revision, authority, input and complexity guards live in EP. No configuration or ledger writes and no persistent test balances.
+
+Verification: 172 EP tests and 71 VERA tests (588 assertions) pass; RuboCop/Zeitwerk pass and Brakeman reports zero warnings/errors. Playwright checked pinned renumbered references, inactive account labels, explicit missing-balance errors, signed fractional rounding and desktop/mobile fit with synthetic data. The VERA code graph is refreshed. No migration or real accounting data changes were required.

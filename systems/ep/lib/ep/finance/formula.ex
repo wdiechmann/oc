@@ -5,14 +5,7 @@ defmodule Ep.Finance.Formula do
 
   def references(text, accounts, previous)
       when is_binary(text) and byte_size(text) <= 2000 do
-    tokens =
-      Regex.scan(
-        ~r/\[(?:@[0-9a-fA-F-]{36}|[A-Za-z0-9][A-Za-z0-9._-]{0,39})\]|\d+(?:\.\d+)?|[+*\/()-]|\S/,
-        text
-      )
-      |> List.flatten()
-
-    with {:ok, []} <- expression(tokens),
+    with {:ok, _ast, tokens} <- parse(text),
          {:ok, refs} <- bind(tokens, accounts, previous, text) do
       {:ok, refs}
     else
@@ -81,42 +74,74 @@ defmodule Ep.Finance.Formula do
       else: {:error, :invalid_formula}
   end
 
+  @doc "Parses the accepted arithmetic grammar into data, never executable code."
+  def parse(text) when is_binary(text) and byte_size(text) <= 2000 do
+    tokens =
+      Regex.scan(
+        ~r/\[(?:@[0-9a-fA-F-]{36}|[A-Za-z0-9][A-Za-z0-9._-]{0,39})\]|\d+(?:\.\d+)?|[+*\/()-]|\S/,
+        text
+      )
+      |> List.flatten()
+
+    try do
+      {ast, []} = expression(tokens)
+      {:ok, ast, tokens}
+    rescue
+      MatchError -> {:error, :invalid_formula}
+    catch
+      :invalid_formula -> {:error, :invalid_formula}
+    end
+  end
+
+  def parse(_), do: {:error, :invalid_formula}
+
   defp expression(tokens) do
-    with {:ok, rest} <- term(tokens), do: additions(rest)
+    {left, rest} = term(tokens)
+    additions(left, rest)
   end
 
-  defp additions([op | tail]) when op in ["+", "-"] do
-    with {:ok, rest} <- term(tail), do: additions(rest)
+  defp additions(left, [op | tail]) when op in ["+", "-"] do
+    {right, rest} = term(tail)
+    additions({:binary, op, left, right}, rest)
   end
 
-  defp additions(rest), do: {:ok, rest}
+  defp additions(left, rest), do: {left, rest}
 
   defp term(tokens) do
-    with {:ok, rest} <- factor(tokens), do: products(rest)
+    {left, rest} = factor(tokens)
+    products(left, rest)
   end
 
-  defp products([op | tail]) when op in ["*", "/"] do
-    with {:ok, rest} <- factor(tail), do: products(rest)
+  defp products(left, [op | tail]) when op in ["*", "/"] do
+    {right, rest} = factor(tail)
+    products({:binary, op, left, right}, rest)
   end
 
-  defp products(rest), do: {:ok, rest}
-  defp factor([op | tail]) when op in ["+", "-"], do: factor(tail)
+  defp products(left, rest), do: {left, rest}
+
+  defp factor([op | tail]) when op in ["+", "-"] do
+    {value, rest} = factor(tail)
+    {{:unary, op, value}, rest}
+  end
 
   defp factor(["(" | tail]) do
-    case expression(tail) do
-      {:ok, [")" | rest]} -> {:ok, rest}
-      _ -> :error
+    {value, [")" | rest]} = expression(tail)
+    {value, rest}
+  end
+
+  defp factor(["[" <> _ = token | rest]) do
+    if Regex.match?(~r/^\[(?:@[0-9a-fA-F-]{36}|[A-Za-z0-9][A-Za-z0-9._-]{0,39})\]$/, token) do
+      {{:reference, String.slice(token, 1, String.length(token) - 2)}, rest}
+    else
+      throw(:invalid_formula)
     end
   end
 
   defp factor([token | rest]) do
-    if Regex.match?(
-         ~r/^(?:\d+(?:\.\d+)?|\[(?:@[0-9a-fA-F-]{36}|[A-Za-z0-9][A-Za-z0-9._-]{0,39})\])$/,
-         token
-       ),
-       do: {:ok, rest},
-       else: :error
+    if Regex.match?(~r/^\d+(?:\.\d+)?$/, token),
+      do: {{:number, token}, rest},
+      else: throw(:invalid_formula)
   end
 
-  defp factor(_), do: :error
+  defp factor(_), do: throw(:invalid_formula)
 end

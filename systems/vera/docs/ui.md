@@ -79,3 +79,7 @@ VAT/category catalogues link to Effective VAT rules. Cards show the linked VAT l
 ## Danish VAT preset drafts
 
 Effective VAT rules offer 16 versioned Danish templates, including domestic VAT, qualifying restaurant/hotel deductions, EU/non-EU trade and domestic reverse charge. Selection fills an editable draft with source links and usage conditions; effective dates remain blank. Only a unique active alias match suggests a VAT entry, with UEUV distinct from UEUV2. Importing labels never accepts tax rules. Accepted rules and histories pin the source version and track customized values. Imported-goods assessment requires an explicit customs-statement VAT amount rather than calculating from supplier net. EP owns validation, calculation and provenance; VERA has no local policy database. See ../../ep/docs/danish-vat-presets.md.
+
+## Chart formula preview
+
+The chart links to Formula preview. The page lists current posting rows with labeled signed whole-minor-unit test inputs and current calculation formulas with pinned bindings. Preview formulas shows rounded results plus exact fractions, direct reference breakdowns and expandable underlying posting balances; errors identify the related account where available. Blank inputs remain unknown, inactive rows are marked, and a chart-revision conflict preserves entered balances for comparison with the current chart. Tests use accepted saved formulas; unsaved chart line edits are excluded. The layout wraps long formulas/references on small screens.

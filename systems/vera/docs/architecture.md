@@ -79,3 +79,7 @@ Protected VatRule rows bind to book-local VAT UUIDs and are governed by the exis
 ## Danish VAT preset drafts
 
 Effective VAT rules offer 16 versioned Danish templates, including domestic VAT, qualifying restaurant/hotel deductions, EU/non-EU trade and domestic reverse charge. Selection fills an editable draft with source links and usage conditions; effective dates remain blank. Only a unique active alias match suggests a VAT entry, with UEUV distinct from UEUV2. Importing labels never accepts tax rules. Accepted rules and histories pin the source version and track customized values. Imported-goods assessment requires an explicit customs-statement VAT amount rather than calculating from supplier net. EP owns validation, calculation and provenance; VERA has no local policy database. See ../../ep/docs/danish-vat-presets.md.
+
+## Chart formula preview
+
+FormulaPreview reads a bounded complete ready Setup snapshot under existing current read authorization. Formula validation and preview share a data-only AST parser. The evaluator resolves accepted formula_refs without rebinding numbers, caches exact reduced integer fractions, traces direct dependencies and deduplicated posting inputs, and bounds dependency depth, evaluation steps, precision and amounts. Read-only POST calculations require a matching source revision and current book-local posting UUIDs. VERA transports integers through Ep::Client and renders Phlex; no formula arithmetic or business database exists in VERA. Amounts remain request-local, outside session/URL/log payloads.

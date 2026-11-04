@@ -46,6 +46,8 @@ module Ep
       suffix = action == "create" ? "" : "/#{uuid!(id)}#{action == 'revise' ? '' : "/#{action}"}"
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
+    def formula_preview(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/formula-preview")
+    def calculate_formula_preview(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/formula-preview", body: attrs)
     def chart_order(tid, bid) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-order")
     def preview_chart_order(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/chart-order/reviews", body: attrs)
     def chart_order_review(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/chart-order/reviews/#{uuid!(id)}")

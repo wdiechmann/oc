@@ -1,0 +1,146 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "EP chart formula preview",
+    "version": "1.0.0",
+    "description": "Read-only rehearsal with explicit minor-unit test balances. See formula-preview-api.md."
+  },
+  "security": [
+    {
+      "backend": [],
+      "session": []
+    }
+  ],
+  "paths": {
+    "/api/v1/tenants/{tenant_id}/finance/books/{book_id}/formula-preview": {
+      "get": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current accepted chart or read-only calculation results"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or read authority unavailable"
+          },
+          "409": {
+            "description": "Pending or stale chart revision"
+          },
+          "422": {
+            "description": "Invalid balances or preview limits"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current accepted chart or read-only calculation results"
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "404": {
+            "description": "Current scope or read authority unavailable"
+          },
+          "409": {
+            "description": "Pending or stale chart revision"
+          },
+          "422": {
+            "description": "Invalid balances or preview limits"
+          },
+          "503": {
+            "description": "Setup view stopped"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "expected_version",
+                  "balances"
+                ],
+                "properties": {
+                  "expected_version": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "balances": {
+                    "type": "object",
+                    "maxProperties": 2000,
+                    "description": "Current posting UUIDs only; omitted means unknown.",
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": -9000000000000,
+                      "maximum": 9000000000000
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "backend": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-EP-Backend-Token"
+      },
+      "session": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
