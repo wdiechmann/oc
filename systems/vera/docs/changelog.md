@@ -165,3 +165,9 @@ Verification: 195 EP tests and 89 VERA tests (766 assertions) pass, along with R
 Attachment icons now open a reusable Phlex shared dialog through Turbo Streams. File picker, staged review, binding and original-receipt recovery remain in the modal; binding refreshes enclosure counts and journal fences. Added native focus trapping, Escape/Close and focus return. Enter saves the row and atomically prepends its next numbered line; journal load focuses the first row reference.
 
 Verification: 196 EP tests and 91 VERA tests (793 assertions) pass. Tests cover save/next rollback and replay plus streamed file review, uncertain binding outcome, receipt check and unchanged retry. Playwright checked the complete modal upload/bind flow without navigation, refreshed row versions/counts, Enter-to-next, initial focus, desktop/mobile modal bounds and Escape focus return; no console errors. RuboCop, Zeitwerk and JavaScript syntax checks pass; Brakeman reports zero warnings/errors. VERA graph refreshed.
+
+## 2026-11-04 — Plain two-character account lookup
+
+Removed the slash requirement: two characters trigger a case-insensitive substring search across account number/name and VAT/category code/name. Restored Up/Down result navigation with input focus retained and a return to input navigation beyond either list boundary. Enter selects the highlighted account; Escape closes and arrows reopen the lookup.
+
+Verification: 196 EP tests and 91 VERA tests (793 assertions) pass, with RuboCop, Zeitwerk and JavaScript syntax checks. EP tests cover number/name/VAT substring matching, case folding, minimum length and literal punctuation. Playwright verified no one-character request, plain 53 matching 1530/2530, both arrow boundaries, Escape/reopen and selected stable IDs. VERA graph refreshed.

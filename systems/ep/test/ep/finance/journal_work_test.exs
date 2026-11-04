@@ -328,6 +328,14 @@ defmodule Ep.Finance.JournalWorkTest do
     assert {:ok, %{results: [%{"number" => "0010"}]}} =
              JournalWork.lookup(c.actor, c.tid, c.bid, "0010")
 
+    assert {:ok, %{results: [%{"number" => "0010"}]}} =
+             JournalWork.lookup(c.actor, c.tid, c.bid, "01")
+
+    assert {:ok, %{results: [%{"name" => "Bank"}]}} =
+             JournalWork.lookup(c.actor, c.tid, c.bid, "AN")
+
+    assert {:ok, %{results: []}} = JournalWork.lookup(c.actor, c.tid, c.bid, "1")
+    assert {:ok, %{results: []}} = JournalWork.lookup(c.actor, c.tid, c.bid, ".*")
     p = body(c, did, row(c)) |> Map.delete("expected_version")
     assert {:ok, %{row: %{"posting_id" => nil}}} = Journals.preview_row(c.actor, c.tid, c.bid, p)
     assert Repo.aggregate(JournalRow, :count) == 0
@@ -381,6 +389,10 @@ defmodule Ep.Finance.JournalWorkTest do
       )
 
     {:ok, _} = SetupProjector.deliver(c.tid)
+
+    assert {:ok, %{results: [%{"number" => "0010"}]}} =
+             JournalWork.lookup(c.actor, c.tid, c.bid, "NPUT")
+
     save(c, did, Map.merge(row(c), %{"amount_basis" => nil, "basis_override" => false}), "gross")
     draft = Repo.get!(JournalDraft, did)
     q = hd(draft.validation["lines"])["vat"]

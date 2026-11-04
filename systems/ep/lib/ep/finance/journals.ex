@@ -111,7 +111,14 @@ defmodule Ep.Finance.Journals do
           setup.accounts
           |> Setup.normalize_accounts()
           |> Enum.filter(&(&1["kind"] == "posting"))
-          |> Enum.map(&Map.take(&1, ~w(id number name active vat_entry_id vat_basis))),
+          |> Enum.map(fn account ->
+            account = Ep.Finance.Catalogues.labels(account, setup.catalogue_entries)
+
+            account
+            |> Map.take(
+              ~w(id number name active vat_entry_id vat_basis vat_code category vat_label category_label)
+            )
+          end),
         vat_entries: Enum.filter(setup.catalogue_entries, &(&1["kind"] == "vat" && &1["active"])),
         drafts:
           Enum.map(drafts, fn d ->

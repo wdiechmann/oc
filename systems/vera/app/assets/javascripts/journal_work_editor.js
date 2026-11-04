@@ -49,14 +49,14 @@ class JournalWorkEditor extends HTMLElement {
   }
   async search(input) {
     this.closeLookup();
-    if (!input.value.startsWith("/")) return;
+    if ([...input.value.trim()].length < 2) return;
     this.lookupInput = input;
     this.index = -1;
     clearTimeout(this.timer);
     const raw = input.value;
     this.timer = setTimeout(async () => {
       this.lookupAbort = new AbortController();
-      const url = new URL(this.dataset.lookupUrl,location.origin); url.searchParams.set("q",raw.slice(1));
+      const url = new URL(this.dataset.lookupUrl,location.origin); url.searchParams.set("q",raw.trim());
       try {
         const response = await fetch(url,{signal: this.lookupAbort.signal,headers: {Accept: "application/json"}});
         if ([401,403,404].includes(response.status)) return this.clearProtected();
@@ -71,12 +71,22 @@ class JournalWorkEditor extends HTMLElement {
         host.replaceChildren(); host.hidden = false;
         const rect = input.getBoundingClientRect(); host.style.position="fixed"; host.style.margin="0"; host.style.left=`${Math.min(rect.left,window.innerWidth-292)}px`; host.style.top=`${rect.bottom+4}px`; host.style.bottom="auto"; host.style.right="auto"; host.showPopover?.();
         this.results.forEach((row,i) => {
-          const option = document.createElement("button"); option.type = "button"; option.setAttribute("role","option"); option.setAttribute("aria-selected","false"); option.id = `${host.id}-${i}`; option.dataset.resultIndex = i;
+          const option = document.createElement("button"); option.type = "button"; option.tabIndex=-1; option.setAttribute("role","option"); option.setAttribute("aria-selected","false"); option.id = `${host.id}-${i}`; option.dataset.resultIndex = i;
           option.className = "block w-full border-b border-stone-100 px-3 py-2 text-left text-sm hover:bg-teal-50"; option.textContent = `${row.number} · ${row.name}`; host.append(option);
         });
+        if (this.pendingLookupDirection) {this.navigateLookup(this.pendingLookupDirection);this.pendingLookupDirection=null;}
         if (!this.results.length) { const p = document.createElement("p"); p.className = "p-3 text-sm"; p.textContent = "No matching posting accounts."; host.append(p); }
       } catch (error) { if (error.name !== "AbortError") this.status("Account lookup is unavailable. Your row is unchanged."); }
     },150);
+  }
+  navigateLookup(direction) {
+    if (!this.results.length) {this.pendingLookupDirection=direction;return;}
+    const count=this.results.length;
+    this.index=direction === "ArrowDown" ? (this.index===count-1 ? -1 : this.index+1) : (this.index===-1 ? count-1 : this.index-1);
+    const options=this.lookupInput.closest("[data-account-lookup]").querySelectorAll("[role=option]");
+    options.forEach((option,index)=>{option.setAttribute("aria-selected",String(index===this.index));option.classList.toggle("bg-teal-100",index===this.index);});
+    if (this.index<0) this.lookupInput.removeAttribute("aria-activedescendant");
+    else {this.lookupInput.setAttribute("aria-activedescendant",options[this.index].id);options[this.index].scrollIntoView({block:"nearest"});}
   }
   choose(index) {
     const row = this.results[index], input = this.lookupInput;
@@ -88,7 +98,7 @@ class JournalWorkEditor extends HTMLElement {
   closeLookup() {
     clearTimeout(this.timer); this.lookupAbort?.abort();
     if (this.lookupInput) { this.lookupInput.setAttribute("aria-expanded","false"); this.lookupInput.removeAttribute("aria-activedescendant"); const host=this.lookupInput.closest("[data-account-lookup]").querySelector("[data-account-results]"); host.hidePopover?.(); host.hidden = true; }
-    this.lookupInput = null; this.results = []; this.index = -1;
+    this.lookupInput = null; this.results = []; this.index = -1; this.pendingLookupDirection=null;
   }
   click(event) {
     if (event.target.closest("[data-work-attachment]")) {
@@ -136,6 +146,12 @@ class JournalWorkEditor extends HTMLElement {
       const control=event.target.matches("[data-menu-trigger]") ? target.querySelector("[data-menu-trigger]:not(:disabled)") : field;
       (control || target.querySelector("input[name=reference]")).focus({preventScroll:true});
       target.scrollIntoView({block:"nearest",inline:"nearest"});
+      return;
+    }
+    if (event.target.matches("[data-account-search]") && ["ArrowDown","ArrowUp"].includes(event.key) && !event.target.readOnly && [...event.target.value.trim()].length >= 2) {
+      event.preventDefault();event.stopPropagation();
+      if (this.lookupInput !== event.target) this.search(event.target);
+      this.navigateLookup(event.key);
       return;
     }
     if (this.lookupInput === event.target && ["Enter","Escape"].includes(event.key)) {

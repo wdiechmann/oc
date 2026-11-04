@@ -31,7 +31,7 @@ class Components::JournalWork < Components::Base
     header = selected.fetch("data")
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
     p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
-    p(class: "mt-2 text-sm text-stone-600") { "Type / followed by an account number or name; press Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys keep normal input navigation. Enter saves the current row and creates the next numbered line; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
+    p(class: "mt-2 text-sm text-stone-600") { "Type two or more characters to search anywhere in account numbers, names, VAT or categories; use ↑/↓ and Enter or click a result to choose. Home/End go to the first/last row; Page Up/Down go to the previous/next row. Arrow keys navigate account results while searching and keep normal behavior in other inputs. Enter saves the current row and creates the next numbered line; Escape cancels edits. Amounts use #{@separator} as the decimal point, without thousands separators." }
     p(class: "mt-2 text-sm text-stone-600") { "New lines are created immediately with an ID from the book sequence and can receive attachments before accounts or amounts are entered. IDs remain on voided rows. Authorization, verification and final posting follow in a later workflow." }
     if @data["validation_stale"]
       p(role: "status", class: "mt-3 rounded-lg bg-amber-50 p-3 text-sm") { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." }
@@ -150,7 +150,7 @@ class Components::JournalWork < Components::Base
     label = @draft && @draft["id"] == row["id"] ? @draft[side+"_label"] : a ? "#{a['number']} · #{a['name']}#{unavailable ? ' · Unavailable' : a['active'] ? '' : ' · Inactive'}" : row[side+"_account_id"] ? "Unavailable account" : ""
     div(class: "relative min-w-0", data: { account_lookup: side }) do
       input(type: "hidden", name: side+"_account_id", value: row[side+"_account_id"], data: { account_id: true })
-      input(type: "text", name: side+"_label", value: label, readonly: !editing, autocomplete: "off", placeholder: "/ account number or name", role: "combobox", aria: { label: "#{side.capitalize} posting account", autocomplete: "list", expanded: "false" }, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { account_search: true, account_basis: a && a["vat_basis"], account_vat: a && a["vat_entry_id"] })
+      input(type: "text", name: side+"_label", value: label, readonly: !editing, autocomplete: "off", placeholder: "Account number or name (2+ chars)", role: "combobox", aria: { label: "#{side.capitalize} posting account", autocomplete: "list", expanded: "false" }, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-sm", data: { account_search: true, account_basis: a && a["vat_basis"], account_vat: a && a["vat_entry_id"] })
       div(hidden: true, role: "listbox", popover: "manual", class: "absolute z-20 mt-1 max-h-60 w-72 overflow-y-auto rounded border border-stone-300 bg-white shadow-lg", data: { account_results: true })
     end
   end

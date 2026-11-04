@@ -96,6 +96,8 @@ defmodule Ep.Finance.JournalWork do
   end
 
   def lookup(principal, tid, bid, q) do
+    query = q |> to_string() |> String.trim() |> String.slice(0, 120) |> String.downcase()
+
     with {:ok, data} <- Journals.get(principal, tid, bid) do
       if data.status != "ready",
         do: {:error, :view_pending},
@@ -106,13 +108,17 @@ defmodule Ep.Finance.JournalWork do
              results:
                data.accounts
                |> Enum.filter(fn a ->
-                 a["active"] &&
-                   String.contains?(
-                     String.downcase("#{a["number"]} #{a["name"]}"),
-                     String.downcase(String.slice(to_string(q || ""), 0, 120))
+                 a["active"] && String.length(query) >= 2 &&
+                   Enum.any?(
+                     ~w(number name vat_code category vat_label category_label),
+                     fn field ->
+                       String.contains?(String.downcase(to_string(a[field] || "")), query)
+                     end
                    )
                end)
-               |> Enum.sort_by(&{if(&1["number"] == q, do: 0, else: 1), &1["number"]})
+               |> Enum.sort_by(
+                 &{if(String.downcase(&1["number"] || "") == query, do: 0, else: 1), &1["number"]}
+               )
                |> Enum.take(20)
            }}
     end
