@@ -75,3 +75,7 @@ The current chart toolbar links Reorder / rebalance. Its complete list includes 
 ## Effective VAT rules
 
 VAT/category catalogues link to Effective VAT rules. Cards show the linked VAT label, inclusive dates, treatment, VAT/deductible percentages, reporting contributions, lifecycle and accepted history. Forms require explicit treatment/rates, offer four optional mapping rows (box, component, sign), and keep a rule on its original VAT entry. Dates, overlap/reference errors and newer revisions retain the submitted draft for explicit comparison/reapplication. Source lag, missing stewardship or unknown acceptance suppress edits. Completion/retry links use the VAT-rule route and original command body/key. These forms define configuration; they create no journals or payments.
+
+## Danish VAT preset drafts
+
+Effective VAT rules offer 16 versioned Danish templates, including domestic VAT, qualifying restaurant/hotel deductions, EU/non-EU trade and domestic reverse charge. Selection fills an editable draft with source links and usage conditions; effective dates remain blank. Only a unique active alias match suggests a VAT entry, with UEUV distinct from UEUV2. Importing labels never accepts tax rules. Accepted rules and histories pin the source version and track customized values. Imported-goods assessment requires an explicit customs-statement VAT amount rather than calculating from supplier net. EP owns validation, calculation and provenance; VERA has no local policy database. See ../../ep/docs/danish-vat-presets.md.

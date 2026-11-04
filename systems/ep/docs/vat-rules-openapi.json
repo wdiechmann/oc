@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "EP effective VAT rules",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Explicit book-local VAT rule configuration and read-only calculation previews. See vat-rules-api.md."
   },
   "security": [
@@ -194,6 +194,22 @@
                         }
                       }
                     }
+                  },
+                  "assessment_basis": {
+                    "type": "string",
+                    "enum": [
+                      "net",
+                      "import_statement"
+                    ],
+                    "description": "Import statement requires reverse_charge; omitted on revision preserves existing basis."
+                  },
+                  "preset_id": {
+                    "type": "string",
+                    "description": "Versioned Danish preset ID; supply with preset_version."
+                  },
+                  "preset_version": {
+                    "type": "string",
+                    "description": "Server-resolved version; an empty ID/version pair clears current attribution."
                   }
                 }
               }
@@ -360,6 +376,22 @@
                   },
                   "active": {
                     "type": "boolean"
+                  },
+                  "assessment_basis": {
+                    "type": "string",
+                    "enum": [
+                      "net",
+                      "import_statement"
+                    ],
+                    "description": "Import statement requires reverse_charge; omitted on revision preserves existing basis."
+                  },
+                  "preset_id": {
+                    "type": "string",
+                    "description": "Versioned Danish preset ID; supply with preset_version."
+                  },
+                  "preset_version": {
+                    "type": "string",
+                    "description": "Server-resolved version; an empty ID/version pair clears current attribution."
                   }
                 }
               }
@@ -413,6 +445,17 @@
             "required": true,
             "schema": {
               "type": "integer"
+            }
+          },
+          {
+            "name": "assessed_vat_minor",
+            "in": "query",
+            "required": false,
+            "description": "Required for import_statement; rejected for net-based rules.",
+            "schema": {
+              "type": "integer",
+              "minimum": -9000000000000,
+              "maximum": 9000000000000
             }
           }
         ],

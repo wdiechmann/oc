@@ -7,6 +7,8 @@ defmodule Ep.Finance.VatRule do
     field :vat_entry_id, :binary_id
     field :valid_from, :date
     field :valid_until, :date
+    field :assessment_basis, :string, default: "net"
+    field :preset, :map
     field :direction, :string
     field :rate_bps, :integer
     field :deductible_bps, :integer

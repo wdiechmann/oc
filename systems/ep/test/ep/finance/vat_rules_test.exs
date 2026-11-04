@@ -119,6 +119,10 @@ defmodule Ep.Finance.VatRulesTest do
 
     assert q.reporting == %{"Input VAT" => 625}
     assert q.invoice_total_minor == 12500
+
+    assert {:error, :invalid_amount} =
+             VatRules.quote(c.actor, c.tid, c.bid, c.entry, "2026-12-31", 10000, 2500)
+
     {:ok, q} = VatRules.quote(c.actor, c.tid, c.bid, c.entry, "2027-01-01", 10000)
     assert q.rule_id == hd(second["event_ids"])
     assert q.amounts["vat"] == 2000
@@ -305,5 +309,117 @@ defmodule Ep.Finance.VatRulesTest do
     {:ok, _} = SetupProjector.deliver(c.tid)
     {:ok, data} = VatRules.get(c.actor, c.tid, c.bid)
     assert length(hd(data.vat_rules)["history"]) == 1
+  end
+
+  test "Danish presets remain drafts and pin reviewed provenance", c do
+    alias Ep.Finance.DanishVatPresets
+    presets = DanishVatPresets.all()
+    assert length(presets) == 16
+    assert length(Enum.uniq_by(presets, & &1["id"])) == 16
+    assert {:ok, %{presets: ^presets, vat_rules: []}} = VatRules.get(c.actor, c.tid, c.bid)
+
+    for preset <- presets do
+      assert Enum.all?(preset["sources"], &String.starts_with?(&1, "https://"))
+
+      p =
+        attrs(
+          c,
+          Map.merge(
+            Map.take(preset, ~w(direction rate_bps deductible_bps mappings assessment_basis)),
+            %{"preset_id" => preset["id"], "preset_version" => preset["version"]}
+          )
+        )
+
+      # Validate every template without retaining overlapping rules.
+      assert {:error, :verified} =
+               Repo.transaction(fn ->
+                 assert {:ok, result} = create(c, p, preset["id"])
+                 rule = Repo.get!(VatRule, hd(result["event_ids"]))
+                 assert rule.preset["customized"] == false
+                 assert rule.preset["baseline"]["mappings"] == preset["mappings"]
+                 Repo.rollback(:verified)
+               end)
+    end
+
+    rep = DanishVatPresets.find("REP", "2026-11-04.1")
+    assert rep["deductible_bps"] == 2500
+    assert DanishVatPresets.find("HOTEL", rep["version"])["deductible_bps"] == 10000
+
+    assert DanishVatPresets.suggested_entries(DanishVatPresets.find("UEUV", rep["version"]), [
+             %{"code" => "UEUV2 - Other", "active" => true},
+             %{"code" => "UEUV - EU goods", "active" => true},
+             %{"code" => "UEUV", "active" => false}
+           ]) == [%{"code" => "UEUV - EU goods", "active" => true}]
+
+    assert {:error, :invalid_vat_preset} =
+             create(c, attrs(c, %{"preset_id" => "REP", "preset_version" => "obsolete"}))
+
+    {:ok, r} =
+      create(
+        c,
+        attrs(c, %{"preset_id" => "REP", "preset_version" => rep["version"], "rate_bps" => 2000})
+      )
+
+    id = hd(r["event_ids"])
+    assert Repo.get!(VatRule, id).preset["customized"]
+
+    {:ok, _} =
+      Setup.command(
+        c.actor,
+        c.tid,
+        c.bid,
+        "vat_rule_revise",
+        attrs(c, %{
+          "rule_id" => id,
+          "expected_version" => 3,
+          "expected_rule_version" => 3,
+          "active" => true,
+          "mappings" => rep["mappings"]
+        }),
+        "preserve-origin"
+      )
+
+    assert Repo.get!(VatRule, id).preset["id"] == "REP"
+    assert Repo.get!(VatRule, id).preset["customized"] == false
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, before} = VatRules.get(c.actor, c.tid, c.bid)
+    assert hd(hd(before.vat_rules)["history"])["preset"]["id"] == "REP"
+    assert {:ok, :ok} = SetupProjector.rebuild(c.tid)
+    {:ok, rebuilt} = VatRules.get(c.actor, c.tid, c.bid)
+    assert before.vat_rules == rebuilt.vat_rules
+  end
+
+  test "import statements require an explicit signed assessed VAT amount", c do
+    p = Ep.Finance.DanishVatPresets.find("IVV", "2026-11-04.1")
+
+    {:ok, _} =
+      create(
+        c,
+        attrs(c, Map.take(p, ~w(direction rate_bps deductible_bps mappings assessment_basis)))
+      )
+
+    assert {:error, :assessment_required} =
+             VatRules.quote(c.actor, c.tid, c.bid, c.entry, "2026-06-01", 10000)
+
+    assert {:error, :assessment_required} =
+             VatRules.quote(c.actor, c.tid, c.bid, c.entry, "2026-06-01", 10000, -3275)
+
+    for sign <- [1, -1] do
+      assert {:ok, quote} =
+               VatRules.quote(
+                 c.actor,
+                 c.tid,
+                 c.bid,
+                 c.entry,
+                 "2026-06-01",
+                 sign * 10000,
+                 sign * 3275
+               )
+
+      assert quote.amounts["vat"] == sign * 3275
+      assert quote.amounts["deductible_vat"] == sign * 3275
+      assert quote.invoice_total_minor == sign * 10000
+    end
   end
 end

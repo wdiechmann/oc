@@ -19,7 +19,10 @@ defmodule EpWeb.VatRuleController do
           p["book_id"],
           p["vat_entry_id"],
           p["date"],
-          integer(p["net_minor"])
+          integer(p["net_minor"]),
+          if(Map.has_key?(p, "assessed_vat_minor"),
+            do: integer(p["assessed_vat_minor"]) || :invalid
+          )
         )
       )
 

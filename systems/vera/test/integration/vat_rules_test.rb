@@ -90,8 +90,26 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     t = token
     mappings = [ [ "<"*60, "net" ], [ "&"*60, "vat" ], [ "æ"*60, "deductible_vat" ], [ "🧾"*60, "non_deductible_vat" ] ].map { |box, component| { box: box, component: component, sign: "1" } }
     stub_request(:post, api).to_timeout
-    patch path, params: form(t).merge(mappings: mappings)
+    patch path, params: form(t).merge(mappings: mappings, assessment_basis: "net", preset_id: "UEUV2", preset_version: "2026-11-04.1")
     assert_response :service_unavailable
     assert_select "a[href='#{path}/completion']"
+  end
+  test "Danish preset selection creates only an editable draft with blank dates" do
+    preset = { id: "REP", version: "2026-11-04.1", checked_on: "2026-11-04", title: "Restaurant", aliases: [ "REP" ], direction: "input", rate_bps: 2500, deductible_bps: 2500, assessment_basis: "net", mappings: [ { box: "Købsmoms", component: "deductible_vat", sign: 1 } ], conditions: "Eligible restaurant expenditure only", sources: [ "https://skat.dk/erhverv/moms" ] }
+    view(data.merge(presets: [ preset ], vat_entries: [ { id: VID, code: "REP - Restaurant", name: "Restaurant", active: true } ]))
+    get path, params: { preset_id: "REP", preset_version: preset[:version] }
+    assert_response :success
+    assert_select "#vat_rule_create-new input[name=preset_id][value=REP]"
+    assert_select "#vat_rule_create-new input[name=valid_from][value]", count: 0
+    assert_select "#vat_rule_create-new option[value='#{VID}'][selected]"
+    assert_select "#vat_rule_create-new input[name=deductible][value='25.00']"
+    expected = attrs.merge(rate_bps: 2500, assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])
+    command = stub_request(:post, api).with(body: expected).to_return(status: 200, body: { stream_version: 3 }.to_json)
+    patch path, params: form(token).merge(rate: "25", assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])
+    assert_redirected_to path
+    assert_requested command
+    get path, params: { preset_id: "REP", preset_version: "obsolete" }
+    assert_response :unprocessable_entity
+    assert_includes response.body, "preset version is unavailable"
   end
 end

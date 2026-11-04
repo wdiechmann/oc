@@ -15,3 +15,7 @@
 Regional CSV upload: separator detection and empty-row skipping happen in VERA’s bounded string parser; EP’s review and financial validation remain authoritative.
 
 Reviewed import now accepts descriptive VAT/category values in independent catalogues, including Danish names and long VAT descriptions.
+
+## Danish VAT preset drafts
+
+Effective VAT rules offer 16 versioned Danish templates, including domestic VAT, qualifying restaurant/hotel deductions, EU/non-EU trade and domestic reverse charge. Selection fills an editable draft with source links and usage conditions; effective dates remain blank. Only a unique active alias match suggests a VAT entry, with UEUV distinct from UEUV2. Importing labels never accepts tax rules. Accepted rules and histories pin the source version and track customized values. Imported-goods assessment requires an explicit customs-statement VAT amount rather than calculating from supplier net. EP owns validation, calculation and provenance; VERA has no local policy database. See ../../ep/docs/danish-vat-presets.md.

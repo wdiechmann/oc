@@ -97,6 +97,17 @@ defmodule EpWeb.VatRuleControllerTest do
 
     assert quote["amounts"]["vat"] == 2500
     assert quote["reporting"] == %{"Input" => 2500}
+    assert length(json_response(get(conn, path), 200)["presets"]) == 16
+
+    assert json_response(
+             get(conn, path <> "/quote", %{
+               "vat_entry_id" => entry.id,
+               "date" => "2026-06-01",
+               "net_minor" => "10000",
+               "assessed_vat_minor" => "bad"
+             }),
+             422
+           )["error"] == "invalid_amount"
 
     receipt =
       json_response(

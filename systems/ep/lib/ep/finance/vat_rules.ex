@@ -2,9 +2,9 @@ defmodule Ep.Finance.VatRules do
   @moduledoc "Explicit effective-dated VAT configuration. No inferred statutory rates or ledger execution."
   import Ecto.Query
   alias Ep.{Repo, Events}
-  alias Ep.Finance.{VatRule, CatalogueEntry, Setup}
+  alias Ep.Finance.{VatRule, CatalogueEntry, Setup, DanishVatPresets}
 
-  @fields ~w(id tenant_id book_id vat_entry_id valid_from valid_until direction rate_bps deductible_bps mappings active version actor_identity_id application_id)a
+  @fields ~w(id tenant_id book_id vat_entry_id valid_from valid_until direction rate_bps deductible_bps mappings assessment_basis preset active version actor_identity_id application_id)a
   @events ~w(VatRuleCreated VatRuleRevised VatRuleDeactivated VatRuleReactivated)
   @components ~w(net vat deductible_vat non_deductible_vat)
 
@@ -23,7 +23,8 @@ defmodule Ep.Finance.VatRules do
          :catalogues_initialized,
          :vat_rules
        ])
-       |> Map.put(:vat_entries, Enum.filter(data.catalogue_entries, &(&1["kind"] == "vat")))}
+       |> Map.put(:vat_entries, Enum.filter(data.catalogue_entries, &(&1["kind"] == "vat")))
+       |> Map.put(:presets, DanishVatPresets.all())}
     end
   end
 
@@ -43,7 +44,16 @@ defmodule Ep.Finance.VatRules do
       ~w(vat_entry_id valid_from valid_until direction rate_bps deductible_bps mappings expected_version) ++
         if(revise, do: ~w(rule_id expected_rule_version active), else: [])
 
-    unless Enum.sort(Map.keys(p)) == Enum.sort(required), do: Repo.rollback(:invalid_vat_rule)
+    unless Enum.all?(required, &Map.has_key?(p, &1)) &&
+             Enum.all?(
+               Map.keys(p),
+               &(&1 in (required ++ ~w(assessment_basis preset_id preset_version)))
+             ),
+           do: Repo.rollback(:invalid_vat_rule)
+
+    if Map.has_key?(p, "preset_id") != Map.has_key?(p, "preset_version"),
+      do: Repo.rollback(:invalid_vat_preset)
+
     unless Ep.Finance.Catalogues.initialized?(bid), do: Repo.rollback(:catalogue_not_initialized)
 
     old =
@@ -67,6 +77,11 @@ defmodule Ep.Finance.VatRules do
     from = date!(p["valid_from"])
     until = if p["valid_until"] in [nil, ""], do: nil, else: date!(p["valid_until"])
     active = if revise, do: p["active"], else: true
+    basis = Map.get(p, "assessment_basis", if(old, do: old.assessment_basis, else: "net"))
+
+    unless basis in ~w(net import_statement) &&
+             (basis == "net" || p["direction"] == "reverse_charge"),
+           do: Repo.rollback(:invalid_vat_rule)
 
     unless is_boolean(active) && (is_nil(until) || Date.compare(until, from) != :lt) &&
              p["direction"] in ~w(input output reverse_charge none) && is_integer(p["rate_bps"]) &&
@@ -100,11 +115,23 @@ defmodule Ep.Finance.VatRules do
       rate_bps: p["rate_bps"],
       deductible_bps: p["deductible_bps"],
       mappings: %{"lines" => mappings},
+      assessment_basis: basis,
       active: active,
       version: version,
       actor_identity_id: actor,
       application_id: app
     }
+
+    origin = old && old.preset
+    preset_id = Map.get(p, "preset_id", origin && origin["id"])
+    preset_version = Map.get(p, "preset_version", origin && origin["version"])
+
+    attrs =
+      Map.put(
+        attrs,
+        :preset,
+        DanishVatPresets.provenance(preset_id, preset_version, origin, attrs)
+      )
 
     if old,
       do: Repo.update!(Ecto.Changeset.change(old, attrs)),
@@ -144,7 +171,7 @@ defmodule Ep.Finance.VatRules do
     ) || Repo.rollback(:vat_rule_missing)
   end
 
-  def quote(principal, tid, bid, entry_id, date, net_minor) do
+  def quote(principal, tid, bid, entry_id, date, net_minor, assessed_vat_minor \\ nil) do
     with {:ok, tid} <- Ecto.UUID.cast(tid), {:ok, bid} <- Ecto.UUID.cast(bid) do
       Repo.transaction(fn ->
         Setup.authorize!(principal, tid, bid)
@@ -154,7 +181,20 @@ defmodule Ep.Finance.VatRules do
           do: Repo.rollback(:invalid_amount)
 
         rule = lock_rule!(tid, bid, entry_id, date)
-        vat = round_ratio(net_minor * rule.rate_bps, 10000)
+
+        vat =
+          if rule.assessment_basis == "import_statement" do
+            unless is_integer(assessed_vat_minor) && abs(assessed_vat_minor) <= 9_000_000_000_000 &&
+                     (net_minor == 0 || assessed_vat_minor == 0 ||
+                        net_minor < 0 == assessed_vat_minor < 0),
+                   do: Repo.rollback(:assessment_required)
+
+            assessed_vat_minor
+          else
+            unless is_nil(assessed_vat_minor), do: Repo.rollback(:invalid_amount)
+            round_ratio(net_minor * rule.rate_bps, 10000)
+          end
+
         deductible = round_ratio(vat * rule.deductible_bps, 10000)
 
         amounts = %{
@@ -181,6 +221,7 @@ defmodule Ep.Finance.VatRules do
           vat_entry_id: rule.vat_entry_id,
           date: date!(date),
           direction: rule.direction,
+          assessment_basis: rule.assessment_basis,
           rate_bps: rule.rate_bps,
           deductible_bps: rule.deductible_bps,
           amounts: amounts,
@@ -214,7 +255,7 @@ defmodule Ep.Finance.VatRules do
               [
                 Map.take(
                   rule,
-                  ~w(valid_from valid_until direction rate_bps deductible_bps mappings active version actor_identity_id application_id)
+                  ~w(valid_from valid_until direction rate_bps deductible_bps mappings assessment_basis preset active version actor_identity_id application_id)
                 )
                 |> Map.merge(%{
                   "event_id" => event.id,
