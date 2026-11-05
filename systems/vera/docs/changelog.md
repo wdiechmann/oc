@@ -203,3 +203,5 @@ Non-deductible VAT follows the original business expense/asset by default, foldi
 Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScript syntax checks pass. Domain tests cover 50%/zero deduction, ordinary/reverse-charge follow behavior and explicit overrides. Browser checks verified preset reporting prefill while Advanced stays collapsed, and the exact 1125 → 1012.50 cost + 112.50 VAT split in both the live row and saved balanced preview. VERA graph refreshed; no real business records changed.
 
 2026-11-05: Replaced the separate VAT-rule presentation with VAT code cards containing current, scheduled and earlier settings. Added date inspection, same-code schedule drafts with blank dates, direct chart/catalogue links and clearer preset/settings labels.
+
+2026-11-05: Simplified VAT setup to a one-code-per-row index. Moved all dated settings, history, source references and forms into the shared dialog; kept presets, validation and unknown-outcome recovery within the streamed dialog flow.

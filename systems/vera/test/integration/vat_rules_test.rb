@@ -32,7 +32,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   end
   test "explicit percentages and reporting mappings are sent as exact integer configuration" do
     view
-    get path
+    get path, params: { vat_entry_id: VID }
     assert_response :success
     assert_select "details[data-vat-advanced]:not([open]) select[name='posting_accounts[non_deductible]'] option[value='']", text: "Follow expense/asset account (default)"
     assert_select "details[data-vat-advanced]:not([open]) input[name='mappings[][box]']", count: 4
@@ -46,7 +46,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   test "book VAT posting accounts are explicit configuration in the original command" do
     options=[ { id: RID, number: "6900", name: "Incoming VAT", active: true } ]
     view(data.merge(posting_accounts: options))
-    get path
+    get path, params: { vat_entry_id: VID }
     assert_select "select[name='posting_accounts[input]'] option[value='#{RID}']"
     assert_select "select[name='posting_accounts[output]']"
     command=stub_request(:post, api).with(body: attrs.merge(posting_accounts: { input: RID, output: nil, non_deductible: nil })).to_return(status: 200, body: { stream_version: 3 }.to_json)
@@ -56,7 +56,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   end
   test "overlap conflicts preserve the valid draft and require explicit reapplication" do
     view
-    get path
+    get path, params: { vat_entry_id: VID }
     t = token
     stub_request(:post, api).to_return(status: 409, body: { error: "vat_rule_overlap" }.to_json)
     patch path, params: form(t)
@@ -68,7 +68,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   end
   test "unknown acceptance keeps its original body/key through receipt check and explicit retry" do
     view
-    get path
+    get path, params: { vat_entry_id: VID }
     t = token
     key = Rails.application.message_verifier(:finance_setup).verified(t, purpose: :finance_setup).fetch("key")
     command = stub_request(:post, api).with(body: attrs, headers: { "Idempotency-Key"=>key }).to_timeout
@@ -87,19 +87,19 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   end
   test "read-only/pending states suppress forms and revoked access clears rule data" do
     view(data.merge(permissions: { configure: false }))
-    get path
+    get path, params: { vat_entry_id: VID }
     assert_select "input[name=form_token]", count: 0
     view(data.merge(status: "pending", latest_version: 3))
-    get path
+    get path, params: { vat_entry_id: VID }
     assert_select "input[name=form_token]", count: 0
     stub_request(:get, api).to_return(status: 404, body: { error: "not_found" }.to_json)
-    get path
+    get path, params: { vat_entry_id: VID }
     assert_response :not_found
     assert_not_includes response.body, "Input VAT"
   end
   test "the largest reporting draft retains original-request recovery in the encrypted session" do
     view
-    get path
+    get path, params: { vat_entry_id: VID }
     t = token
     mappings = [ [ "<"*60, "net" ], [ "&"*60, "vat" ], [ "æ"*60, "deductible_vat" ], [ "🧾"*60, "non_deductible_vat" ] ].map { |box, component| { box: box, component: component, sign: "1" } }
     stub_request(:post, api).to_timeout
@@ -132,12 +132,12 @@ class VatRulesTest < ActionDispatch::IntegrationTest
   end
   test "codes group current scheduled and earlier settings by the selected date" do
     view(data.merge(vat_entries: data[:vat_entries] + [ { id: "unconfigured", code: "Other", name: "Other VAT", active: true } ], vat_rules: [ dated_settings("old", "2025-01-01", "2025-12-31"), dated_settings(RID, "2026-01-01", "2026-12-31"), dated_settings("future", "2027-01-01") ]))
-    get path, params: { as_of: "2026-06-01" }
+    get path, params: { as_of: "2026-06-01", vat_entry_id: VID }
     assert_response :success
     assert_select "#vat-code-#{VID} [data-vat-settings='Current settings']", count: 1
     assert_select "#vat-code-#{VID} [data-vat-settings='Scheduled change']", count: 1
     assert_select "#vat-code-#{VID} details [data-vat-settings='Earlier settings']", count: 1
-    assert_select "#vat-code-unconfigured [role=status]", text: /Not configured for 2026-06-01/
+    assert_select "#vat-code-row-unconfigured td", text: "Not configured"
   end
   test "scheduling copies settings into a new draft bound to the same code with blank dates" do
     view(data.merge(vat_rules: [ dated_settings(RID, "2026-01-01") ]))
@@ -158,5 +158,52 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     get path, params: { vat_entry_id: RID }
     assert_response :not_found
     assert_not_requested :post, api
+  end
+  test "index shows one compact row per code and no settings forms or history" do
+    view(data.merge(vat_rules: [ dated_settings(RID, "2026-01-01") ]))
+    get path, params: { as_of: "2026-06-01" }
+    assert_response :success
+    assert_select "tbody tr[data-vat-code-row]", count: 1
+    assert_select "#open-vat-code-#{VID}[data-turbo-stream]"
+    assert_select "tbody td", text: "Configured"
+    assert_select "#vera-book-content input[name=form_token]", count: 0
+    assert_select "[data-vat-settings], #shared-content-dialog", count: 0
+    assert_not_includes response.body, "Revision history"
+  end
+  test "row link streams only the selected code into the shared dialog" do
+    view(data.merge(vat_entries: data[:vat_entries] + [ { id: RID, code: "Other", name: "Other VAT", active: true } ], vat_rules: [ dated_settings(RID, "2026-01-01") ]))
+    get path, params: { vat_entry_id: VID, as_of: "2026-06-01" }, as: :turbo_stream
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] template dialog#shared-content-dialog", count: 1
+    assert_select "#shared-dialog-title", text: "Input · Input VAT"
+    assert_select "#shared-content-dialog [data-vat-code='#{RID}']", count: 0
+    assert_select "#shared-content-dialog [data-vat-settings='Current settings']", count: 1
+    assert_select "#vera-book-content [data-vat-settings]", count: 0
+    assert_select "#shared-content-dialog form[data-turbo-stream]"
+  end
+  test "streamed save refreshes the list and selected dialog while conflicts retain the draft" do
+    view
+    get path, params: { vat_entry_id: VID }
+    t = token
+    stub_request(:post, api).to_return(status: 409, body: { error: "vat_rule_overlap" }.to_json)
+    patch path, params: form(t), as: :turbo_stream
+    assert_response :conflict
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-content-dialog input[name=rate][value='25.50']"
+    t = token
+    stub_request(:post, api).to_return(status: 200, body: { stream_version: 3 }.to_json)
+    view(data.merge(source_version: 3, latest_version: 3, vat_rules: [ dated_settings(RID, "2026-01-01") ]))
+    patch path, params: form(t).merge(as_of: "2026-06-01"), as: :turbo_stream
+    assert_response :success
+    assert_select "turbo-stream[target=vera-book-content] #vat-code-row-#{VID} td", text: "Configured"
+    assert_select "turbo-stream[target=shared-dialog-host] [data-vat-settings='Current settings']"
+    assert_select "#shared-content-dialog [role=alert]", text: /Setup accepted/
+  end
+  test "revoked access clears an open VAT dialog and list" do
+    stub_request(:get, api).to_return(status: 403, body: { error: "forbidden" }.to_json)
+    get path, params: { vat_entry_id: VID }, as: :turbo_stream
+    assert_response :forbidden
+    assert_select "turbo-stream[target=shared-dialog-host] template", text: ""
+    assert_select "turbo-stream[target=vera-book-content]"
+    assert_not_includes response.body, "Input VAT"
   end
 end

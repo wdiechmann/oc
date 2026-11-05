@@ -28,7 +28,7 @@ class VatRulesController < FinanceSetupController
   end
   def show_setup(status: 200, message: nil)
     data = ep.vat_rules(params[:tenant_id], params[:book_id])
-    selected=params[:vat_entry_id].presence
+    selected=params[:vat_entry_id].presence || (@attrs && @attrs[:vat_entry_id])
     if selected && !data.fetch("vat_entries").any? { |entry| entry["id"]==selected }
       raise Ep::Client::Error.new(404, code: "invalid_vat_reference")
     end
@@ -52,8 +52,9 @@ class VatRulesController < FinanceSetupController
         status, message = 422, "That preset version is unavailable. Select a current Danish preset."
       end
     end
-    if !@attrs && params[:copy_from].present?
-      source=data.fetch("vat_rules").find { |rule| rule["id"]==params[:copy_from] && (!selected || rule["vat_entry_id"]==selected) }
+    source_id = params[:change_from].presence || params[:copy_from].presence
+    if !@attrs && source_id
+      source=data.fetch("vat_rules").find { |rule| rule["id"]==source_id && (!selected || rule["vat_entry_id"]==selected) }
       if source
         selected=source.fetch("vat_entry_id")
         @action="vat_rule_create"
@@ -63,10 +64,27 @@ class VatRulesController < FinanceSetupController
         status, message=422, "Choose existing settings from this VAT code to prepare a change."
       end
     end
-    if selected && !@attrs
-      @action="vat_rule_create";@attrs={ vat_entry_id: selected }
+    selected ||= @attrs && @attrs[:vat_entry_id]
+    options = { data: data, token: method(:form_token), draft: @attrs && { action: @action, attrs: @attrs }, selected_entry: selected, as_of: as_of, message: message, check_url: completion_url, retry_url: retry_url }
+    if request.format.turbo_stream? && selected
+      content = Views::VatRules::Detail.new(**options)
+      body = Views::VatRules::Show.new(**options.merge(selected_entry: nil, message: nil), fragment: true) if @refresh_index
+      render Components::SharedDialogStream.new(content: content, body: body), content_type: "text/vnd.turbo-stream.html", status: status
+    else
+      render Views::VatRules::Show.new(**options, signed_in: signed_in?, notice: flash[:notice]), status: status
     end
-    render Views::VatRules::Show.new(data: data, token: method(:form_token), draft: @attrs && { action: @action, attrs: @attrs }, selected_entry: selected, as_of: as_of, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+  end
+  def respond_accepted(result, notice:)
+    return super unless request.format.turbo_stream?
+    params[:vat_entry_id] = @attrs[:vat_entry_id]
+    @attrs = nil
+    @refresh_index = true
+    show_setup(message: notice)
+  end
+  def feedback(message, status:)
+    return super unless request.format.turbo_stream?
+    content = Components::SharedDialogFeedback.new(message: message, check_url: completion_url, retry_url: retry_url)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: status
   end
   def error_message(code)
     case code

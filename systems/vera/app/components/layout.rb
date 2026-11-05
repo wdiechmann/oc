@@ -5,7 +5,8 @@ class Components::Layout < Components::Base
   include Phlex::Rails::Helpers::JavascriptIncludeTag
   include Phlex::Rails::Helpers::FormWith
 
-  def initialize(signed_in: false, notice: nil, alert: nil, full_width: false)
+  def initialize(signed_in: false, notice: nil, alert: nil, full_width: false, dialog: nil)
+    @dialog = dialog
     @signed_in, @notice, @alert, @full_width = signed_in, notice, alert, full_width
   end
 
@@ -48,7 +49,7 @@ class Components::Layout < Components::Base
             p(role: "alert", class: "mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert
           end
           yield
-          div(id: "shared-dialog-host")
+          div(id: "shared-dialog-host") { render Components::SharedContentDialog.new(content: @dialog) if @dialog }
         end
         footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") do
           plain "One financial workspace for every occasion."
