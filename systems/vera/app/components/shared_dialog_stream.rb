@@ -5,7 +5,7 @@ class Components::SharedDialogStream < Components::Base
   end
   def view_template
     if @journal
-      turbo_stream(action: "replace", target: "vera-book-content") { template { render @journal } }
+      turbo_stream(action: "replace", target: "vera-book-content", data: { preserve_journal_draft: true }) { template { render @journal } }
     end
     turbo_stream(action: "update", target: "shared-dialog-host") do
       template { render Components::SharedContentDialog.new(content: @content) }

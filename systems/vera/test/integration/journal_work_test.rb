@@ -147,7 +147,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     post "#{path}/retry", headers: headers
     assert_response :success
     assert_requested binding, times: 2
-    assert_select "turbo-stream[target=vera-book-content] input[name=expected_draft_version][value='2']"
+    assert_select "turbo-stream[target=vera-book-content][data-preserve-journal-draft] input[name=expected_draft_version][value='2']"
     assert_select "turbo-stream[target=shared-dialog-host] input[type=file]"
     assert_not_includes response.body, "<html"
   end

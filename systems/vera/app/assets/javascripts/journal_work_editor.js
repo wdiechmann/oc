@@ -3,6 +3,7 @@ class JournalWorkEditor extends HTMLElement {
     this.abort = new AbortController();
     const opts = { signal: this.abort.signal };
     if (this.dataset.pending === "true") this.refreshTimer = setTimeout(()=>{ if (this.isConnected && !this.dirty) window.Turbo.visit(window.location.href,{action:"replace"}); },1500);
+    document.addEventListener("turbo:before-stream-render",event=>this.preserveAttachmentDraft(event),opts);
     this.addEventListener("input", event => this.input(event), opts);
     this.addEventListener("change", event => this.input(event), opts);
     this.addEventListener("click", event => this.click(event), opts);
@@ -151,7 +152,6 @@ class JournalWorkEditor extends HTMLElement {
   click(event) {
     if (event.target.closest("[data-work-attachment]")) {
       this.closeLookup();
-      if (this.dirty) {event.preventDefault(); return this.status("Save or cancel your row before attaching enclosures.");}
     }
     const option = event.target.closest("[data-result-index]"); if (option) { event.preventDefault(); return this.choose(Number(option.dataset.resultIndex)); }
     const form = event.target.closest("[data-work-row]"); if (!form) return;
@@ -177,6 +177,33 @@ class JournalWorkEditor extends HTMLElement {
     if (form.querySelector("[data-work-edit]")) form.querySelector("[data-work-edit]").hidden = on;
     if (form.querySelector("[data-work-save]")) form.querySelector("[data-work-save]").hidden = !on;
     if (form.querySelector("[data-work-cancel]")) form.querySelector("[data-work-cancel]").hidden = !on;
+  }
+  preserveAttachmentDraft(event) {
+    if (!this.isConnected || !this.dirty || !event.target.hasAttribute("data-preserve-journal-draft") || event.target.getAttribute("target") !== "vera-book-content") return;
+    const render=event.detail.render;
+    event.detail.render=async stream=>{
+      if (!this.isConnected || !this.dirty) return render(stream);
+      const incoming=stream.templateContent.querySelector("journal-work-editor");
+      if (!incoming || incoming.dataset.pending === "true" || ![...incoming.querySelectorAll("[data-work-row]")].some(row=>row.id===this.dirty.id)) {
+        this.status("Attachment accepted. Your edits are retained; saving will check the latest journal version.");return;
+      }
+      const names=new Set(["reference","amount","credit_amount","debit_account_id","credit_account_id","debit_label","credit_label","amount_basis","basis_override","credit_override","void"]);
+      const fields=[...this.dirty.querySelectorAll("input")].filter(input=>names.has(input.name)).map(input=>({name:input.name,value:input.value,checked:input.checked,dataset:{...input.dataset}}));
+      const originals=this.dirty.originalInputs.filter(({input})=>names.has(input.name) && !input.matches("[data-account-search]")).map(({input,value})=>({name:input.name,value}));
+      const fences=[...this.dirty.querySelectorAll("input")].filter(input=>["expected_version","expected_draft_version"].includes(input.name) || input.name.startsWith("contexts[")).map(input=>({name:input.name,value:input.value}));
+      const id=this.dirty.id;
+      await render(stream);
+      const form=document.getElementById(id),editor=form?.closest("journal-work-editor");
+      if (!editor) return;
+      const inputs=[...form.querySelectorAll("input")],find=name=>inputs.find(input=>input.name===name);
+      const changed=originals.some(field=>find(field.name)?.value !== field.value) || fences.filter(field=>field.name.startsWith("contexts[")).some(field=>find(field.name)?.value !== field.value);
+      fields.forEach(field=>{const input=find(field.name);if(input){input.value=field.value;input.checked=field.checked;Object.assign(input.dataset,field.dataset);}});
+      if(changed) fences.forEach(field=>{const input=find(field.name);if(input)input.value=field.value;});
+      editor.querySelectorAll("[data-work-row]").forEach(row=>editor.editing(row,false));
+      editor.editing(form,true);editor.dirty=form;
+      if(changed) editor.status("The saved row or accounting context changed while attaching. Your edits are retained; compare with the saved row before saving.");
+      else editor.preview(form);
+    };
   }
   cancel(form) { form.accountSubmissionVersion=(form.accountSubmissionVersion || 0)+1; form.accountSubmissionPending=false; form.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.vatHint(form.querySelector("[data-work-vat]"), form.querySelector("[data-work-vat]").dataset.originalTitle); this.dirty = null; this.editing(form,false); this.status(""); }
   key(event) {

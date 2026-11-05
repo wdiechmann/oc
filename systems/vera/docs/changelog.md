@@ -183,3 +183,9 @@ Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop, Zei
 Space opens the enclosure dialog. Typed exact account numbers resolve when leaving the field, preserving focus and updating the stable selection plus VAT defaults; fast row submission waits for resolution. Short exact numbers resolve without one-character fuzzy search. Escape returns to the line reference from fields, lookup, menu or dialog and preserves edits. Explicit Cancel still discards and aborts pending work.
 
 Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop/Zeitwerk and JavaScript syntax checks pass. Playwright checked Space opening, dialog/menu/field/lookup Escape focus, exact blur selection, unmatched partial values, and submission during delayed resolution. VERA graph refreshed.
+
+## 2026-11-05 — Attach without saving or cancelling row edits
+
+Removed the dirty-row barrier on attachment icons. Space/click now opens the existing dialog while edits remain local. Attachment refreshes preserve reference, accounts, amounts and VAT/credit overrides, updating enclosure counts and fresh version fences. Concurrent saved-row/context changes retain conflict protection, and pending projections retain the local row.
+
+Verification: 91 VERA tests (796 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright attached a PDF with unsaved fields/overrides, then saved the preserved row successfully. Additional browser checks covered pending projections and concurrent row changes retaining local fields and older conflict fences. VERA graph refreshed.
