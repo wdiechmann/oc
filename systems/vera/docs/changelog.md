@@ -177,3 +177,9 @@ Verification: 196 EP tests and 91 VERA tests (793 assertions) pass, with RuboCop
 Corrected automatic credit from invoice total to net: 1,125 including configured 25% VAT suggests credit 900 and VAT 225. Negative entries are supported with exact localized parsing and reversed draft sides; −1,125 gives −900/−225 and an outgoing VAT indication. Manual overrides and rule provenance remain intact.
 
 Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop, Zeitwerk and JavaScript syntax checks pass. EP tests verify both exact 1125/900/225 signs, side reversal, stable IDs and overrides. Browser checks verify positive/negative credit and VAT values with incoming/outgoing hover details. VERA graph refreshed.
+
+## 2026-11-05 — Attachment Space, exact account resolution and Escape focus
+
+Space opens the enclosure dialog. Typed exact account numbers resolve when leaving the field, preserving focus and updating the stable selection plus VAT defaults; fast row submission waits for resolution. Short exact numbers resolve without one-character fuzzy search. Escape returns to the line reference from fields, lookup, menu or dialog and preserves edits. Explicit Cancel still discards and aborts pending work.
+
+Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop/Zeitwerk and JavaScript syntax checks pass. Playwright checked Space opening, dialog/menu/field/lookup Escape focus, exact blur selection, unmatched partial values, and submission during delayed resolution. VERA graph refreshed.

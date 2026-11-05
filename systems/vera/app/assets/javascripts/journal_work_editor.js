@@ -6,11 +6,31 @@ class JournalWorkEditor extends HTMLElement {
     this.addEventListener("input", event => this.input(event), opts);
     this.addEventListener("change", event => this.input(event), opts);
     this.addEventListener("click", event => this.click(event), opts);
-    this.addEventListener("focusout",event=>{ if (event.target.matches("[data-account-search]")) this.closeLookup(); },opts);
+    this.addEventListener("focusout",event=>{
+      if (!event.target.matches("[data-account-search]")) return;
+      this.closeLookup();
+      if (event.target.skipAccountResolve) {event.target.skipAccountResolve=false;return;}
+      this.resolveAccount(event.target);
+    },opts);
+    this.addEventListener("context-menu:escape",event=>event.target.closest("[data-work-row]")?.querySelector("input[name=reference]")?.focus(),opts);
     this.addEventListener("keydown", event => this.key(event), opts);
     this.addEventListener("pointerdown", event => { if (event.target.closest("[role=option]")) event.preventDefault(); }, opts);
     this.addEventListener("submit", event => {
       const form = event.target;
+      if (form.accountSubmissionPending) {event.preventDefault();return;}
+      const unresolved=[...form.querySelectorAll("[data-account-search]")].filter(input=>input.value.trim() && !input.closest("[data-account-lookup]").querySelector("[data-account-id]").value);
+      if (unresolved.length && !form.accountResolutionChecked) {
+        event.preventDefault();form.accountSubmissionPending=true;const submitter=event.submitter;
+        const version=form.accountSubmissionVersion=(form.accountSubmissionVersion || 0)+1;
+        Promise.all(unresolved.map(input=>this.resolveAccount(input))).then(()=>{
+          if (form.accountSubmissionVersion !== version) return;
+          form.accountSubmissionPending=false;
+          if (!form.isConnected) return;
+          form.accountResolutionChecked=true;
+          try {form.requestSubmit(submitter);} finally {form.accountResolutionChecked=false;}
+        });
+        return;
+      }
       if (this.dirty && this.dirty !== form) { event.preventDefault(); return this.status("Save or cancel your current row first."); }
       for (const host of form.querySelectorAll("[data-account-lookup]")) {
         if (host.querySelector("[data-account-search]").value && !host.querySelector("[data-account-id]").value) { event.preventDefault(); return this.status("Choose an account from the lookup results."); }
@@ -24,12 +44,13 @@ class JournalWorkEditor extends HTMLElement {
     if (!document.querySelector("dialog[open]") && !this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("[data-work-row] input[name=reference]")?.focus();
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
-  disconnectedCallback() { clearTimeout(this.refreshTimer); this.abort.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
+  disconnectedCallback() { this.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); clearTimeout(this.refreshTimer); this.abort.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
   status(text) { this.querySelector("[data-work-status]").textContent = text; }
   input(event) {
     const form = event.target.closest("[data-work-row]");
     if (!form) return;
     this.dirty = form;
+    if (event.target.matches("[data-account-search]")) event.target.accountResolution?.abort.abort();
     if (event.target.matches("[data-account-search]") && event.target.value !== event.target.dataset.chosenLabel) {
       const host = event.target.closest("[data-account-lookup]");
       host.querySelector("[data-account-id]").value = ""; event.target.dataset.accountBasis=""; event.target.dataset.accountVat="";
@@ -91,10 +112,37 @@ class JournalWorkEditor extends HTMLElement {
   choose(index) {
     const row = this.results[index], input = this.lookupInput;
     if (!row || !input) return;
+    this.applyAccount(input,row); this.closeLookup();
+  }
+  applyAccount(input,row) {
     input.value = `${row.number} · ${row.name}`; input.dataset.chosenLabel = input.value; input.dataset.accountBasis=row.vat_basis || ""; input.dataset.accountVat=row.vat_entry_id || "";
     input.closest("[data-account-lookup]").querySelector("[data-account-id]").value = row.id;
-    const form = input.form; this.closeLookup(); this.dirty = form; this.accountBasis(form); this.preview(form);
+    const form=input.form;this.dirty=form;this.accountBasis(form);this.preview(form);
   }
+  resolveAccount(input) {
+    const raw=input.value, query=raw.trim();
+    if (!input.isConnected || input.readOnly || !query || input.closest("[data-account-lookup]").querySelector("[data-account-id]").value) return Promise.resolve();
+    if (input.accountResolution?.raw === raw && !input.accountResolution.abort.signal.aborted) return input.accountResolution.promise;
+    input.accountResolution?.abort.abort();
+    const abort=new AbortController();
+    const promise=(async()=>{
+      try {
+        const url=new URL(this.dataset.lookupUrl,location.origin);url.searchParams.set("q",query);
+        const response=await fetch(url,{signal:abort.signal,headers:{Accept:"application/json"}});
+        if ([401,403,404].includes(response.status)) return this.clearProtected();
+        if (!response.ok) throw new Error();
+        const data=await response.json();
+        if (abort.signal.aborted || !input.isConnected || input.value !== raw) return;
+        if (String(data.source_version) !== this.dataset.setupVersion) return this.status("The account list changed. Refresh before choosing an account.");
+        const exact=data.results.filter(account=>String(account.number).toLowerCase() === query.toLowerCase());
+        if (exact.length === 1) this.applyAccount(input,exact[0]);
+        else this.status("Choose an account from the lookup results; the typed account number was not an exact match.");
+      } catch(error) {if (error.name !== "AbortError") this.status("Account lookup is unavailable. Your row is unchanged.");}
+      finally {if (input.accountResolution?.abort === abort) input.accountResolution=null;}
+    })();
+    input.accountResolution={raw,abort,promise};return promise;
+  }
+
   closeLookup() {
     clearTimeout(this.timer); this.lookupAbort?.abort();
     if (this.lookupInput) { this.lookupInput.setAttribute("aria-expanded","false"); this.lookupInput.removeAttribute("aria-activedescendant"); const host=this.lookupInput.closest("[data-account-lookup]").querySelector("[data-account-results]"); host.hidePopover?.(); host.hidden = true; }
@@ -130,10 +178,18 @@ class JournalWorkEditor extends HTMLElement {
     if (form.querySelector("[data-work-save]")) form.querySelector("[data-work-save]").hidden = !on;
     if (form.querySelector("[data-work-cancel]")) form.querySelector("[data-work-cancel]").hidden = !on;
   }
-  cancel(form) { form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.vatHint(form.querySelector("[data-work-vat]"), form.querySelector("[data-work-vat]").dataset.originalTitle); this.dirty = null; this.editing(form,false); this.status(""); }
+  cancel(form) { form.accountSubmissionVersion=(form.accountSubmissionVersion || 0)+1; form.accountSubmissionPending=false; form.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); form.reset(); form.originalInputs.forEach(({input,value,checked,dataset})=>{input.value=value; input.checked=checked; Object.assign(input.dataset,dataset);}); this.paintBasis(form); form.querySelectorAll("[data-account-search]").forEach(input => input.dataset.chosenLabel = input.value); this.closeLookup(); this.previewAbort?.abort(); clearTimeout(this.vatTimer); form.querySelector("[data-work-vat]").textContent = form.querySelector("[data-work-vat]").dataset.original; this.vatHint(form.querySelector("[data-work-vat]"), form.querySelector("[data-work-vat]").dataset.originalTitle); this.dirty = null; this.editing(form,false); this.status(""); }
   key(event) {
     if (event.defaultPrevented || event.isComposing || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const row = event.target.closest("[data-work-row]");
+    if (event.key === " " && event.target.matches("[data-work-attachment]")) {
+      event.preventDefault();event.stopPropagation();if (!event.repeat)event.target.click();return;
+    }
+    if (event.key === "Escape" && row) {
+      event.preventDefault();event.stopPropagation();
+      if (event.target.matches("[data-account-search]")) {event.target.accountResolution?.abort.abort();event.target.skipAccountResolve=true;}
+      this.closeLookup();row.querySelector("input[name=reference]").focus();return;
+    }
     if (row && !event.target.closest("[role=menu],[role=listbox]") && ["Home","End","PageUp","PageDown"].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
       const rows=[...this.querySelectorAll("[data-work-row]")];
@@ -154,9 +210,8 @@ class JournalWorkEditor extends HTMLElement {
       this.navigateLookup(event.key);
       return;
     }
-    if (this.lookupInput === event.target && ["Enter","Escape"].includes(event.key)) {
+    if (this.lookupInput === event.target && event.key === "Enter") {
       event.preventDefault(); event.stopPropagation();
-      if (event.key === "Escape") return this.closeLookup();
       return this.choose(Math.max(0,this.index));
     }
     if (event.key === "Enter" && row && event.target.matches("input[type=text],[data-work-included]")) {
@@ -167,7 +222,7 @@ class JournalWorkEditor extends HTMLElement {
       row.requestSubmit(row.querySelector("[data-work-save]"));
       return;
     }
-    if (event.key === "Escape" && event.target.form) { event.preventDefault(); this.cancel(event.target.form); }
+
   }
   preview(form) {
     const sequence = this.previewSequence = (this.previewSequence || 0) + 1;

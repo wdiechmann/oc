@@ -37,7 +37,7 @@ class ContextMenu extends HTMLElement {
       event.preventDefault();event.stopPropagation();return this.open(event.key==='ArrowUp');
     }
     if(!this.menu.matches(':popover-open'))return;
-    if(event.key==='Escape') {event.preventDefault();event.stopPropagation();return this.close(true);}
+    if(event.key==='Escape') {event.preventDefault();event.stopPropagation();this.close(true);this.dispatchEvent(new CustomEvent("context-menu:escape",{bubbles:true}));return;}
     if(event.key==='Tab') {this.close(true);return;}
     if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)) {
       event.preventDefault();event.stopPropagation();const items=this.items(),index=items.indexOf(document.activeElement);

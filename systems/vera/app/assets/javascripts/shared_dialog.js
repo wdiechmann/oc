@@ -14,7 +14,8 @@ class SharedDialog extends HTMLElement {
   close() {
     this.dialog.close();this.remove();dialogOrigins.delete(this.dialog.id);
     const target=(this.origin?.id && document.getElementById(this.origin.id)) || (this.origin?.isConnected && this.origin);
-    target?.focus({preventScroll:true});
+    const reference=target?.closest("[data-work-row]")?.querySelector("input[name=reference]");
+    (reference || target)?.focus({preventScroll:true});
   }
 }
 customElements.define('shared-dialog',SharedDialog);

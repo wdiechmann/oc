@@ -340,6 +340,30 @@ defmodule Ep.Finance.JournalWorkTest do
     assert {:ok, %{row: %{"posting_id" => nil}}} = Journals.preview_row(c.actor, c.tid, c.bid, p)
     assert Repo.aggregate(JournalRow, :count) == 0
     assert Repo.get!(JournalCounter, c.bid).last_number == 0
+    {:ok, setup} = Setup.get(c.actor, c.tid, c.bid)
+
+    {:ok, _} =
+      Setup.command(
+        c.actor,
+        c.tid,
+        c.bid,
+        "account_create",
+        %{
+          "expected_version" => setup.latest_version,
+          "kind" => "posting",
+          "number" => "1",
+          "name" => "Short account",
+          "position" => 40
+        },
+        "short-account"
+      )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+
+    assert {:ok, %{results: [%{"number" => "1"}]}} =
+             JournalWork.lookup(c.actor, c.tid, c.bid, "1")
+
+    assert {:ok, %{results: []}} = JournalWork.lookup(c.actor, c.tid, c.bid, "0")
   end
 
   test "account-driven VAT included in amount uses exact gross rounding", c do

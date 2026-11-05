@@ -108,7 +108,8 @@ defmodule Ep.Finance.JournalWork do
              results:
                data.accounts
                |> Enum.filter(fn a ->
-                 a["active"] && String.length(query) >= 2 &&
+                 a["active"] &&
+                   (String.length(query) >= 2 || String.downcase(a["number"] || "") == query) &&
                    Enum.any?(
                      ~w(number name vat_code category vat_label category_label),
                      fn field ->
