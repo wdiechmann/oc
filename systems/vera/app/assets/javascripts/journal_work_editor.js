@@ -269,9 +269,9 @@ class JournalWorkEditor extends HTMLElement {
         const data = await response.json();
         if (sequence !== this.previewSequence || !form.isConnected) return;
         if (form.querySelector("[data-credit-override]").value !== "true") credit.value=data.row?.credit_total_minor == null ? "" : this.money(data.row.credit_total_minor);
-        const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)}${l.vat.posting_direction ? " · "+(l.vat.posting_direction === "output" ? "Outgoing VAT" : "Incoming VAT") : ""}`);
+        const values = data.validation.lines.filter(l=>l.vat).map(l=>l.vat.error ? l.vat.error === "vat_basis_required" ? "Set account VAT inclusion or use the posting toggle" : l.vat.error.replaceAll("_"," ") : `${l.vat.code}: ${this.money(l.vat.amounts.vat)} total VAT; ${this.money(l.vat.amounts.deductible_vat)} deductible; ${this.money(l.vat.amounts.non_deductible_vat)} non-deductible${l.vat.posting_direction ? " · "+(l.vat.posting_direction === "output" ? "Outgoing VAT" : "Incoming VAT") : ""}`);
         const quotes=data.validation.lines.filter(l=>l.vat).map(l=>l.vat);
-        out.textContent=quotes.some(q=>q.error) ? "—" : this.money(quotes.reduce((sum,q)=>sum+BigInt(q.amounts.vat),0n));
+        out.textContent=quotes.some(q=>q.error) ? "—" : this.money(quotes.reduce((sum,q)=>sum+BigInt(q.posting_vat_minor ?? q.amounts.vat),0n));
         this.vatHint(out,(values.length > 1 ? values.map((v,i)=>`${i===0 ? "Debit" : "Credit"} ${v}`) : values).join(" · ") || "No VAT configured");
       } catch (error) { if (error.name !== "AbortError") { out.textContent="—"; this.vatHint(out,"VAT unavailable — save will revalidate"); } }
     },200);

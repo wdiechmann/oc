@@ -536,6 +536,19 @@ defmodule Ep.Finance.Journals do
                   {:ok, q} ->
                     q = q |> Jason.encode!() |> Jason.decode!() |> Map.put("code", entry.code)
 
+                    q =
+                      if row && rule.direction in ~w(input output),
+                        do:
+                          Map.put(
+                            q,
+                            "posting_vat_minor",
+                            if(row["amount_minor"] < 0,
+                              do: q["amounts"]["vat"],
+                              else: q["amounts"]["deductible_vat"]
+                            )
+                          ),
+                        else: q
+
                     if row && rule.direction in ~w(input output),
                       do:
                         Map.put(

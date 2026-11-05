@@ -62,12 +62,52 @@ defmodule Ep.Finance.JournalPostingPreview do
              do: sign(r["amount_minor"]) * abs(quote["invoice_total_minor"]),
              else: amount
 
+        amount =
+          if side == "credit" do
+            amount -
+              Enum.sum(
+                Enum.filter(tax_legs, &(&1["follows_account"] == "credit"))
+                |> Enum.map(&(&1["credit_minor"] - &1["debit_minor"]))
+              )
+          else
+            amount
+          end
+
         signed_credit = if side == "debit", do: -amount, else: amount
         leg(tid, bid, l["account_id"], side, signed_credit)
       end)
 
-    legs = Enum.map(base, &elem(&1, 0)) ++ tax_legs
-    errors = errors ++ tax_errors ++ Enum.flat_map(base, &elem(&1, 1))
+    legs = Enum.map(base, &elem(&1, 0))
+
+    legs =
+      Enum.reduce(tax_legs, legs, fn tax, acc ->
+        if tax["follows_account"] && Enum.any?(acc, &(&1["role"] == tax["follows_account"])) do
+          Enum.map(acc, fn leg ->
+            if leg["role"] == tax["follows_account"] do
+              signed =
+                leg["credit_minor"] - leg["debit_minor"] + tax["credit_minor"] -
+                  tax["debit_minor"]
+
+              leg
+              |> Map.put("debit_minor", max(-signed, 0))
+              |> Map.put("credit_minor", max(signed, 0))
+              |> Map.put("non_deductible_vat_minor", tax["debit_minor"] + tax["credit_minor"])
+            else
+              leg
+            end
+          end)
+        else
+          acc ++ [tax]
+        end
+      end)
+
+    amount_errors =
+      if Enum.any?(
+           legs,
+           &(&1["debit_minor"] > 9_000_000_000_000 || &1["credit_minor"] > 9_000_000_000_000)
+         ), do: ["posting_amount_out_of_range"], else: []
+
+    errors = errors ++ tax_errors ++ Enum.flat_map(base, &elem(&1, 1)) ++ amount_errors
 
     totals(legs, errors)
     |> Map.merge(%{
@@ -115,9 +155,17 @@ defmodule Ep.Finance.JournalPostingPreview do
         parts
         |> Enum.reject(fn {_, value} -> value == 0 end)
         |> Enum.map(fn {role, value} ->
-          case (rule.posting_accounts || %{})[role] do
-            nil -> {nil, ["vat_posting_account_missing:" <> role]}
-            id -> leg(tid, bid, id, "vat_" <> role, value)
+          mapped = (rule.posting_accounts || %{})[role]
+
+          if role == "non_deductible" && is_nil(mapped) do
+            follows = if q["direction"] == "reverse_charge", do: "debit", else: "credit"
+            {entry, issues} = leg(tid, bid, r[follows <> "_account_id"], "vat_" <> role, value)
+            {Map.put(entry, "follows_account", follows), issues}
+          else
+            case mapped do
+              nil -> {nil, ["vat_posting_account_missing:" <> role]}
+              id -> leg(tid, bid, id, "vat_" <> role, value)
+            end
           end
         end)
 

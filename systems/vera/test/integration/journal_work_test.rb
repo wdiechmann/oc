@@ -163,6 +163,18 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Complete and balanced preview"
     assert_select "button", text: "Post journal", count: 0
   end
+  test "saved row shows deductible VAT while retaining the full split on hover" do
+    d=data
+    row=d[:selected][:data][:rows].first
+    row.merge!(amount_minor: 112500, credit_total_minor: 101250, amount_basis: "gross", debit_account_id: PID, credit_account_id: QID, debit_line_id: "debit")
+    d[:selected][:validation][:lines]=[ { id: "debit", vat: { code: "I25", posting_direction: "input", posting_vat_minor: 11250, amounts: { vat: 22500, deductible_vat: 11250, non_deductible_vat: 11250 } } } ]
+    view(d)
+    get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+    assert_select "[data-work-credit][value='1012,50']"
+    assert_select "[data-work-vat]", text: "112,50"
+    assert_includes css_select("[data-work-vat]").first["title"], "225,00 total VAT"
+    assert_includes css_select("[data-work-vat]").first["title"], "112,50 non-deductible"
+  end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")
     assert_equal ".", JournalMoney.separator("en-GB")

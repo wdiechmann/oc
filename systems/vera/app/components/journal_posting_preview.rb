@@ -24,8 +24,11 @@ class Components::JournalPostingPreview < Components::Base
             tbody do
               row.fetch("legs").each do |leg|
                 tr(class: "border-t border-stone-100") do
-                  td(class: "p-2") { { "debit"=>"Debit account", "credit"=>"Net credit account", "vat_input"=>"Incoming VAT", "vat_output"=>"Outgoing VAT", "vat_non_deductible"=>"Non-deductible VAT" }.fetch(leg["role"], leg["role"].tr("_", " ")) }
-                  td(class: "p-2", title: leg["account"] && "Account #{leg['account']['id']} · Revision #{leg['account']['version']}") { leg["account"] ? "#{leg['account']['number']} · #{leg['account']['name']}" : "Unavailable account" }
+                  td(class: "p-2") { { "debit"=>"Debit account", "credit"=>"Credit account", "vat_input"=>"Incoming VAT", "vat_output"=>"Outgoing VAT", "vat_non_deductible"=>"Non-deductible VAT" }.fetch(leg["role"], leg["role"].tr("_", " ")) }
+                  td(class: "p-2", title: leg["account"] && "Account #{leg['account']['id']} · Revision #{leg['account']['version']}") do
+                    plain(leg["account"] ? "#{leg['account']['number']} · #{leg['account']['name']}" : "Unavailable account")
+                    p(class: "mt-1 text-xs text-stone-500") { "Includes #{money(leg['non_deductible_vat_minor'])} non-deductible VAT" } if leg["non_deductible_vat_minor"]
+                  end
                   td(class: "p-2 text-right tabular-nums") { money(leg["debit_minor"]) }
                   td(class: "p-2 text-right tabular-nums") { money(leg["credit_minor"]) }
                 end

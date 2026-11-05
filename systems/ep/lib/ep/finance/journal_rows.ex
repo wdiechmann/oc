@@ -166,8 +166,15 @@ defmodule Ep.Finance.JournalRows do
               else: VatRules.calculate(rule, date, amount, nil)
 
           case result do
-            {:ok, quote} -> quote.amounts["net"]
-            _ -> nil
+            {:ok, quote} ->
+              follow =
+                rule.direction in ~w(input output) && amount >= 0 &&
+                  is_nil((rule.posting_accounts || %{})["non_deductible"])
+
+              quote.amounts["net"] + if(follow, do: quote.amounts["non_deductible_vat"], else: 0)
+
+            _ ->
+              nil
           end
         end
     end

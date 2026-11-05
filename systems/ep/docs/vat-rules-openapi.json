@@ -214,7 +214,7 @@
                   "posting_accounts": {
                     "type": "object",
                     "additionalProperties": false,
-                    "description": "Optional book-local active posting-account UUIDs; omission on revise preserves mappings. Missing roles remain preview issues.",
+                    "description": "Optional book-local active posting-account UUIDs. Input/output are required only for generated VAT amounts; null non_deductible follows the expense/asset account. Omission on revise preserves mappings.",
                     "properties": {
                       "input": {
                         "type": "string",
@@ -229,7 +229,8 @@
                       "non_deductible": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Optional separate-account override; null follows the original expense/asset account by default."
                       }
                     }
                   }
@@ -418,7 +419,7 @@
                   "posting_accounts": {
                     "type": "object",
                     "additionalProperties": false,
-                    "description": "Optional book-local active posting-account UUIDs; omission on revise preserves mappings. Missing roles remain preview issues.",
+                    "description": "Optional book-local active posting-account UUIDs. Input/output are required only for generated VAT amounts; null non_deductible follows the expense/asset account. Omission on revise preserves mappings.",
                     "properties": {
                       "input": {
                         "type": "string",
@@ -433,7 +434,8 @@
                       "non_deductible": {
                         "type": "string",
                         "format": "uuid",
-                        "nullable": true
+                        "nullable": true,
+                        "description": "Optional separate-account override; null follows the original expense/asset account by default."
                       }
                     }
                   }

@@ -948,5 +948,64 @@ defmodule Ep.Finance.JournalWorkTest do
 
     assert partial["debit_minor"] == 112_500
     assert partial["credit_minor"] == 112_500
+
+    for {direction, share, role, amount, leg_count} <- [
+          {"input", 5000, "credit", 101_250, 3},
+          {"input", 0, "credit", 112_500, 2},
+          {"reverse_charge", 5000, "debit", 101_250, 4}
+        ] do
+      {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
+      current = Repo.get!(Ep.Finance.VatRule, rule.id)
+
+      follow =
+        Map.merge(normal, %{
+          "expected_version" => state.latest_version,
+          "expected_rule_version" => current.version,
+          "direction" => direction,
+          "deductible_bps" => share,
+          "posting_accounts" => Map.put(accounts, "non_deductible", nil)
+        })
+
+      assert {:ok, _} =
+               Setup.command(
+                 c.actor,
+                 c.tid,
+                 c.bid,
+                 "vat_rule_revise",
+                 follow,
+                 "follow-#{direction}-#{share}"
+               )
+
+      {:ok, _} = SetupProjector.deliver(c.tid)
+
+      request =
+        body(c, did, %{p | "id" => hd(draft.data["rows"])["id"]})
+        |> Map.delete("expected_version")
+
+      assert {:ok, %{validation: validation, row: quoted_row}} =
+               Journals.preview_row(c.actor, c.tid, c.bid, request)
+
+      assert quoted_row["credit_total_minor"] == if(direction == "input", do: amount, else: 90000)
+      assert validation["posting_preview"]["status"] == "complete"
+
+      assert validation["lines"] |> hd() |> get_in(["vat", "posting_vat_minor"]) ==
+               if(direction == "input", do: if(share == 0, do: 0, else: 11250), else: nil)
+
+      if direction == "input",
+        do:
+          assert(
+            hd(validation["posting_preview"]["rows"])["legs"]
+            |> Enum.find(&(&1["role"] == "credit"))
+            |> Map.get("credit_minor") == amount
+          )
+
+      [preview] = validation["posting_preview"]["rows"]
+      assert length(preview["legs"]) == leg_count
+      cost = Enum.find(preview["legs"], &(&1["role"] == role))
+      assert cost[role <> "_minor"] == amount
+      assert cost["account"]["id"] == if(role == "credit", do: credit.id, else: debit.id)
+      assert cost["non_deductible_vat_minor"] == if(share == 0, do: 22500, else: 11250)
+      refute Enum.any?(preview["legs"], &(&1["role"] == "vat_non_deductible"))
+    end
   end
 end

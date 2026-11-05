@@ -34,6 +34,8 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     view
     get path
     assert_response :success
+    assert_select "details[data-vat-advanced]:not([open]) select[name='posting_accounts[non_deductible]'] option[value='']", text: "Follow expense/asset account (default)"
+    assert_select "details[data-vat-advanced]:not([open]) input[name='mappings[][box]']", count: 4
     assert_select "select[name=direction] option[value='']", text: "Choose treatment"
     assert_select "input[name=rate][value='']"
     command = stub_request(:post, api).with(body: attrs).to_return(status: 200, body: { stream_version: 3 }.to_json)
@@ -114,6 +116,8 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "#vat_rule_create-new input[name=valid_from][value]", count: 0
     assert_select "#vat_rule_create-new option[value='#{VID}'][selected]"
     assert_select "#vat_rule_create-new input[name=deductible][value='25.00']"
+    assert_select "#choose-vat-preset select[name=preset_id] option[value=REP]"
+    assert_select "details[data-vat-advanced]:not([open]) input[value='Købsmoms']"
     expected = attrs.merge(rate_bps: 2500, assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])
     command = stub_request(:post, api).with(body: expected).to_return(status: 200, body: { stream_version: 3 }.to_json)
     patch path, params: form(token).merge(rate: "25", assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])

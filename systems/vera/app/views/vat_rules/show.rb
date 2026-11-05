@@ -10,8 +10,8 @@ class Views::VatRules::Show < Views::Base
       a(href: tenant_book_catalogues_path(@tid, @bid), class: "text-teal-900 underline") { "← VAT and category catalogues" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       h1(class: "mt-2 text-3xl font-semibold") { "Effective VAT rules" }
-      p(class: "mt-4 text-sm text-stone-600") { "Choose a Danish preset or configure each VAT entry manually. Dates are inclusive; an empty end date means ongoing. Rates and reporting boxes are entered by the book’s steward. Imported labels do not imply a rate or a legal treatment." }
-      p(class: "mt-3 text-sm text-stone-600") { "Input VAT may be partly deductible. Reverse charge assesses VAT without adding it to the invoice total. Reporting mappings choose which net/VAT amounts contribute to each box, with a positive or negative sign." }
+      p(class: "mt-4 text-sm text-stone-600") { "Choose a Danish preset, set its effective dates and VAT accounts, then save. Rates and deductible shares remain editable. An empty end date means ongoing; imported labels do not create rules." }
+      p(class: "mt-3 text-sm text-stone-600") { "Non-deductible VAT normally stays with the original expense or asset. Advanced contains optional account overrides and custom VAT-return reporting." }
       p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
       p(class: "mt-4 text-xs text-stone-500") { "View revision #{@data['source_version']} · Latest accepted #{@data['latest_version']}" }
       a(href: tenant_book_vat_rules_path(@tid, @bid), class: "mt-3 block text-sm text-teal-900 underline") { "Refresh rules" }
@@ -59,6 +59,10 @@ class Views::VatRules::Show < Views::Base
   def presets
     items = Array(@data["presets"])
     return if items.empty?
+    form_with(url: tenant_book_vat_rules_path(@tid, @bid), method: :get, class: "mt-6 flex flex-wrap items-end gap-3", data: { turbo: false }, id: "choose-vat-preset") do |f|
+      div { f.label(:preset_id, "Danish preset"); f.select(:preset_id, items.map { |preset| [ "#{preset['id']} · #{preset['title']}", preset["id"] ] }, { include_blank: "Choose a Danish preset" }, class: FIELD, required: true) }
+      f.submit("Use preset", class: BUTTON)
+    end
     details(class: "mt-6 rounded-xl border border-stone-200 bg-white p-4", id: "danish-vat-presets") do
       summary(class: "cursor-pointer font-semibold text-teal-900") { "Danish VAT presets (#{items.length})" }
       p(class: "mt-3 text-sm text-stone-600") { "Templates for reviewed setup. The source-check date is not an effective start date. Deduction assumes eligible business use; adjust for mixed or private use. EU sales-list reporting is separate from VAT-return boxes." }
@@ -88,9 +92,10 @@ class Views::VatRules::Show < Views::Base
   end
   def mapping_lines(lines)
     p(class: "mt-2 text-xs text-stone-500") { "No reporting boxes configured." } if lines.empty?
-    lines.each { |m| p(class: "mt-2 text-xs text-stone-600") { "#{m['box']}: #{m['sign'] == -1 ? '−' : '+'} #{m['component'].tr('_', ' ')}" } }
+    lines.each { |m| p(class: "mt-2 text-xs text-stone-600") { "#{m['box']}: #{m['sign'] == -1 ? '−' : '+'} #{{ "net"=>"net amount (excluding VAT)", "vat"=>"VAT amount", "deductible_vat"=>"deductible VAT", "non_deductible_vat"=>"non-deductible VAT" }.fetch(m['component'], m['component'].to_s)}" } }
   end
   def posting_account_lines(mapping)
+    p(class: "mt-2 text-sm") { "Non-deductible VAT follows the expense/asset account." } unless (mapping || {})["non_deductible"]
     (mapping || {}).each do |role, id|
       next unless id
       account = Array(@data["posting_accounts"]).find { |a| a["id"] == id }
@@ -131,8 +136,8 @@ class Views::VatRules::Show < Views::Base
       end
       p(class: "mt-4 text-sm font-medium") { "VAT posting accounts" }
       p(class: "mt-1 text-sm text-stone-600") { "Map chart accounts for the saved posting preview. Missing mappings remain visible as preview issues; saving a rule does not post money." }
-      div(class: "mt-3 grid gap-3 sm:grid-cols-3") do
-        { "input"=>"Incoming VAT account", "output"=>"Outgoing VAT account", "non_deductible"=>"Non-deductible VAT account" }.each do |role, title|
+      div(class: "mt-3 grid gap-3 sm:grid-cols-2") do
+        { "input"=>"Incoming VAT account", "output"=>"Outgoing VAT account" }.each do |role, title|
           div do
             label { title }
             select(name: "posting_accounts[#{role}]", aria_label: title, class: FIELD) do
@@ -144,16 +149,30 @@ class Views::VatRules::Show < Views::Base
           end
         end
       end
-      p(class: "mt-4 text-sm font-medium") { "Reporting mappings (up to four; leave unused boxes blank)" }
-      4.times do |i|
-        m = mappings[i] || {}
-        div(class: "mt-3 grid gap-3 sm:grid-cols-3") do
-          div { label { "Reporting box" }; input(name: "mappings[][box]", value: m["box"], maxlength: 60, aria_label: "Reporting box #{i+1}", class: FIELD) }
-          div do
-            label { "Amount component" }
-            select(name: "mappings[][component]", aria_label: "Amount component #{i+1}", class: FIELD) { option(value: "", selected: m["component"].blank?) { "Choose amount" }; [ [ "Net base", "net" ], [ "Assessed VAT", "vat" ], [ "Deductible VAT", "deductible_vat" ], [ "Non-deductible VAT", "non_deductible_vat" ] ].each { |label, value| option(value: value, selected: m["component"] == value) { label } } }
+      p(class: "mt-3 text-sm text-stone-600") { values.dig("posting_accounts", "non_deductible").present? ? "Non-deductible VAT uses the separate account override shown under Advanced." : "Non-deductible VAT follows the expense/asset account automatically." }
+      p(class: "mt-2 text-sm text-stone-600") { "VAT return reporting is filled by the selected Danish preset. Use Advanced only for custom reporting or a separate non-deductible account." }
+      mapping_lines(mappings) unless mappings.empty?
+      details(class: "mt-4 rounded border border-stone-200 p-3", data: { vat_advanced: true }, open: values.dig("posting_accounts", "non_deductible").present?) do
+        summary(class: "cursor-pointer font-medium text-teal-900") { "Advanced" }
+        p(class: "mt-3 text-sm text-stone-600") { "Reporting boxes are fields on the VAT return, not ledger accounts. Each row adds or subtracts the selected amount; unused rows stay blank." }
+        label(class: "mt-4 block text-sm") { "Non-deductible VAT account override" }
+        select(name: "posting_accounts[non_deductible]", aria_label: "Non-deductible VAT account override", class: FIELD) do
+          chosen=values.dig("posting_accounts", "non_deductible")
+          option(value: "", selected: chosen.blank?) { "Follow expense/asset account (default)" }
+          Array(@data["posting_accounts"]).each { |a| option(value: a["id"], selected: chosen==a["id"]) { "#{a['number']} · #{a['name']}#{a['active'] ? '' : ' · Inactive'}" } }
+          option(value: chosen, selected: true) { "Unavailable account: #{chosen}" } if chosen.present? && !Array(@data["posting_accounts"]).any? { |a| a["id"]==chosen }
+        end
+        p(class: "mt-4 text-sm font-medium") { "VAT return reporting" }
+        4.times do |i|
+          m = mappings[i] || {}
+          div(class: "mt-3 grid gap-3 sm:grid-cols-3") do
+            div { label { "VAT return box" }; input(name: "mappings[][box]", value: m["box"], maxlength: 60, aria_label: "Reporting box #{i+1}", class: FIELD) }
+            div do
+              label { "Amount to report" }
+              select(name: "mappings[][component]", aria_label: "Amount component #{i+1}", class: FIELD) { option(value: "", selected: m["component"].blank?) { "Choose amount" }; [ [ "Net base", "net" ], [ "Assessed VAT", "vat" ], [ "Deductible VAT", "deductible_vat" ], [ "Non-deductible VAT", "non_deductible_vat" ] ].each { |label, value| option(value: value, selected: m["component"] == value) { label } } }
+            end
+            div { label { "Add or subtract" }; select(name: "mappings[][sign]", aria_label: "Sign #{i+1}", class: FIELD) { option(value: "1", selected: m["sign"] != -1) { "+ Add" }; option(value: "-1", selected: m["sign"] == -1) { "− Subtract" } } }
           end
-          div { label { "Sign" }; select(name: "mappings[][sign]", aria_label: "Sign #{i+1}", class: FIELD) { option(value: "1", selected: m["sign"] != -1) { "+ Add" }; option(value: "-1", selected: m["sign"] == -1) { "− Subtract" } } }
         end
       end
       f.submit(draft && (@message || !values["preset_id"]) ? "Reapply rule draft" : rule ? "Save rule" : "Create dated rule", class: BUTTON)

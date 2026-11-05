@@ -172,8 +172,8 @@ class Components::JournalWork < Components::Base
     entries = Array(selected.dig("validation", "lines")).select { |l| [ row["debit_line_id"], row["credit_line_id"], row["id"] ].compact.include?(l["id"]) }
     quotes = entries.filter_map { |l| l["vat"] }
     errors = quotes.filter_map { |q| q["error"]&.tr("_", " ") }
-    explanation = quotes.map { |q| q["error"] ? q["error"].tr("_", " ") : "#{q['code']}: #{money(q['amounts']['vat'])}#{q['posting_direction'] ? ' · '+(q['posting_direction'] == 'output' ? 'Outgoing VAT' : 'Incoming VAT') : ''}" }.join(" · ")
-    { amount: errors.any? ? "—" : money(quotes.sum { |q| q.dig("amounts", "vat") || 0 }), explanation: explanation.presence || "No VAT configured" }
+    explanation = quotes.map { |q| q["error"] ? q["error"].tr("_", " ") : "#{q['code']}: #{money(q['amounts']['vat'])} total VAT; #{money(q['amounts']['deductible_vat'])} deductible; #{money(q['amounts']['non_deductible_vat'])} non-deductible#{q['posting_direction'] ? ' · '+(q['posting_direction'] == 'output' ? 'Outgoing VAT' : 'Incoming VAT') : ''}" }.join(" · ")
+    { amount: errors.any? ? "—" : money(quotes.sum { |q| q["posting_vat_minor"] || q.dig("amounts", "vat") || 0 }), explanation: explanation.presence || "No VAT configured" }
   end
   def credit_value(row)
     value = row.key?("credit_total_minor") ? row["credit_total_minor"] : row["credit_amount_minor"] || row["amount_minor"]
