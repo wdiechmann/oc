@@ -4,7 +4,7 @@ defmodule Ep.Finance.VatRules do
   alias Ep.{Repo, Events}
   alias Ep.Finance.{VatRule, CatalogueEntry, Setup, DanishVatPresets}
 
-  @fields ~w(id tenant_id book_id vat_entry_id valid_from valid_until direction rate_bps deductible_bps mappings assessment_basis preset active version actor_identity_id application_id)a
+  @fields ~w(id tenant_id book_id vat_entry_id valid_from valid_until direction rate_bps deductible_bps mappings posting_accounts assessment_basis preset active version actor_identity_id application_id)a
   @events ~w(VatRuleCreated VatRuleRevised VatRuleDeactivated VatRuleReactivated)
   @components ~w(net vat deductible_vat non_deductible_vat)
 
@@ -24,6 +24,11 @@ defmodule Ep.Finance.VatRules do
          :vat_rules
        ])
        |> Map.put(:vat_entries, Enum.filter(data.catalogue_entries, &(&1["kind"] == "vat")))
+       |> Map.put(
+         :posting_accounts,
+         Enum.filter(data.accounts, &(&1["kind"] == "posting"))
+         |> Enum.map(&Map.take(&1, ~w(id number name active retired version)))
+       )
        |> Map.put(:presets, DanishVatPresets.all())}
     end
   end
@@ -47,7 +52,7 @@ defmodule Ep.Finance.VatRules do
     unless Enum.all?(required, &Map.has_key?(p, &1)) &&
              Enum.all?(
                Map.keys(p),
-               &(&1 in (required ++ ~w(assessment_basis preset_id preset_version)))
+               &(&1 in (required ++ ~w(assessment_basis preset_id preset_version posting_accounts)))
              ),
            do: Repo.rollback(:invalid_vat_rule)
 
@@ -115,6 +120,12 @@ defmodule Ep.Finance.VatRules do
       rate_bps: p["rate_bps"],
       deductible_bps: p["deductible_bps"],
       mappings: %{"lines" => mappings},
+      posting_accounts:
+        posting_accounts!(
+          tid,
+          bid,
+          Map.get(p, "posting_accounts", if(old, do: old.posting_accounts, else: %{}))
+        ),
       assessment_basis: basis,
       active: active,
       version: version,
@@ -313,7 +324,7 @@ defmodule Ep.Finance.VatRules do
               [
                 Map.take(
                   rule,
-                  ~w(valid_from valid_until direction rate_bps deductible_bps mappings assessment_basis preset active version actor_identity_id application_id)
+                  ~w(valid_from valid_until direction rate_bps deductible_bps mappings posting_accounts assessment_basis preset active version actor_identity_id application_id)
                 )
                 |> Map.merge(%{
                   "event_id" => event.id,
@@ -329,6 +340,30 @@ defmodule Ep.Finance.VatRules do
       end)
 
     Map.put(snapshot, "vat_rules", rules)
+  end
+
+  defp posting_accounts!(tid, bid, mapping) do
+    unless is_map(mapping) &&
+             Enum.all?(Map.keys(mapping), &(&1 in ~w(input output non_deductible))),
+           do: Repo.rollback(:invalid_vat_posting_account)
+
+    Map.new(mapping, fn {role, id} ->
+      if id in [nil, ""] do
+        {role, nil}
+      else
+        account =
+          Repo.get_by(Ep.Finance.Account,
+            id: uuid!(id),
+            tenant_id: tid,
+            book_id: bid,
+            kind: "posting",
+            active: true,
+            retired: false
+          ) || Repo.rollback(:invalid_vat_posting_account)
+
+        {role, account.id}
+      end
+    end)
   end
 
   defp mappings!(list) do

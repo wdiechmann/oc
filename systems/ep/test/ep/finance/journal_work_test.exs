@@ -454,6 +454,7 @@ defmodule Ep.Finance.JournalWorkTest do
     assert hd(custom.data["rows"])["suggested_credit_minor"] == 12500
     assert hd(custom.data["rows"])["credit_total_minor"] == 15000
     assert hd(custom.data["rows"])["posting_id"] == saved["posting_id"]
+    assert "posting_preview_unbalanced" in custom.validation["posting_preview"]["errors"]
 
     for {amount, credit, vat_amount, direction} <- [
           {112_500, 90000, 22500, "input"},
@@ -655,6 +656,30 @@ defmodule Ep.Finance.JournalWorkTest do
     end
 
     {:ok, _} = SetupProjector.deliver(c.tid)
+    foreign = Repo.get_by!(Ep.Finance.Account, book_id: bid, number: "001")
+    {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
+    vat = Repo.get_by!(Ep.Finance.CatalogueEntry, book_id: c.bid, kind: "vat", code: "input")
+
+    assert {:error, :invalid_vat_posting_account} =
+             Setup.command(
+               c.actor,
+               c.tid,
+               c.bid,
+               "vat_rule_create",
+               %{
+                 "expected_version" => state.latest_version,
+                 "vat_entry_id" => vat.id,
+                 "valid_from" => "2026-01-01",
+                 "valid_until" => nil,
+                 "direction" => "input",
+                 "rate_bps" => 2500,
+                 "deductible_bps" => 10000,
+                 "mappings" => [%{"box" => "VAT", "component" => "vat", "sign" => 1}],
+                 "posting_accounts" => %{"input" => foreign.id}
+               },
+               "foreign-vat-account"
+             )
+
     other = %{c | bid: bid}
     did2 = create(other, "other-create")
     save(other, did2, row(other), "other-row")
@@ -680,5 +705,248 @@ defmodule Ep.Finance.JournalWorkTest do
     draft = Repo.get!(JournalDraft, did)
     assert draft.data["name"] == "Corrected"
     assert hd(draft.data["rows"])["posting_id"] == 1
+  end
+
+  defp posting_setup(c, direction \\ "input", deductible \\ 10000) do
+    command = fn action, attrs, key ->
+      {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
+
+      {:ok, result} =
+        Setup.command(
+          c.actor,
+          c.tid,
+          c.bid,
+          action,
+          Map.put(attrs, "expected_version", state.latest_version),
+          key
+        )
+
+      result
+    end
+
+    accounts =
+      Map.new(Enum.with_index(~w(input output non_deductible), 4), fn {role, n} ->
+        command.(
+          "account_create",
+          %{"kind" => "posting", "number" => "T#{n}", "name" => role, "position" => n * 10},
+          "account-#{role}"
+        )
+
+        {role, Repo.get_by!(Ep.Finance.Account, book_id: c.bid, number: "T#{n}").id}
+      end)
+
+    vat = Repo.get_by!(Ep.Finance.CatalogueEntry, book_id: c.bid, kind: "vat", code: "input")
+
+    attrs = %{
+      "vat_entry_id" => vat.id,
+      "valid_from" => "2026-01-01",
+      "valid_until" => nil,
+      "direction" => direction,
+      "rate_bps" => 2500,
+      "deductible_bps" => deductible,
+      "mappings" => [%{"box" => "VAT", "component" => "vat", "sign" => 1}],
+      "posting_accounts" => accounts
+    }
+
+    result = command.("vat_rule_create", attrs, "posting-rule")
+    rule = Repo.get!(Ep.Finance.VatRule, hd(result["event_ids"]))
+    debit = Repo.get_by!(Ep.Finance.Account, book_id: c.bid, number: "0010")
+    credit = Repo.get_by!(Ep.Finance.Account, book_id: c.bid, number: "0020")
+
+    command.(
+      "account_revise",
+      %{
+        "account_id" => debit.id,
+        "expected_account_version" => debit.version,
+        "active" => true,
+        "kind" => "posting",
+        "number" => debit.number,
+        "name" => debit.name,
+        "position" => debit.position,
+        "vat_entry_id" => vat.id,
+        "vat_basis" => "gross"
+      },
+      "assign-posting-vat"
+    )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {accounts, rule, attrs, debit, credit, command}
+  end
+
+  test "complete posting preview balances gross net and signed VAT without posting", c do
+    {accounts, rule, _, debit, credit, command} = posting_setup(c)
+    did = create(c)
+
+    p = %{
+      "id" => nil,
+      "reference" => "Preview",
+      "debit_account_id" => debit.id,
+      "credit_account_id" => credit.id,
+      "amount_minor" => 112_500,
+      "amount_basis" => "gross",
+      "basis_override" => true,
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+
+    save(c, did, p, "gross-preview")
+    [saved] = Repo.get!(JournalDraft, did).data["rows"]
+
+    for {amount, basis, total, net, tax, role} <- [
+          {112_500, "gross", 112_500, 90000, 22500, "vat_input"},
+          {90000, "net", 112_500, 90000, 22500, "vat_input"},
+          {-112_500, "gross", 112_500, 90000, 22500, "vat_output"}
+        ] do
+      save(
+        c,
+        did,
+        %{p | "id" => saved["id"], "amount_minor" => amount, "amount_basis" => basis},
+        "preview-#{amount}-#{basis}"
+      )
+
+      preview = Repo.get!(JournalDraft, did).validation["posting_preview"]
+      assert preview["status"] == "complete"
+      assert preview["balanced"]
+      assert preview["debit_minor"] == total
+      assert preview["credit_minor"] == total
+      [row] = preview["rows"]
+      assert row["posting_id"] == saved["posting_id"]
+      assert row["vat_rule"]["rule_version"] == rule.version
+      [_, net_leg, tax_leg] = row["legs"]
+      assert net_leg["debit_minor"] + net_leg["credit_minor"] == net
+      assert tax_leg["role"] == role
+      assert tax_leg["debit_minor"] + tax_leg["credit_minor"] == tax
+      assert tax_leg["account"]["id"] == accounts[if(amount < 0, do: "output", else: "input")]
+    end
+
+    maximum =
+      body(c, did, %{
+        p
+        | "id" => saved["id"],
+          "amount_minor" => 9_000_000_000_000,
+          "amount_basis" => "net"
+      })
+      |> Map.delete("expected_version")
+
+    assert {:ok, %{validation: checked}} = Journals.preview_row(c.actor, c.tid, c.bid, maximum)
+    assert "posting_amount_out_of_range" in checked["posting_preview"]["errors"]
+    {:ok, projected} = Ep.Finance.VatRules.get(c.actor, c.tid, c.bid)
+    assert hd(projected.vat_rules)["posting_accounts"] == accounts
+    assert hd(hd(projected.vat_rules)["history"])["posting_accounts"] == accounts
+    mapped = Repo.get!(Ep.Finance.Account, accounts["input"])
+
+    command.(
+      "account_revise",
+      %{
+        "account_id" => mapped.id,
+        "expected_account_version" => mapped.version,
+        "active" => false,
+        "kind" => "posting",
+        "number" => mapped.number,
+        "name" => mapped.name,
+        "position" => mapped.position
+      },
+      "deactivate-mapped"
+    )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    request = body(c, did, %{p | "id" => saved["id"]}) |> Map.delete("expected_version")
+    assert {:ok, %{validation: validation}} = Journals.preview_row(c.actor, c.tid, c.bid, request)
+    assert "posting_account_unavailable:vat_input" in validation["posting_preview"]["errors"]
+    assert Repo.get!(JournalCounter, c.bid).last_number == 1
+  end
+
+  test "partial deduction reverse charge and missing mappings are explicit in previews", c do
+    {accounts, rule, attrs, debit, credit, _} = posting_setup(c, "reverse_charge", 5000)
+    did = create(c)
+
+    p = %{
+      "id" => nil,
+      "reference" => "Reverse",
+      "debit_account_id" => debit.id,
+      "credit_account_id" => credit.id,
+      "amount_minor" => 90000,
+      "amount_basis" => "net",
+      "basis_override" => true,
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+
+    save(c, did, p, "reverse-preview")
+    draft = Repo.get!(JournalDraft, did)
+    assert draft.validation["posting_preview"]["status"] == "complete"
+    [row] = draft.validation["posting_preview"]["rows"]
+
+    assert Enum.map(row["legs"], & &1["role"]) ==
+             ~w(debit credit vat_output vat_input vat_non_deductible)
+
+    assert Enum.map(Enum.drop(row["legs"], 2), &(&1["debit_minor"] + &1["credit_minor"])) == [
+             22500,
+             11250,
+             11250
+           ]
+
+    {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
+
+    revised =
+      Map.merge(attrs, %{
+        "expected_version" => state.latest_version,
+        "rule_id" => rule.id,
+        "expected_rule_version" => rule.version,
+        "active" => true,
+        "posting_accounts" => %{"input" => accounts["input"]}
+      })
+
+    assert {:ok, _} =
+             Setup.command(c.actor, c.tid, c.bid, "vat_rule_revise", revised, "missing-output")
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+
+    request =
+      body(c, did, %{p | "id" => hd(draft.data["rows"])["id"]}) |> Map.delete("expected_version")
+
+    assert {:ok, %{validation: validation}} = Journals.preview_row(c.actor, c.tid, c.bid, request)
+    assert "vat_posting_account_missing:output" in validation["posting_preview"]["errors"]
+    assert validation["posting_preview"]["status"] == "needs_attention"
+    {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
+    current = Repo.get!(Ep.Finance.VatRule, rule.id)
+
+    invalid =
+      Map.merge(revised, %{
+        "expected_version" => state.latest_version,
+        "expected_rule_version" => current.version,
+        "posting_accounts" => %{
+          "input" => Repo.get_by!(Ep.Finance.Account, book_id: c.bid, kind: "calculation").id
+        }
+      })
+
+    assert {:error, :invalid_vat_posting_account} =
+             Setup.command(c.actor, c.tid, c.bid, "vat_rule_revise", invalid, "not-posting")
+
+    normal =
+      Map.merge(revised, %{
+        "expected_version" => state.latest_version,
+        "expected_rule_version" => current.version,
+        "direction" => "input",
+        "posting_accounts" => accounts
+      })
+
+    assert {:ok, _} =
+             Setup.command(c.actor, c.tid, c.bid, "vat_rule_revise", normal, "partial-input")
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+
+    request =
+      body(c, did, %{p | "id" => hd(draft.data["rows"])["id"]}) |> Map.delete("expected_version")
+
+    assert {:ok, %{validation: validation}} = Journals.preview_row(c.actor, c.tid, c.bid, request)
+    assert validation["posting_preview"]["status"] == "complete"
+    [partial] = validation["posting_preview"]["rows"]
+
+    assert Enum.map(partial["legs"], & &1["role"]) ==
+             ~w(debit credit vat_input vat_non_deductible)
+
+    assert partial["debit_minor"] == 112_500
+    assert partial["credit_minor"] == 112_500
   end
 end

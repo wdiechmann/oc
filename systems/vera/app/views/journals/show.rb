@@ -107,6 +107,7 @@ class Views::Journals::Show < Views::Base
       h3(class: "mt-4 font-semibold") { validation["vat_complete"] ? "VAT reporting preview" : "Partial VAT reporting preview — resolve VAT errors" }
       validation["reporting"].each { |box, value| p(class: "mt-2 text-sm") { "#{box}: #{value} minor units" } }
     end
+    render Components::JournalPostingPreview.new(preview: validation["posting_preview"], separator: @decimal_separator, historical: true) if validation["posting_preview"]
   end
   def reviewed
     plan = @review.fetch("plan")

@@ -1,5 +1,5 @@
 defmodule Ep.Finance.Journals do
-  @moduledoc "Reviewed, unposted journal preparation. No posting, ledger changes or implicit VAT counter-lines."
+  @moduledoc "Reviewed, unposted journal preparation and complete posting previews. No ledger changes."
   import Ecto.Query
   alias Ep.{Events, Repo}
   alias Ep.Events.{CommandReceipt, Outbox}
@@ -295,7 +295,8 @@ defmodule Ep.Finance.Journals do
 
           attrs = %{
             data: numbered_data,
-            validation: plan["validation"],
+            validation:
+              Ep.Finance.JournalPostingPreview.numbered(plan["validation"], numbered_data),
             contexts: plan["contexts"],
             version: version,
             actor_identity_id: principal.identity_id,
@@ -610,6 +611,13 @@ defmodule Ep.Finance.Journals do
           end)
         end)
     }
+    |> then(fn validation ->
+      Map.put(
+        validation,
+        "posting_preview",
+        Ep.Finance.JournalPostingPreview.build(tid, bid, data, validation)
+      )
+    end)
   end
 
   def running!(tid) do

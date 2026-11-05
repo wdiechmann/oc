@@ -1,0 +1,173 @@
+defmodule Ep.Finance.JournalPostingPreview do
+  @moduledoc "Read-only complete journal legs; never authorizes or creates ledger postings."
+  alias Ep.Repo
+  alias Ep.Finance.{Account, VatRule}
+
+  def build(tid, bid, data, validation) do
+    rows = Enum.reject(data["rows"] || [], fn r -> r["void"] || blank?(r) end)
+    previews = Enum.map(rows, &row(tid, bid, &1, data, validation))
+    legs = Enum.flat_map(previews, & &1["legs"])
+
+    errors =
+      Enum.flat_map(previews, & &1["errors"]) ++
+        if(rows == [], do: ["empty_journal"], else: []) ++
+        if validation["period"] && validation["period"]["status"] == "open",
+          do: [],
+          else: ["period_not_open"]
+
+    totals(legs, errors) |> Map.put("rows", previews) |> Map.put("unposted", true)
+  end
+
+  def numbered(validation, data) do
+    ids = Map.new(data["rows"] || [], &{&1["id"], &1["posting_id"]})
+
+    if validation["posting_preview"] do
+      update_in(validation, ["posting_preview", "rows"], fn rows ->
+        Enum.map(rows, &Map.put(&1, "posting_id", ids[&1["row_id"]]))
+      end)
+    else
+      validation
+    end
+  end
+
+  defp row(tid, bid, r, data, validation) do
+    source = Enum.filter(data["lines"], &(&1["id"] in [r["debit_line_id"], r["credit_line_id"]]))
+
+    checked =
+      Enum.filter(validation["lines"], &(&1["id"] in [r["debit_line_id"], r["credit_line_id"]]))
+
+    taxes = Enum.filter(checked, & &1["vat"])
+
+    errors =
+      Enum.flat_map(checked, & &1["errors"]) ++
+        if(r["debit_account_id"], do: [], else: ["debit_account_required"]) ++
+        if r["credit_account_id"], do: [], else: ["credit_account_required"]
+
+    {tax_legs, tax_errors, quote} =
+      case taxes do
+        [] -> {[], [], nil}
+        [%{"vat" => %{"error" => error}}] -> {[], [error], nil}
+        [%{"vat" => q}] -> tax_legs(tid, bid, r, q)
+        _ -> {[], ["multiple_vat_accounts"], nil}
+      end
+
+    base =
+      Enum.map(source, fn l ->
+        side = if l["id"] == r["debit_line_id"], do: "debit", else: "credit"
+        amount = if side == "debit", do: r["amount_minor"], else: r["credit_total_minor"] || 0
+
+        amount =
+          if side == "debit" && quote && r["amount_basis"] == "net" &&
+               quote["direction"] in ~w(input output),
+             do: sign(r["amount_minor"]) * abs(quote["invoice_total_minor"]),
+             else: amount
+
+        signed_credit = if side == "debit", do: -amount, else: amount
+        leg(tid, bid, l["account_id"], side, signed_credit)
+      end)
+
+    legs = Enum.map(base, &elem(&1, 0)) ++ tax_legs
+    errors = errors ++ tax_errors ++ Enum.flat_map(base, &elem(&1, 1))
+
+    totals(legs, errors)
+    |> Map.merge(%{
+      "row_id" => r["id"],
+      "posting_id" => r["posting_id"],
+      "legs" => legs,
+      "vat_rule" =>
+        if(quote, do: Map.take(quote, ~w(rule_id rule_version date direction posting_direction)))
+    })
+  end
+
+  defp tax_legs(tid, bid, r, q) do
+    rule = Repo.get_by(VatRule, id: q["rule_id"], tenant_id: tid, book_id: bid)
+
+    if !rule || rule.version != q["rule_version"] do
+      {[], ["vat_rule_changed"], q}
+    else
+      amounts = q["amounts"]
+      vat = abs(amounts["vat"])
+      deductible = abs(amounts["deductible_vat"])
+      non_deductible = vat - deductible
+      direction = q["posting_direction"] || q["direction"]
+      s = sign(r["amount_minor"])
+
+      parts =
+        cond do
+          q["direction"] == "none" ->
+            []
+
+          q["direction"] == "reverse_charge" ->
+            [
+              {"output", s * vat},
+              {"input", -s * deductible},
+              {"non_deductible", -s * non_deductible}
+            ]
+
+          direction == "output" ->
+            [{"output", s * vat}]
+
+          true ->
+            [{"input", s * deductible}, {"non_deductible", s * non_deductible}]
+        end
+
+      resolved =
+        parts
+        |> Enum.reject(fn {_, value} -> value == 0 end)
+        |> Enum.map(fn {role, value} ->
+          case (rule.posting_accounts || %{})[role] do
+            nil -> {nil, ["vat_posting_account_missing:" <> role]}
+            id -> leg(tid, bid, id, "vat_" <> role, value)
+          end
+        end)
+
+      {resolved |> Enum.map(&elem(&1, 0)) |> Enum.reject(&is_nil/1),
+       Enum.flat_map(resolved, &elem(&1, 1)), q}
+    end
+  end
+
+  defp leg(tid, bid, id, role, value) do
+    account = id && Repo.get_by(Account, id: id, tenant_id: tid, book_id: bid)
+    valid = account && account.kind == "posting" && account.active && !account.retired
+
+    {%{
+       "role" => role,
+       "account" =>
+         if(account,
+           do:
+             Map.new(Map.take(account, ~w(id number name version)a), fn {k, v} ->
+               {Atom.to_string(k), v}
+             end)
+         ),
+       "debit_minor" => if(value < 0, do: -value, else: 0),
+       "credit_minor" => if(value > 0, do: value, else: 0)
+     },
+     if(valid, do: [], else: ["posting_account_unavailable:" <> role]) ++
+       if(abs(value) <= 9_000_000_000_000, do: [], else: ["posting_amount_out_of_range"])}
+  end
+
+  defp totals(legs, errors) do
+    debit = Enum.sum(Enum.map(legs, & &1["debit_minor"]))
+    credit = Enum.sum(Enum.map(legs, & &1["credit_minor"]))
+
+    errors =
+      Enum.uniq(errors ++ if(debit == credit, do: [], else: ["posting_preview_unbalanced"]))
+
+    %{
+      "debit_minor" => debit,
+      "credit_minor" => credit,
+      "difference_minor" => debit - credit,
+      "balanced" => debit == credit,
+      "errors" => errors,
+      "status" => if(errors == [], do: "complete", else: "needs_attention")
+    }
+  end
+
+  defp sign(n), do: if(n < 0, do: -1, else: 1)
+
+  defp blank?(r),
+    do:
+      r["reference"] in [nil, ""] && !r["debit_account_id"] && !r["credit_account_id"] &&
+        r["amount_minor"] == 0 && r["credit_amount_minor"] in [nil, 0] &&
+        r["credit_total_minor"] in [nil, 0] && r["attachments"] in [nil, []]
+end

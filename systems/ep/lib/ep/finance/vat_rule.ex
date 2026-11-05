@@ -12,6 +12,7 @@ defmodule Ep.Finance.VatRule do
     field :direction, :string
     field :rate_bps, :integer
     field :deductible_bps, :integer
+    field :posting_accounts, :map, default: %{}
     field :mappings, :map
     field :active, :boolean, default: true
     field :version, :integer

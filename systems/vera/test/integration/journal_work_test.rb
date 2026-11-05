@@ -151,6 +151,18 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream[target=shared-dialog-host] input[type=file]"
     assert_not_includes response.body, "<html"
   end
+  test "saved complete posting preview shows all unposted legs and exact totals" do
+    d=data
+    d[:selected][:validation][:posting_preview]={ status: "complete", errors: [], debit_minor: 112500, credit_minor: 112500, difference_minor: 0, rows: [ { posting_id: 1, errors: [], legs: [ { role: "debit", account: { number: "0010", name: "Bank" }, debit_minor: 112500, credit_minor: 0 }, { role: "credit", account: { number: "0020", name: "Sales" }, debit_minor: 0, credit_minor: 90000 }, { role: "vat_input", account: { number: "6900", name: "Incoming VAT" }, debit_minor: 0, credit_minor: 22500 } ] } ] }
+    view(d)
+    get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+    assert_select "#journal-posting-preview summary", text: "Saved posting preview · Unposted"
+    assert_select "#journal-posting-preview tbody tr", count: 3
+    assert_select "#journal-posting-preview td", text: "6900 · Incoming VAT"
+    assert_select "#journal-posting-preview td", text: "225,00"
+    assert_includes response.body, "Complete and balanced preview"
+    assert_select "button", text: "Post journal", count: 0
+  end
   test "money punctuation is strict and never uses floating point" do
     assert_equal ",", JournalMoney.separator("da-DK,da;q=0.9")
     assert_equal ".", JournalMoney.separator("en-GB")

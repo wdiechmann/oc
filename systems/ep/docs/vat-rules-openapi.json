@@ -2,7 +2,7 @@
   "openapi": "3.0.3",
   "info": {
     "title": "EP effective VAT rules",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "Explicit book-local VAT rule configuration and read-only calculation previews. See vat-rules-api.md."
   },
   "security": [
@@ -210,6 +210,28 @@
                   "preset_version": {
                     "type": "string",
                     "description": "Server-resolved version; an empty ID/version pair clears current attribution."
+                  },
+                  "posting_accounts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Optional book-local active posting-account UUIDs; omission on revise preserves mappings. Missing roles remain preview issues.",
+                    "properties": {
+                      "input": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "output": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "non_deductible": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      }
+                    }
                   }
                 }
               }
@@ -392,6 +414,28 @@
                   "preset_version": {
                     "type": "string",
                     "description": "Server-resolved version; an empty ID/version pair clears current attribution."
+                  },
+                  "posting_accounts": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "description": "Optional book-local active posting-account UUIDs; omission on revise preserves mappings. Missing roles remain preview issues.",
+                    "properties": {
+                      "input": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "output": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      },
+                      "non_deductible": {
+                        "type": "string",
+                        "format": "uuid",
+                        "nullable": true
+                      }
+                    }
                   }
                 }
               }

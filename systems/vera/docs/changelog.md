@@ -189,3 +189,9 @@ Verification: 196 EP tests and 91 VERA tests (796 assertions) pass; RuboCop/Zeit
 Removed the dirty-row barrier on attachment icons. Space/click now opens the existing dialog while edits remain local. Attachment refreshes preserve reference, accounts, amounts and VAT/credit overrides, updating enclosure counts and fresh version fences. Concurrent saved-row/context changes retain conflict protection, and pending projections retain the local row.
 
 Verification: 91 VERA tests (796 assertions), RuboCop, Zeitwerk and JavaScript syntax checks pass. Playwright attached a PDF with unsaved fields/overrides, then saved the preserved row successfully. Additional browser checks covered pending projections and concurrent row changes retaining local fields and older conflict fences. VERA graph refreshed.
+
+## 2026-11-05 — VAT posting accounts and complete posting preview
+
+Added incoming/outgoing/non-deductible posting-account mappings to dated VAT rules, with book scope, active posting-account validation, history and original-request recovery. Saved journal previews show the complete debit/net/VAT legs, account/rule revisions and exact balance, while remaining unposted. Missing mappings, unavailable accounts, ambiguous VAT sources and amount differences are explicit issues. Signed/gross/net amounts, partial deduction, reverse charge and no-VAT behavior use EP’s exact rule arithmetic.
+
+Verification: 198 EP tests and 93 VERA tests (814 assertions) pass; RuboCop, Zeitwerk and Brakeman (zero warnings/errors) pass. Tests cover exact 1125/900/225 positive/negative legs, net entry, partial deduction, reverse charge, missing/inactive/foreign mappings, immutable rule history and manual mismatches. Playwright saved mappings, displayed all three balanced legs, checked missing-mapping guidance and mobile fit. The account-mapping migration is applied locally; no real business records or ledger postings were created. VERA graph refreshed.

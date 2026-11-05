@@ -6,6 +6,12 @@ class VatRulesController < FinanceSetupController
     raise Ep::Client::Error.new(422, code: "invalid_vat_rule") unless %w[vat_rule_create vat_rule_revise].include?(action)
     mappings = Array(params[:mappings]).map { |m| { box: m[:box].to_s, component: m[:component].to_s, sign: Integer(m[:sign], exception: false) } }.reject { |m| m[:box].blank? }
     attrs = { expected_version: Integer(params[:expected_version], exception: false), vat_entry_id: params[:vat_entry_id].to_s, valid_from: params[:valid_from].to_s, valid_until: params[:valid_until].presence, direction: params[:direction].to_s, rate_bps: percentage(params[:rate]), deductible_bps: percentage(params[:deductible]), mappings: mappings }
+    if params.key?(:posting_accounts)
+      selected=params[:posting_accounts]
+      valid=selected.is_a?(ActionController::Parameters) && (selected.keys-%w[input output non_deductible]).empty? && selected.values.all? { |id| id.blank? || (id.is_a?(String) && id.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i)) }
+      raise Ep::Client::Error.new(422, code: "invalid_vat_posting_account") unless valid
+      attrs[:posting_accounts] = %w[input output non_deductible].to_h { |role| [ role, selected[role].presence ] }
+    end
     attrs[:assessment_basis] = params[:assessment_basis].to_s if params.key?(:assessment_basis)
     if params.key?(:preset_id) || params.key?(:preset_version)
       attrs.merge!(preset_id: params[:preset_id].to_s, preset_version: params[:preset_version].to_s)
@@ -34,6 +40,7 @@ class VatRulesController < FinanceSetupController
   end
   def error_message(code)
     case code
+    when "invalid_vat_posting_account" then "Choose active posting accounts from this book for VAT and non-deductible amounts."
     when "invalid_vat_preset" then "That preset reference is unavailable. Select a current preset; existing rule history is preserved."
     when "vat_rule_overlap" then "Active date ranges for this VAT entry overlap. End the earlier rule before the next rule begins."
     when "invalid_vat_rule" then "Check dates, percentages (0–100, up to two decimals), direction and reporting mappings. Output rules have no deductible share; no-VAT rules use zero percentages. Other rules need at least one reporting box. Import-statement assessment requires reverse charge."

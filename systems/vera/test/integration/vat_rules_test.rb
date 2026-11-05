@@ -41,6 +41,17 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_redirected_to path
     assert_requested command
   end
+  test "book VAT posting accounts are explicit configuration in the original command" do
+    options=[ { id: RID, number: "6900", name: "Incoming VAT", active: true } ]
+    view(data.merge(posting_accounts: options))
+    get path
+    assert_select "select[name='posting_accounts[input]'] option[value='#{RID}']"
+    assert_select "select[name='posting_accounts[output]']"
+    command=stub_request(:post, api).with(body: attrs.merge(posting_accounts: { input: RID, output: nil, non_deductible: nil })).to_return(status: 200, body: { stream_version: 3 }.to_json)
+    patch path, params: form(token).merge(posting_accounts: { input: RID, output: "", non_deductible: "" })
+    assert_redirected_to path
+    assert_requested command
+  end
   test "overlap conflicts preserve the valid draft and require explicit reapplication" do
     view
     get path

@@ -32,6 +32,7 @@ class Views::VatRules::Show < Views::Base
           p(class: "mt-2 text-sm text-amber-900") { "This VAT entry is inactive; its rules are retained for history." } if entry && !entry["active"]
           preset_details(rule["preset"])
           p(class: "mt-2 text-sm font-medium") { "VAT amount comes from the import statement; supplier net does not determine the assessment." } if rule["assessment_basis"] == "import_statement"
+          posting_account_lines(rule["posting_accounts"])
           mapping_lines(rule.fetch("mappings").fetch("lines"))
           rule_form(rule) if @editable && @draft && @draft.dig(:attrs, :rule_id) == rule["id"]
           if @editable && !(@draft && @draft.dig(:attrs, :rule_id) == rule["id"])
@@ -42,6 +43,7 @@ class Views::VatRules::Show < Views::Base
             rule.fetch("history", []).reverse_each do |h|
               p(class: "mt-3 text-sm") { "#{h['valid_from']} → #{h['valid_until'] || 'Ongoing'} · #{h['direction']} · VAT #{percent(h['rate_bps'])}% · Deductible #{percent(h['deductible_bps'])}% · #{h['active'] ? 'Active' : 'Inactive'} · Revision #{h['version']}" }
               preset_details(h["preset"])
+              posting_account_lines(h["posting_accounts"])
               mapping_lines(h.fetch("mappings").fetch("lines"))
               p(class: "mt-1 text-xs text-stone-500") { "#{h['accepted_at']} · Actor #{h['actor_identity_id']} · Application #{h['application_id']}" }
             end
@@ -88,6 +90,13 @@ class Views::VatRules::Show < Views::Base
     p(class: "mt-2 text-xs text-stone-500") { "No reporting boxes configured." } if lines.empty?
     lines.each { |m| p(class: "mt-2 text-xs text-stone-600") { "#{m['box']}: #{m['sign'] == -1 ? '−' : '+'} #{m['component'].tr('_', ' ')}" } }
   end
+  def posting_account_lines(mapping)
+    (mapping || {}).each do |role, id|
+      next unless id
+      account = Array(@data["posting_accounts"]).find { |a| a["id"] == id }
+      p(class: "mt-2 text-sm") { "#{role.tr('_', ' ').capitalize} posting: #{account ? account['number']+' · '+account['name'] : id}" }
+    end
+  end
   def rule_form(rule)
     action = rule ? "vat_rule_revise" : "vat_rule_create"
     draft = @draft && @draft[:action] == action && @draft.dig(:attrs, :rule_id) == (rule && rule["id"]) ? @draft[:attrs].deep_stringify_keys : nil
@@ -119,6 +128,21 @@ class Views::VatRules::Show < Views::Base
         div { f.label(:rate, "VAT rate (%)"); f.number_field(:rate, value: percent(values["rate_bps"]), step: "0.01", min: 0, max: 100, required: true, class: FIELD) }
         div { f.label(:deductible, "Deductible VAT share (%)"); f.number_field(:deductible, value: percent(values["deductible_bps"]), step: "0.01", min: 0, max: 100, required: true, class: FIELD) }
         div { f.label(:active, "Status"); f.select(:active, [ [ "Active", "true" ], [ "Inactive", "false" ] ], { selected: values["active"].to_s }, class: FIELD) } if rule
+      end
+      p(class: "mt-4 text-sm font-medium") { "VAT posting accounts" }
+      p(class: "mt-1 text-sm text-stone-600") { "Map chart accounts for the saved posting preview. Missing mappings remain visible as preview issues; saving a rule does not post money." }
+      div(class: "mt-3 grid gap-3 sm:grid-cols-3") do
+        { "input"=>"Incoming VAT account", "output"=>"Outgoing VAT account", "non_deductible"=>"Non-deductible VAT account" }.each do |role, title|
+          div do
+            label { title }
+            select(name: "posting_accounts[#{role}]", aria_label: title, class: FIELD) do
+              chosen=values.dig("posting_accounts", role)
+              option(value: "", selected: chosen.blank?) { "Unmapped" }
+              Array(@data["posting_accounts"]).each { |a| option(value: a["id"], selected: chosen==a["id"]) { "#{a['number']} · #{a['name']}#{a['active'] ? '' : ' · Inactive'}" } }
+              option(value: chosen, selected: true) { "Unavailable account: #{chosen}" } if chosen.present? && !Array(@data["posting_accounts"]).any? { |a| a["id"]==chosen }
+            end
+          end
+        end
       end
       p(class: "mt-4 text-sm font-medium") { "Reporting mappings (up to four; leave unused boxes blank)" }
       4.times do |i|
