@@ -36,7 +36,15 @@ class Components::ChartRow < Components::Base
   private
   def cells(account)
     values = [ account["kind"].to_s.capitalize, account["number"], account["name"], [ (account["vat_label"] || label(account["vat_code"])), { "gross"=>"VAT included", "net"=>"VAT excluded" }[account["vat_basis"]] ].compact.join(" · "), account["category_label"] || label(account["category"]), account["position"], account["formula"] ]
-    values.each { |value| div(role: "cell", class: "coa-cell", title: value.to_s) { value.to_s } }
+    values.each_with_index do |value, index|
+      div(role: "cell", class: "coa-cell", title: value.to_s) do
+        if index==3 && account["vat_entry_id"]
+          a(href: tenant_book_vat_rules_path(@data["tenant_id"], @data["book_id"], vat_entry_id: account["vat_entry_id"], anchor: "vat-code-#{account['vat_entry_id']}"), class: "text-teal-900 underline", title: "Open this VAT code’s dated settings") { value.presence || "VAT code settings" }
+        else
+          plain value.to_s
+        end
+      end
+    end
   end
   def label(value) = value.to_s.tr("_", " ").capitalize
   def editor

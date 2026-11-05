@@ -1,6 +1,9 @@
 class VatRulesController < FinanceSetupController
   private
-  def destination(_result = nil) = tenant_book_vat_rules_path(params[:tenant_id], params[:book_id])
+  def destination(_result = nil)
+    entry=@attrs && (@attrs[:vat_entry_id] || @attrs["vat_entry_id"])
+    tenant_book_vat_rules_path(params[:tenant_id], params[:book_id], vat_entry_id: entry, anchor: entry && "vat-code-#{entry}")
+  end
   def execute_command(action, attrs, key) = ep.vat_rule_command(params[:tenant_id], params[:book_id], action.delete_prefix("vat_rule_"), attrs, key)
   def attributes_for(action, rule_id)
     raise Ep::Client::Error.new(422, code: "invalid_vat_rule") unless %w[vat_rule_create vat_rule_revise].include?(action)
@@ -25,28 +28,55 @@ class VatRulesController < FinanceSetupController
   end
   def show_setup(status: 200, message: nil)
     data = ep.vat_rules(params[:tenant_id], params[:book_id])
+    selected=params[:vat_entry_id].presence
+    if selected && !data.fetch("vat_entries").any? { |entry| entry["id"]==selected }
+      raise Ep::Client::Error.new(404, code: "invalid_vat_reference")
+    end
+    as_of=Time.current.in_time_zone("Europe/Copenhagen").to_date
+    if params[:as_of].present?
+      parsed=Date.iso8601(params[:as_of].to_s) rescue nil
+      if parsed && parsed.iso8601==params[:as_of]
+        as_of=parsed
+      else
+        status, message=422, "Choose a valid settings date."
+      end
+    end
     if params[:preset_id].present? && !@attrs
       preset = Array(data["presets"]).find { |p| p["id"] == params[:preset_id] && (params[:preset_version].blank? || p["version"] == params[:preset_version]) }
       if preset
         aliases = preset.fetch("aliases").map(&:downcase)
         matches = data.fetch("vat_entries").select { |e| e["active"] && aliases.include?(e["code"].split(/\s+[-–]\s+/, 2).first.strip.downcase) }
         @action = "vat_rule_create"
-        @attrs = preset.slice("direction", "rate_bps", "deductible_bps", "mappings", "assessment_basis").symbolize_keys.merge(preset_id: preset.fetch("id"), preset_version: preset.fetch("version"), vat_entry_id: matches.one? ? matches.first.fetch("id") : nil)
+        @attrs = preset.slice("direction", "rate_bps", "deductible_bps", "mappings", "assessment_basis").symbolize_keys.merge(preset_id: preset.fetch("id"), preset_version: preset.fetch("version"), vat_entry_id: selected || (matches.one? ? matches.first.fetch("id") : nil))
       else
         status, message = 422, "That preset version is unavailable. Select a current Danish preset."
       end
     end
-    render Views::VatRules::Show.new(data: data, token: method(:form_token), draft: @attrs && { action: @action, attrs: @attrs }, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+    if !@attrs && params[:copy_from].present?
+      source=data.fetch("vat_rules").find { |rule| rule["id"]==params[:copy_from] && (!selected || rule["vat_entry_id"]==selected) }
+      if source
+        selected=source.fetch("vat_entry_id")
+        @action="vat_rule_create"
+        @attrs=source.slice("vat_entry_id", "direction", "rate_bps", "deductible_bps", "assessment_basis", "posting_accounts").symbolize_keys.merge(mappings: source.dig("mappings", "lines"))
+        @attrs.merge!(preset_id: source["preset"]["id"], preset_version: source["preset"]["version"]) if source["preset"]
+      else
+        status, message=422, "Choose existing settings from this VAT code to prepare a change."
+      end
+    end
+    if selected && !@attrs
+      @action="vat_rule_create";@attrs={ vat_entry_id: selected }
+    end
+    render Views::VatRules::Show.new(data: data, token: method(:form_token), draft: @attrs && { action: @action, attrs: @attrs }, selected_entry: selected, as_of: as_of, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
   end
   def error_message(code)
     case code
     when "invalid_vat_posting_account" then "Choose active posting accounts from this book for VAT and non-deductible amounts."
     when "invalid_vat_preset" then "That preset reference is unavailable. Select a current preset; existing rule history is preserved."
-    when "vat_rule_overlap" then "Active date ranges for this VAT entry overlap. End the earlier rule before the next rule begins."
-    when "invalid_vat_rule" then "Check dates, percentages (0–100, up to two decimals), direction and reporting mappings. Output rules have no deductible share; no-VAT rules use zero percentages. Other rules need at least one reporting box. Import-statement assessment requires reverse charge."
-    when "invalid_vat_reference" then "Select a VAT entry from this book. A rule cannot move to another entry."
-    when "inactive_catalogue_entry" then "Create new rules only for active VAT entries."
-    when "version_conflict" then "A newer setup/rule revision exists. Your draft is preserved; compare it with the accepted rule before reapplying."
+    when "vat_rule_overlap" then "Active date ranges for this VAT code overlap. End the current settings the day before the new settings start."
+    when "invalid_vat_rule" then "Check dates, percentages (0–100, up to two decimals), direction and reporting mappings. Output VAT uses no deductible share; no-VAT settings use zero percentages. Other settings need VAT-return reporting from a preset or Advanced. Import-statement assessment requires reverse charge."
+    when "invalid_vat_reference" then "Select a VAT code from this book. Saved settings cannot move to a different code."
+    when "inactive_catalogue_entry" then "Create new dated settings only for active VAT codes."
+    when "version_conflict" then "A newer version of the VAT code settings exists. Your draft is preserved; compare it with the accepted rule before reapplying."
     when "catalogue_not_initialized" then "Initialize the book’s catalogues before adding VAT rules."
     else super
     end

@@ -18,7 +18,8 @@ class Components::Chart < Components::Base
       a(href: tenant_book_chart_path(@tid, @bid, retired: @data["retired"] ? nil : "1"), class: "mt-3 mr-4 inline-block text-sm font-medium text-teal-900 hover:underline") { @data["retired"] ? "Current chart" : "Retired accounts" }
       p(class: "mt-3 text-sm text-stone-600") { "Retired accounts are read-only history. Their original positions, numbers, identities and references are preserved." } if @data["retired"]
       a(href: tenant_book_periods_path(@tid, @bid), class: "mt-3 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
-      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "VAT and categories" }
+      a(href: tenant_book_vat_rules_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "VAT code settings" }
+      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "Categories and code names" }
       unless @data["catalogues_initialized"]
         p(class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { "Initialize this book’s VAT/category catalogues before editing the chart. Existing selections will be preserved and bound to stable entries." }
       end

@@ -40,7 +40,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "input[name=rate][value='']"
     command = stub_request(:post, api).with(body: attrs).to_return(status: 200, body: { stream_version: 3 }.to_json)
     patch path, params: form(token)
-    assert_redirected_to path
+    assert_redirected_to "#{path}?vat_entry_id=#{VID}#vat-code-#{VID}"
     assert_requested command
   end
   test "book VAT posting accounts are explicit configuration in the original command" do
@@ -51,7 +51,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "select[name='posting_accounts[output]']"
     command=stub_request(:post, api).with(body: attrs.merge(posting_accounts: { input: RID, output: nil, non_deductible: nil })).to_return(status: 200, body: { stream_version: 3 }.to_json)
     patch path, params: form(token).merge(posting_accounts: { input: RID, output: "", non_deductible: "" })
-    assert_redirected_to path
+    assert_redirected_to "#{path}?vat_entry_id=#{VID}#vat-code-#{VID}"
     assert_requested command
   end
   test "overlap conflicts preserve the valid draft and require explicit reapplication" do
@@ -64,7 +64,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "input[name=rate][value='25.50']"
     assert_select "input[name=deductible][value='25.00']"
     assert_includes response.body, "date ranges"
-    assert_select "input[value='Reapply rule draft']"
+    assert_select "input[value='Reapply settings draft']"
   end
   test "unknown acceptance keeps its original body/key through receipt check and explicit retry" do
     view
@@ -82,7 +82,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "form[action='#{path}/retry']"
     command.to_return(status: 200, body: { stream_version: 3 }.to_json)
     post "#{path}/retry", params: { rate: "99" }
-    assert_redirected_to path
+    assert_redirected_to "#{path}?vat_entry_id=#{VID}#vat-code-#{VID}"
     assert_requested command, times: 2
   end
   test "read-only/pending states suppress forms and revoked access clears rule data" do
@@ -121,10 +121,42 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     expected = attrs.merge(rate_bps: 2500, assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])
     command = stub_request(:post, api).with(body: expected).to_return(status: 200, body: { stream_version: 3 }.to_json)
     patch path, params: form(token).merge(rate: "25", assessment_basis: "net", preset_id: "REP", preset_version: preset[:version], mappings: preset[:mappings])
-    assert_redirected_to path
+    assert_redirected_to "#{path}?vat_entry_id=#{VID}#vat-code-#{VID}"
     assert_requested command
     get path, params: { preset_id: "REP", preset_version: "obsolete" }
     assert_response :unprocessable_entity
     assert_includes response.body, "preset version is unavailable"
+  end
+  def dated_settings(id, first, last = nil)
+    { id: id, vat_entry_id: VID, valid_from: first, valid_until: last, direction: "input", rate_bps: 2500, deductible_bps: 10000, active: true, version: 1, posting_accounts: {}, mappings: { lines: [] } }
+  end
+  test "codes group current scheduled and earlier settings by the selected date" do
+    view(data.merge(vat_entries: data[:vat_entries] + [ { id: "unconfigured", code: "Other", name: "Other VAT", active: true } ], vat_rules: [ dated_settings("old", "2025-01-01", "2025-12-31"), dated_settings(RID, "2026-01-01", "2026-12-31"), dated_settings("future", "2027-01-01") ]))
+    get path, params: { as_of: "2026-06-01" }
+    assert_response :success
+    assert_select "#vat-code-#{VID} [data-vat-settings='Current settings']", count: 1
+    assert_select "#vat-code-#{VID} [data-vat-settings='Scheduled change']", count: 1
+    assert_select "#vat-code-#{VID} details [data-vat-settings='Earlier settings']", count: 1
+    assert_select "#vat-code-unconfigured [role=status]", text: /Not configured for 2026-06-01/
+  end
+  test "scheduling copies settings into a new draft bound to the same code with blank dates" do
+    view(data.merge(vat_rules: [ dated_settings(RID, "2026-01-01") ]))
+    get path, params: { vat_entry_id: VID, copy_from: RID }
+    assert_response :success
+    assert_select "#vat_rule_create-new select[name=vat_entry_id][disabled]"
+    assert_select "#vat_rule_create-new input[name=vat_entry_id][value='#{VID}']"
+    assert_select "#vat_rule_create-new input[name=rate][value='25.00']"
+    assert_select "#vat_rule_create-new input[name=valid_from][value]", count: 0
+    assert_select "#vat_rule_create-new input[name=rule_id]", count: 0
+    assert_not_requested :post, api
+  end
+  test "invalid settings dates and foreign code contexts do not write configuration" do
+    view
+    get path, params: { as_of: "2026-02-30" }
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Choose a valid settings date"
+    get path, params: { vat_entry_id: RID }
+    assert_response :not_found
+    assert_not_requested :post, api
   end
 end

@@ -13,12 +13,12 @@ class Components::Catalogues < Components::Base
       a(href: tenant_book_setup_path(@tid, @bid), class: "text-sm font-medium text-teal-900 hover:underline") { "← Roles and occasions" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       div(class: "mt-3 flex flex-wrap items-end justify-between gap-4") do
-        h1(class: "text-3xl font-semibold tracking-tight") { "VAT and category catalogues" }
+        h1(class: "text-3xl font-semibold tracking-tight") { "VAT codes and categories" }
         a(href: tenant_book_chart_path(@tid, @bid), class: "text-sm font-medium text-teal-900 hover:underline") { "Chart of accounts" }
       end
       p(class: "mt-4 max-w-3xl text-sm leading-relaxed text-stone-600") { "Manage classification labels for this book. Accounts keep stable references when codes or names change. Inactive entries remain on existing accounts but cannot be selected for new associations." }
-      p(class: "mt-3 text-xs text-stone-500") { "Assign effective-dated rates, deductible shares and reporting mappings to VAT entries through VAT rules." }
-      a(href: tenant_book_vat_rules_path(@tid, @bid), class: "mt-3 block text-sm font-medium text-teal-900 underline") { "Effective VAT rules" }
+      p(class: "mt-3 text-xs text-stone-500") { "A VAT code is the same selection used on chart accounts. Open its settings to configure rates, deductions and posting accounts by date." }
+      a(href: tenant_book_vat_rules_path(@tid, @bid), class: "mt-3 block text-sm font-medium text-teal-900 underline") { "VAT code settings" }
       p(role: "alert", class: "mt-5 rounded-lg bg-amber-50 p-4 text-sm") { @message } if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }
@@ -39,7 +39,7 @@ class Components::Catalogues < Components::Base
         end
         return
       end
-      [ [ "vat", "VAT entries" ], [ "category", "Categories" ] ].each do |kind, title|
+      [ [ "vat", "VAT codes" ], [ "category", "Categories" ] ].each do |kind, title|
         section(class: "mt-9", aria_label: title) do
           h2(class: "text-xl font-semibold") { title }
           @data.fetch("catalogue_entries").select { |entry| entry["kind"] == kind }.each { |entry| entry_card(entry) }
@@ -69,6 +69,7 @@ class Components::Catalogues < Components::Base
       entry_form(entry) if draft && @configure
       h3(class: "text-lg font-semibold") { "#{entry['code']} · #{entry['name']}" }
       p(class: "mt-2 text-xs text-stone-500") { "#{entry['active'] ? 'Active' : 'Inactive'} · Revision #{entry['version']}" }
+      a(href: tenant_book_vat_rules_path(@tid, @bid, vat_entry_id: entry["id"], anchor: "vat-code-#{entry['id']}"), class: "mt-3 inline-block font-medium text-teal-900 underline") { "VAT settings · rates, deduction and dated changes" } if entry["kind"]=="vat"
       if @configure && !draft
         details(class: "mt-4") do
           summary(class: "cursor-pointer text-sm font-medium text-teal-900") { "Edit entry" }
