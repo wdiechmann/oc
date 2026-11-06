@@ -7,16 +7,20 @@ class Views::Journals::Index < Views::Base
   def view_template
     div(id: "vera-book-content") do
       a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
-      header(class: "mt-6 flex flex-wrap items-end justify-between gap-4") do
-        div do
-          p(class: "text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
-          h1(class: "mt-2 text-3xl font-semibold") { "Journals" }
+      p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
+      header(class: "mt-2 flex items-center justify-between gap-4") do
+        h1(class: "min-w-0 text-3xl font-semibold") { "Journals" }
+        render Components::ContextMenu.new(id: "journals-index-actions", label: "Journals actions") do
+          a(href: tenant_book_journals_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Refresh journals" }
+          if @data["status"] == "ready" && @data.dig("permissions", "prepare")
+            a(href: new_tenant_book_journals_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "New journal" }
+          else
+            button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "New journal" }
+          end
         end
-        a(href: new_tenant_book_journals_path(@tid, @bid), class: "rounded-lg bg-teal-950 px-4 py-3 text-sm font-semibold text-white") { "New journal" } if @data["status"] == "ready" && @data.dig("permissions", "prepare")
       end
       p(role: "alert", class: "mt-4 rounded bg-amber-50 p-3") { @message } if @message
       p(role: "status", class: "mt-4 text-sm text-amber-900") { "The journal list is updating. Refresh to see the latest changes." } unless @data["status"] == "ready"
-      a(href: tenant_book_journals_path(@tid, @bid), class: "mt-4 inline-block text-sm text-teal-900 underline") { "Refresh journals" }
       div(class: "mt-6 overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         table(class: "w-full text-left text-sm") do
           thead(class: "border-b bg-stone-100") { tr { [ "Journal", "Posting date", "Reference", "Status" ].each { |label| th(scope: "col", class: "px-4 py-3 font-medium") { label } } } }

@@ -267,7 +267,8 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", text: "Journals"
     assert_select "a[href='#{path}?draft_id=#{JID}']", text: "Work journal"
-    assert_select "a[href='#{path}/new']", text: "New journal"
+    assert_select "#journals-index-actions a[href='#{path}/new'][role=menuitem]", text: "New journal"
+    assert_select "#journals-index-actions a[href='#{path}'][role=menuitem]", text: "Refresh journals"
     assert_select "#journal-create, [data-work-row], #journal-posting-preview, [data-journal-details]", count: 0
     get path, params: { draft_id: JID }
     assert_response :success

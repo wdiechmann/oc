@@ -71,3 +71,5 @@ Completed: journal details editing from the header menu through a shared dialog,
 Completed: saved posting preview as a journal header action and shared read-only dialog, replacing the inline expander.
 
 Completed: journal User manual dialog from the header menu, containing the relocated editor instructions.
+
+Completed: centered Journals index header menu for refresh and new-journal navigation.

@@ -125,3 +125,5 @@ Edit journal details belongs in the title context menu and opens the existing me
 Move Saved posting preview · Unposted from the journal body to its header context menu, opening the saved evidence in a shared dialog. Preserve historical revision and private review scope; opening the preview must not save or recalculate postings.
 
 Provide a User manual action in the journal header context menu, opening the shared dialog. For now its only journal content is the existing search/keyboard/amount-entry and numbered-line/workflow instructions; remove those paragraphs from the main view.
+
+Place a context menu to the right of the Journals index title, centered vertically with the title. Move Refresh journals and New journal into it while retaining creation permission/readiness guards.

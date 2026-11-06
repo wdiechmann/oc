@@ -145,3 +145,5 @@ The details-dialog GET reads the selected journal from EP, verifies current prep
 The preview-dialog GET reads the scoped selected journal/revision (or the caller’s private reviewed plan) through EP and streams the existing preview component in dialog mode. It displays stored validation evidence without a financial command or quote recalculation. Live and historical inline preview calls are removed; the selected revision is preserved in the menu URL.
 
 The user-manual GET checks the current book’s journal-read access through EP and streams a static Phlex manual into the shared dialog. Content is the two former JournalWork description paragraphs; decimal punctuation uses the same request-locale helper. Reading the manual does not mutate or replace the work editor.
+
+The journal index reuses the shared ContextMenu component in a title-only flex row with items-center/justify-between. Refresh remains a read-only index link; New journal retains the existing readiness/prepare check and dedicated creation route.
