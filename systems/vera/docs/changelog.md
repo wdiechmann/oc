@@ -261,3 +261,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.
 
 2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
+
+2026-11-06: Added enclosure previews to the shared dialog: inline PDFs/images before attachment confirmation and expandable previews for saved documents, with protected staged preview reads and unchanged download controls.

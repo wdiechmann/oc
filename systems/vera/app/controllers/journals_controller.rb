@@ -1,4 +1,7 @@
 class JournalsController < FinanceSetupController
+  content_security_policy only: :preview_attachment do |policy|
+    policy.frame_ancestors :self
+  end
   def new
     show_setup
   end
@@ -118,6 +121,16 @@ class JournalsController < FinanceSetupController
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
     render_attachments(data, info, upload: upload)
+  end
+  def preview_attachment
+    file = if params[:upload_id].present?
+      ep.staged_journal_attachment(params[:tenant_id], params[:book_id], params[:row_id], params[:upload_id])
+    else
+      ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])
+    end
+    raise Ep::Client::Error.new(422, code: "invalid_attachment") unless %w[application/pdf image/png image/jpeg].include?(file["content_type"])
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    send_data Base64.strict_decode64(file.fetch("content")), filename: file.fetch("filename"), type: file.fetch("content_type"), disposition: "inline"
   end
   def download_attachment
     file = ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])

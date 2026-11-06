@@ -77,6 +77,10 @@ defmodule EpWeb.Router do
         JournalController,
         :attachments
 
+    get "/tenants/:tenant_id/finance/books/:book_id/journals/rows/:row_id/attachments/stage/:upload_id",
+        JournalController,
+        :staged_preview
+
     post "/tenants/:tenant_id/finance/books/:book_id/journals/rows/:row_id/attachments/stage",
          JournalController,
          :stage

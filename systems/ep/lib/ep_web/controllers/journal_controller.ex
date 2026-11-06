@@ -120,6 +120,20 @@ defmodule EpWeb.JournalController do
         )
       )
 
+  def staged_preview(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalWork.staged_preview(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["row_id"],
+          p["upload_id"],
+          conn.assigns.backend_id
+        )
+      )
+
   def download(conn, p),
     do:
       reply(

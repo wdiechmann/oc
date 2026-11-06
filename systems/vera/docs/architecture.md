@@ -181,3 +181,5 @@ FinanceSetup renders section-header dialog links. FinanceSetupController#assignm
 2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.
 
 2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
+
+JournalAttachments embeds protected same-origin image/PDF preview URLs. The Rails inline-preview endpoint whitelists PDF/PNG/JPEG, uses no-store/nosniff, and permits same-origin framing only for preview responses. EP staged-preview reads enforce current stewardship, tenant/book/row, uploading identity/backend and expiry/acceptance; saved previews reuse authorized enclosure downloads. No document bytes or preview URLs enter the session.

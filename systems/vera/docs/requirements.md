@@ -161,3 +161,5 @@ Book setup must open steward assignment, separate period-reopening permission an
 2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.
 
 2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
+
+The enclosure shared dialog must preview PDF, PNG and JPEG documents during staged review and offer expandable previews of saved enclosures, retaining download and attach confirmation. Preview reads remain authenticated and scoped; staged reads additionally require the uploading identity, backend, row and unexpired unaccepted upload.

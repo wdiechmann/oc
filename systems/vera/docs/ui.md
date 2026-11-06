@@ -175,3 +175,5 @@ On Book configuration, Configuration stewards has adjacent Steward assignment an
 2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.
 
 2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
+
+Choose a PDF, PNG or JPEG and select Review enclosure to see its preview in the shared dialog before Attach enclosure. Existing files have an expandable Preview document section alongside their download link. Open document opens the protected preview in another tab when a larger view is useful or the browser cannot display a PDF inline.

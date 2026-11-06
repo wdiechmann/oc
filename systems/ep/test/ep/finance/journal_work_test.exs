@@ -703,6 +703,41 @@ defmodule Ep.Finance.JournalWorkTest do
     }
 
     {:ok, upload} = JournalWork.stage(c.actor, c.tid, c.bid, entry.id, p)
+    assert upload.content_type == "application/pdf"
+
+    assert {:ok, preview} =
+             JournalWork.staged_preview(c.actor, c.tid, c.bid, entry.id, upload.upload_id)
+
+    assert Base.decode64!(preview["content"]) == content
+
+    assert {:error, :not_found} =
+             JournalWork.staged_preview(
+               c.actor,
+               c.tid,
+               c.bid,
+               entry.id,
+               upload.upload_id,
+               "other-backend"
+             )
+
+    assert {:error, :not_found} =
+             JournalWork.staged_preview(
+               sign_in().principal,
+               c.tid,
+               c.bid,
+               entry.id,
+               upload.upload_id
+             )
+
+    assert {:error, :not_found} =
+             JournalWork.staged_preview(
+               c.actor,
+               c.tid,
+               c.bid,
+               Ecto.UUID.generate(),
+               upload.upload_id
+             )
+
     assert Repo.aggregate(JournalAttachment, :count) == 0
     b = body(c, did, row(c)) |> Map.delete("row") |> Map.put("upload_id", upload.upload_id)
 
@@ -713,6 +748,9 @@ defmodule Ep.Finance.JournalWorkTest do
 
     assert {:ok, %{"replayed" => true}} =
              JournalWork.save(c.actor, c.tid, c.bid, "attachment", b, "attach")
+
+    assert {:error, :review_expired} =
+             JournalWork.staged_preview(c.actor, c.tid, c.bid, entry.id, upload.upload_id)
 
     assert Repo.aggregate(JournalAttachment, :count) == 1
     assert Repo.get!(JournalCounter, c.bid).last_number == 1

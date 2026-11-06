@@ -67,3 +67,5 @@ The draft-only scope above now extends through an explicit Post confirmation for
 No external posting is performed. Balances currently scan immutable posting facts per book; a checkpointed account-balance projection can optimize this later without becoming posting authority.
 
 Posting validation excludes voided and untouched blank work rows and their generated draft lines, using the same blank-row definition as the posting preview. This does not remove or renumber them in the saved journal. A reference, account, nonzero amount or attachment makes a row substantive and its errors still block acceptance. Impact responses include `row_errors` with row_id, posting_id and error codes, so clients can identify unfinished work.
+
+Attachment staging now returns content_type. `GET /rows/:row_id/attachments/stage/:upload_id` returns filename, content_type, base64 content and sha256 for preview only. Current stewardship, uploading identity, backend/application, tenant/book/row scope, purpose, expiry and unaccepted state are checked on every read. Accepted enclosures continue to use the existing scoped download endpoint; preview reads create no binding or journal event.

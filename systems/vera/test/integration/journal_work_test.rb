@@ -129,12 +129,13 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_equal "text/vnd.turbo-stream.html", response.media_type
     assert_select "turbo-stream[target=shared-dialog-host] dialog[aria-labelledby=shared-dialog-title]"
     assert_select "input[type=file]"
-    upload = { upload_id: upload_id, filename: "receipt.pdf", byte_size: 20 }
+    upload = { upload_id: upload_id, filename: "receipt.pdf", content_type: "application/pdf", byte_size: 20 }
     stub_request(:post, "#{api}/rows/#{rid}/attachments/stage").to_return(status: 200, body: upload.to_json)
     file = Rack::Test::UploadedFile.new(StringIO.new("%PDF-1.4\nSynthetic"), "application/pdf", original_filename: "receipt.pdf")
     post "#{path}/upload_attachment", params: { row_id: rid, file: file }, headers: headers
     assert_response :success
     assert_select "turbo-stream[target=shared-dialog-host] #attach-enclosure"
+    assert_select "turbo-stream[target=shared-dialog-host] iframe[src*=preview_attachment][title='Preview of receipt.pdf']"
     signed_token = token("#attach-enclosure")
     binding = stub_request(:post, "#{api}/work/attachment").to_timeout
     refreshed = data.merge(source_version: 2, latest_version: 2)
@@ -156,6 +157,31 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream[target=shared-dialog-host] input[type=file]"
     assert_not_includes response.body, "<html"
   end
+  test "attachment previews serve authenticated inline PDFs and images with private caching" do
+    rid = "cd763842-2538-4ccb-8445-17e232c37d84"
+    upload_id = "dd763842-2538-4ccb-8445-17e232c37d84"
+    file = { filename: "receipt.pdf", content_type: "application/pdf", content: Base64.strict_encode64("%PDF-1.4 synthetic") }
+    stub_request(:get, "#{api}/rows/#{rid}/attachments/stage/#{upload_id}").to_return(status: 200, body: file.to_json)
+    get "#{path}/preview_attachment", params: { row_id: rid, upload_id: upload_id }
+    assert_response :success
+    assert_equal "application/pdf", response.media_type
+    assert_includes response.headers["Content-Disposition"], "inline"
+    assert_includes response.headers["Content-Security-Policy"], "frame-ancestors 'self'"
+    assert_includes response.headers["Cache-Control"], "no-store"
+    assert_equal "nosniff", response.headers["X-Content-Type-Options"]
+    file = { filename: "receipt.png", content_type: "image/png", content: Base64.strict_encode64("synthetic image") }
+    stub_request(:get, "#{api}/attachments/#{upload_id}").to_return(status: 200, body: file.to_json)
+    get "#{path}/preview_attachment", params: { attachment_id: upload_id }
+    assert_response :success
+    assert_equal "image/png", response.media_type
+    info = { draft_id: JID, row_id: rid, posting_id: 1, attachments: [ { id: upload_id, filename: "receipt.png", content_type: "image/png", byte_size: 15, sha256: "synthetic" } ] }
+    stub_request(:get, "#{api}/rows/#{rid}/attachments").to_return(status: 200, body: info.to_json)
+    view
+    get "#{path}/attachments", params: { row_id: rid }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_select "details img[alt='Preview of receipt.png'][src*=preview_attachment]"
+    assert_select "a[href*='download_attachment']", text: "receipt.png"
+  end
+
   test "saved complete posting preview shows all unposted legs and exact totals" do
     d=data
     d[:selected][:validation][:posting_preview]={ status: "complete", errors: [], debit_minor: 112500, credit_minor: 112500, difference_minor: 0, rows: [ { posting_id: 1, errors: [], legs: [ { role: "debit", account: { number: "0010", name: "Bank" }, debit_minor: 112500, credit_minor: 0 }, { role: "credit", account: { number: "0020", name: "Sales" }, debit_minor: 0, credit_minor: 90000 }, { role: "vat_input", account: { number: "6900", name: "Incoming VAT" }, debit_minor: 0, credit_minor: 22500 } ] } ] }

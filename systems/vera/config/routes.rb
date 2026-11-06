@@ -34,6 +34,7 @@ Rails.application.routes.draw do
         post :vat_operation
         get :attachments
         post :upload_attachment
+        get :preview_attachment
         get :download_attachment
         post :review
         get :completion

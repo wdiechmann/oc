@@ -203,9 +203,34 @@ defmodule Ep.Finance.JournalWork do
         upload_id: r.id,
         row_id: row.id,
         filename: p["filename"],
+        content_type: p["content_type"],
         sha256: r.data["sha256"],
         byte_size: byte_size(bytes)
       }
+    end)
+  end
+
+  def staged_preview(principal, tid, bid, row_id, upload_id, app \\ "internal") do
+    scoped(principal, tid, bid, true, fn tid, bid ->
+      row = row!(tid, bid, row_id)
+
+      upload =
+        Repo.get_by(ChartImport,
+          id: uuid!(upload_id),
+          tenant_id: tid,
+          book_id: bid,
+          identity_id: principal.identity_id,
+          application_id: app
+        ) || Repo.rollback(:not_found)
+
+      unless upload.data["purpose"] == "journal_attachment" && upload.data["row_id"] == row.id,
+        do: Repo.rollback(:not_found)
+
+      unless !upload.accepted_command_id &&
+               DateTime.compare(upload.expires_at, DateTime.utc_now()) == :gt,
+             do: Repo.rollback(:review_expired)
+
+      Map.take(upload.data, ~w(filename content_type content sha256))
     end)
   end
 
