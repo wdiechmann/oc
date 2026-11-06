@@ -57,3 +57,5 @@ Turbo response streams update a dedicated feedback region without replacing form
 ## Monitoring operations (local implementation)
 
 TOM remains database-free and uses only EP APIs for authority and durable facts. Encrypted private spool files are bounded transport, not a business datastore. A separately supervised monitoring worker claims EP alert intents, delivers via the selected notification adapter and durably reports outcome. An independent collector drains spool records and probes readiness; the EP protocol owns rules, scope checks, idempotency, restricted diagnostics and erasure suppression.
+
+Magic-link delivery returns its already constructed application URL only in development. The controller puts it in the encrypted flash and the Phlex layout renders the link only in development. No additional token issuance or verification endpoint is introduced.

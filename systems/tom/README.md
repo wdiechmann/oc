@@ -17,7 +17,7 @@ Keep EP running on http://localhost:4000. TOM opens at http://localhost:3000. `b
 
 ## Delivery
 
-Development defaults to `TOM_DELIVERY_METHOD=file`: TOM writes mode-0600 JSON messages under its private mode-0700 `tmp/outbox`. Open the URL in the message's text. This is TOM's own development delivery provider, not a shared filesystem integration with EP. A magic link opens a confirmation page; clicking **Confirm sign-in** redeems it. GET/prefetch alone never creates a session. The existing manual token entry remains available, but normal testing now follows the clickable link.
+Development defaults to `TOM_DELIVERY_METHOD=file`: TOM writes mode-0600 JSON messages under its private mode-0700 `tmp/outbox`. The development flash also shows the clickable sign-in link after a successful request. This is TOM's own development delivery provider, not a shared filesystem integration with EP. A magic link opens a confirmation page; clicking **Confirm sign-in** redeems it. GET/prefetch alone never creates a session. The existing manual token entry remains available, but normal testing now follows the clickable link.
 
 For email set `TOM_DELIVERY_METHOD=smtp`, `TOM_MAIL_FROM`, `TOM_SMTP_HOST`, and optionally `TOM_SMTP_PORT` (587), `TOM_SMTP_USERNAME`, `TOM_SMTP_PASSWORD` and `TOM_SMTP_SSL=true` for implicit TLS (465). Otherwise STARTTLS is required. Configure actual provider credentials yourself; no production provider has been connected or externally tested. Production cannot fall back to file delivery. Tests force Mail's in-memory test provider and never send email externally.
 

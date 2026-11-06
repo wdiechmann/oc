@@ -425,4 +425,24 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     assert_response :service_unavailable
     assert_empty Mail::TestMailer.deliveries
   end
+  test "development sign-in link is clickable in the flash and consumed after one display" do
+    stub_request(:post, "#{EP}/auth/magic-links").to_return(status: 202, body: { delivery: { email: "member@example.test", token: "a"*43, expires_at: 15.minutes.from_now.iso8601 } }.to_json)
+    environment = Rails.env
+    original = environment.method(:development?)
+    environment.define_singleton_method(:development?) { true }
+    begin
+      post "/magic_links", params: { email: "member@example.test" }
+      follow_redirect!
+      assert_select "[role=status] a[href*='/session/verify?token=']", text: "Sign in to TOM"
+      assert_includes css_select("[role=status] a").first["href"], "a"*43
+      get new_session_path
+      assert_select "[role=status] a[href*='/session/verify?token=']", count: 0
+      stub_request(:post, "#{EP}/auth/magic-links").to_return(status: 202, body: { delivery: nil }.to_json)
+      post "/magic_links", params: { email: "unknown@example.test" }
+      follow_redirect!
+      assert_select "[role=status] a[href*='/session/verify?token=']", count: 0
+    ensure
+      environment.define_singleton_method(:development?, original)
+    end
+  end
 end

@@ -125,3 +125,5 @@ VAT setup is preset-first with a direct Danish preset selector. VAT-return box/c
 VERA groups EP VAT-rule projections beneath their catalogue VAT code without changing EP commands, identity, version fences or receipts. GET date/context/copy parameters prepare display or unsaved drafts only; EP remains authoritative for period overlap and acceptance.
 
 The VAT Show view renders the index; the fragment Detail view supplies the existing SharedContentDialog. GET row links stream only the dialog, preserving index focus. Accepted mutations stream both refreshed index and detail. Direct URLs seed the same dialog through the layout host. No EP contract or financial rule changes.
+
+Magic-link delivery returns its already constructed application URL only in development. The controller puts it in the encrypted flash and the Phlex layout renders the link only in development. No additional token issuance or verification endpoint is introduced.

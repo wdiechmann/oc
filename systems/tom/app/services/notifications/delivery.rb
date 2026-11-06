@@ -15,6 +15,7 @@ module Notifications
       token = material.fetch("token")
       link = "#{origin}/session/verify?#{URI.encode_www_form(token: token)}"
       send_message(material.fetch("email"), "Sign in to TOM", "Confirm your TOM sign-in using this link:\n\n#{link}\n\nExpires: #{material.fetch('expires_at')}\nOpening the link does not sign you in until you confirm. If you did not request it, ignore it.", "magic-#{Digest::SHA256.hexdigest(token)}")
+      Rails.env.development? ? link : true
     rescue KeyError, URI::InvalidURIError, ArgumentError
       raise Error, "Invalid sign-in delivery material", cause: nil
     end

@@ -7,8 +7,10 @@ class SessionsController < ApplicationController
     result = Ep::Client.new.request_link(params[:email].to_s.strip)
     raise Ep::Client::Unavailable unless result.key?("delivery")
     session.delete(:pending_magic_token)
-    Notifications::Delivery.magic_link(result["delivery"])
-    redirect_to new_session_path, notice: "If your identity is registered, check your email for your VERA sign-in link.", status: :see_other
+    delivered = Notifications::Delivery.magic_link(result["delivery"])
+    notice = "If your identity is registered, check your email for your VERA sign-in link."
+    notice = { message: "Development sign-in link", sign_in_url: delivered } if Rails.env.development? && delivered.is_a?(String)
+    redirect_to new_session_path, notice: notice, status: :see_other
   end
 
   def verify

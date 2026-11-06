@@ -105,3 +105,5 @@ VAT setup is preset-first with a direct Danish preset selector. VAT-return box/c
 VAT configuration must be organized by the same stable VAT code selected on chart accounts, with dated current, scheduled and earlier settings, explicit missing-date coverage and direct navigation from account/code records.
 
 Keep the VAT index simple: one row per code. Its row link opens the shared dialog containing settings, references, revisions and all configuration actions; saves/errors/recovery use Turbo Streams and preserve authority and version fences.
+
+In development, VERA exposes a successfully issued sign-in link as a clickable one-display flash notice. Production keeps normal provider delivery and the generic notice; absent delivery material never produces a link.

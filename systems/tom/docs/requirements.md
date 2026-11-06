@@ -35,3 +35,5 @@
 ## Monitoring operations (local implementation)
 
 Local monitoring must survive EP outages through a bounded encrypted transport queue, with independent probes and explicit loss accounting. Scope administrators manage reporting sources and alert rules through EP; restricted diagnostics/platform access require explicit grants. Alert delivery belongs to a separately supervised TOM worker with terminal outcome acknowledgments and no automatic resend of ambiguous attempts.
+
+In development, TOM exposes a successfully issued sign-in link as a clickable one-display flash notice. Production keeps normal provider delivery and the generic notice; absent delivery material never produces a link.

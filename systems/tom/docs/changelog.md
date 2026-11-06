@@ -34,3 +34,5 @@ Added EP-backed monitoring capture and tenant/occasion list/detail/timeline/acti
 ## Monitoring operations (local implementation)
 
 2026-10-26: Added local operational monitoring controls, current-administrator assignment picker, scoped restricted diagnostic views, explicit platform scope, backend source discovery, encrypted durable transport buffering and independently supervised alert delivery with heartbeat. Verified against a synthetic local EP instance; production rollout and browser/device rehearsal remain pending.
+
+2026-11-06: Added a clickable development sign-in link to the TOM flash after successful delivery; updated sign-in hints. Production notices continue to omit the URL.

@@ -56,7 +56,7 @@ module Notifications
         end
         message.deliver!
       end
-      true
+      Rails.env.development? ? link : true
     rescue StandardError
       raise Error, "Sign-in message delivery was not confirmed", cause: nil
     end

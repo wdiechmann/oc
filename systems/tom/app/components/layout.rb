@@ -40,7 +40,15 @@ class Components::Layout < Components::Base
           end
         end
         main(class: "mx-auto max-w-6xl px-6 py-12 md:py-20") do
-          p(role: "status", class: "mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900") { @notice } if @notice
+          p(role: "status", class: "mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900") do
+              if Rails.env.development? && @notice.is_a?(Hash)
+                plain @notice["message"] || @notice[:message]
+                plain " · "
+                a(href: @notice["sign_in_url"] || @notice[:sign_in_url], class: "font-semibold underline", data: { turbo: false }) { "Sign in to TOM" }
+              else
+                plain @notice
+              end
+            end if @notice
           p(role: "alert", class: "mb-8 rounded-xl border border-amber-200 bg-amber-50 p-4") { @alert } if @alert
           div(id: "tom-feedback", aria_live: "polite", aria_atomic: "true")
           div(id: "tom-content") { yield }

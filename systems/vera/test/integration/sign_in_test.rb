@@ -26,6 +26,9 @@ class SignInTest < ActionDispatch::IntegrationTest
     assert_equal 1, Mail::TestMailer.deliveries.size
     assert_includes Mail::TestMailer.deliveries.last.body.decoded, "/session/verify?token="
     assert_not_requested :post, "#{EP}/auth/magic-links"
+    follow_redirect!
+    assert_not_includes response.body, "a"*43
+    assert_select "[role=status] a[href*='/session/verify?token=']", count: 0
   end
 
   test "unknown or throttled identities get the same generic response without delivery" do
@@ -98,5 +101,25 @@ class SignInTest < ActionDispatch::IntegrationTest
     assert_not_includes response.body, "Your sign-in has expired"
     get "/session/confirm"
     assert_redirected_to "/session/new"
+  end
+  test "development sign-in link is clickable in the flash and consumed after one display" do
+    stub_request(:post, "#{EP}/auth/sign-in-links").to_return(status: 202, body: { delivery: { email: "member@example.test", token: "a"*43, expires_at: 15.minutes.from_now.iso8601 } }.to_json)
+    environment = Rails.env
+    original = environment.method(:development?)
+    environment.define_singleton_method(:development?) { true }
+    begin
+      post "/session/link", params: { email: "member@example.test" }
+      follow_redirect!
+      assert_select "[role=status] a[href*='/session/verify?token=']", text: "Sign in to VERA"
+      assert_includes css_select("[role=status] a").first["href"], "a"*43
+      get new_session_path
+      assert_select "[role=status] a[href*='/session/verify?token=']", count: 0
+      stub_request(:post, "#{EP}/auth/sign-in-links").to_return(status: 202, body: { delivery: nil }.to_json)
+      post "/session/link", params: { email: "unknown@example.test" }
+      follow_redirect!
+      assert_select "[role=status] a[href*='/session/verify?token=']", count: 0
+    ensure
+      environment.define_singleton_method(:development?, original)
+    end
   end
 end

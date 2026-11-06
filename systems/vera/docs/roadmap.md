@@ -51,3 +51,5 @@ VAT setup is preset-first with a direct Danish preset selector. VAT-return box/c
 Completed: code-centered VAT settings, date-specific coverage, grouped scheduled/history records and same-code change drafts. Scheduling remains explicit: end the previous period before saving a non-overlapping next period.
 
 Completed: compact VAT index and shared detail dialog, including same-code scheduling, presets, revision/source references, streamed save/error recovery and index refresh after acceptance.
+
+Completed: development sign-in links in the flash notice; existing confirmation and production delivery preserved.
