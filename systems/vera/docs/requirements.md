@@ -135,3 +135,5 @@ Display VERA flash/info/notice and transient application feedback as dismissible
 The chart of accounts must place secondary navigation, configuration and CSV actions in a right-aligned context menu centered with its title; search and line editing remain directly accessible, with existing permissions and unsaved-edit guards preserved.
 
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
+
+2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.

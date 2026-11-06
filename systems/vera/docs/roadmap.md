@@ -81,3 +81,5 @@ Completed: shared top-left toast stack for flash, streamed feedback, page messag
 Completed: chart title context menu consolidates refresh, current/retired navigation, related configuration, reports, ordering and CSV actions while retaining direct search and line editing.
 
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
+
+2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.

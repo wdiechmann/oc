@@ -13,15 +13,16 @@ class Views::Journals::Show < Views::Base
   def view_template
     div(id: "vera-book-content", class: "min-w-0 break-words") do
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { "#{@data['book_name']} · #{@data['base_currency']}" }
-      header(class: "mt-2 flex items-start justify-between gap-4") do
+      header(class: "journal-title-header mt-2") do
         h1(class: "min-w-0 text-3xl font-semibold") { @review ? "Review journal draft" : @new_journal ? "New journal" : @data["selected"] ? @data["selected"]["data"]["name"] : "Journal updating…" }
-        journal_menu
+        div(class: "journal-header-tools") do
+          journal_evidence
+          journal_menu
+        end
       end
       p(class: "mt-4 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "Prepare unposted journals with one posting date for all lines. Enter whole minor units (10000 means 100.00 in a two-decimal currency), debit or credit on each line, and optional references. Saving preserves a draft and its validation history." }
       p(class: "mt-3 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "VAT quotes use an explicit signed net base and the effective rule for this date. They are separate from entered debit/credit amounts. No VAT counter-lines are generated. Draft checks do not grant posting authority; posting requires a later workflow." }
       render Components::Toast.new(message: @message, kind: "alert") if @message
-      p(class: "mt-3 text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
-      p(role: "status", class: "mt-3 text-sm text-amber-900") { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
       if @check
         a(href: @check, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry
@@ -53,6 +54,21 @@ class Views::Journals::Show < Views::Base
         selected
       elsif @editable
         editor({ "data"=>{ "name"=>"", "posting_date"=>"", "reference"=>"", "lines"=>[] }, "expected_version"=>@data["latest_version"], "contexts"=>@data["contexts"] })
+      end
+    end
+  end
+  def journal_evidence
+    div(id: "journal-header-evidence", class: "journal-header-evidence", role: "status", aria_live: "polite", tabindex: "0", aria_label: "Journal validation and saved status") do
+      p(class: "text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
+      p { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
+      p { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." } if @data["validation_stale"]
+      validation = @data.dig("selected", "validation")
+      if validation
+        p { validation["status"] == "prepared" ? "Saved draft · Checks passed at review" : "Saved draft · Needs attention" }
+        Array(validation["errors"]).each { |error| p { ERRORS.fetch(error, error.tr("_", " ")) } }
+        Array(validation["lines"]).each do |line|
+          Array(line["errors"]).each { |error| p { "Line #{line['id']} · #{ERRORS.fetch(error, error.tr('_', ' '))}" } }
+        end
       end
     end
   end

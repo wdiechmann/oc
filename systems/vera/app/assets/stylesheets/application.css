@@ -72,3 +72,13 @@ vera-toast { display: none; }
 .vera-toast-close { position: absolute; top: .4rem; right: .4rem; width: 2rem; height: 2rem; border: 0; border-radius: .4rem; cursor: pointer; font-size: 1.4rem; line-height: 1; }
 .vera-toast-close:hover { background: #0001; }
 .vera-toast-close:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
+
+/* Reserve the same header space regardless of validation text or revision. */
+.journal-title-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.journal-header-tools { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
+.journal-header-evidence { width: clamp(16rem, 32vw, 30rem); height: 5rem; overflow: auto; padding: .375rem .5rem; font-size: .75rem; line-height: 1.25rem; color: #78350f; overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .journal-title-header { flex-wrap: wrap; }
+  .journal-header-tools { width: 100%; justify-content: flex-end; }
+  .journal-header-evidence { width: auto; flex: 1; min-width: 0; }
+}

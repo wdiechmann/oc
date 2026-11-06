@@ -31,9 +31,6 @@ class Components::JournalWork < Components::Base
     header = selected.fetch("data")
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
     p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
-    if @data["validation_stale"]
-      p(role: "status", class: "mt-3 rounded-lg bg-amber-50 p-3 text-sm") { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." }
-    end
     if @draft && !@editable
       p(role: "status", class: "mt-3 rounded bg-amber-50 p-3 text-sm") { "Your unsaved row: #{@draft['reference']} · #{@draft['debit_label']} · #{@draft['amount']} · #{@draft['credit_label']}. Use Back to return to the form after the view catches up." }
     end

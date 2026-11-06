@@ -155,3 +155,5 @@ Layout owns a fixed notification region outside main. Shared Toast renders escap
 Components::Chart renders the shared ContextMenu beside its title. Export links retain source-version/filter parameters; the chart editor intercepts document capture clicks because the menu sits outside coa-editor. Chart transient feedback dispatches vera:notify into the shared floating toast stack.
 
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
+
+2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.

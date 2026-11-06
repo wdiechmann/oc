@@ -149,3 +149,5 @@ Flash and transient app messages now float in a top-left notification stack inst
 Use the More icon at the right of the Chart of accounts title for refresh, current/retired accounts, related configuration, journals/reports, formula preview, reordering and CSV import/export/template actions. The icon is vertically centered with the title. Search and account line editing remain visible; save or cancel an edited line before exporting.
 
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
+
+2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.
