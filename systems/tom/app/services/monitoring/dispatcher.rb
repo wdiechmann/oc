@@ -3,6 +3,12 @@ module Monitoring
     def self.heartbeat_path
       Rails.root.join("tmp", Rails.env.test? ? "test-monitoring-alert-heartbeat-#{Process.pid}" : "monitoring-alert-heartbeat")
     end
+    def self.heartbeat_fresh?
+      last = Integer(File.read(heartbeat_path), exception: false)
+      !!(last && (Time.current.to_i-last).between?(0, 30))
+    rescue SystemCallError, IOError
+      false
+    end
     def self.tick
       Current.set(correlation_id: SecureRandom.uuid, scope: nil, command: nil, reported: true) do
         client = Ep::Client.new(instrument: false)

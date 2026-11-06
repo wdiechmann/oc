@@ -90,4 +90,20 @@ class MonitoringOperationsTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_requested sent, times: 1
   end
+  test "worker status requires a recent successful heartbeat and handles missing or invalid data" do
+    path = Monitoring::Dispatcher.heartbeat_path
+    FileUtils.rm_f(path)
+    assert_not Monitoring::Dispatcher.heartbeat_fresh?
+    File.write(path, Time.current.to_i.to_s)
+    assert Monitoring::Dispatcher.heartbeat_fresh?
+    get "/up/monitoring"
+    assert_response :success
+    assert_equal true, response.parsed_body["ready"]
+    [ (Time.current.to_i-31).to_s, (Time.current.to_i+60).to_s, "invalid" ].each do |value|
+      File.write(path, value)
+      assert_not Monitoring::Dispatcher.heartbeat_fresh?
+      get "/up/monitoring"
+      assert_response :service_unavailable
+    end
+  end
 end

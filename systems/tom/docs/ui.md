@@ -68,3 +68,5 @@ Submitted-form errors update an accessible inline feedback region while preservi
 Monitoring scope selection offers Platform monitoring only to an explicitly granted operator. Sources and alert rules provides scoped registration/revocation, threshold/window/cooldown setup, eligible recipient selection, enable/disable, maintenance suppression and recent delivery outcomes. Issue details offer named assignment and separately authorized diagnostics. Existing Turbo inline feedback remains in place; a separate worker performs alert delivery.
 
 Development sign-in: submit the email form, then click the sign-in link in the flash notice. The link leads to the existing confirmation page; the flash disappears after one display. Default private file delivery remains available as before.
+
+Monitoring opens on the scope list without the persistent reporting warning. Expand Reporting setup to inspect reporting-source availability and whether this instance recorded a successful alert-worker check within 30 seconds. Settings links use the existing authorized tenant/occasion flows.

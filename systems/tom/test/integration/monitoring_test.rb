@@ -23,6 +23,9 @@ class MonitoringTest < ActionDispatch::IntegrationTest
     get monitoring_path
     assert_response :success
     assert_select "a[href=?]", tenant_monitoring_path(TENANT), text: "SL"
+    assert_select "details#monitoring-reporting-status:not([open]) summary", text: "Reporting setup"
+    assert_not_includes response.body, "TOM reporting is not enabled"
+    assert_select "#monitoring-reporting-status a[href=?]", tenant_monitoring_settings_path(TENANT)
     stub_request(:get, "#{EP}/tenants/#{TENANT}/monitoring/issues").with(query: { "state" => "open" }).to_return(status: 200, body: { items: [ issue ], next_cursor: nil, freshness: { pending_events: 0, checked_at: "2026-10-26T10:05:00Z" } }.to_json)
     get tenant_monitoring_path(TENANT)
     assert_response :success
