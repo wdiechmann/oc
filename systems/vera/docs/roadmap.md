@@ -61,3 +61,5 @@ Completed: side-aware VAT amount suggestions and posting previews for income, ex
 Completed: explicit apply-VAT flag, net result-account amounts independent of legacy account inclusion defaults, VAT-off overrides and read-only VAT operation dialog.
 
 Completed: dated VAT rule picker and source-side selection in the VAT operation dialog, Turbo draft-row recalculation and persisted per-row VAT overrides.
+
+Completed: separate journal index, creation page and full-width journal detail with postings, saved preview and revision history.

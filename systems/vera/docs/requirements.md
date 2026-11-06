@@ -115,3 +115,5 @@ Paired journal columns determine posting side independently of typed sign. Deriv
 The journal VAT checkbox applies or disables VAT; it must never treat an entered result-account amount as VAT-inclusive. Expense debit 500 with VAT enabled must remain 500 in the saved preview, with input VAT 125 and counter credit 625. Offer a shared VAT operation dialog from the row context menu.
 
 Allow choosing the VAT rule used by a journal row in the shared VAT operation dialog. Apply it to that row through Turbo without changing entered amounts or shared account/rule configuration. Preserve the selection through subsequent previews and explicit row save.
+
+Keep the journal index limited to journal links/metadata and a New journal link. Journal details, posting editor and saved posting preview belong on the selected journal’s own view; creation gets a separate form page.

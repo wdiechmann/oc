@@ -215,3 +215,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Corrected VAT checkbox semantics to apply/no VAT. Result-account debit 500 stays net 500 even with a legacy gross account default. Added More → VAT operation with exact debit/credit legs, rule/rate and current amounts; removed the misleading chart inclusion selector.
 
 2026-11-06: Made the VAT operation dialog editable with a per-row VAT rule and source-account selector. Use on row streams recalculated VAT/counter amounts into the editor; normal save preserves the override. Added account-default restoration without editing shared VAT rules.
+
+2026-11-06: Split journal navigation into a compact index, New journal page and selected journal view. Removed inline creation/other-journal lists from journal details and kept refresh on the selected draft/revision.

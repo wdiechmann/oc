@@ -28,7 +28,7 @@ class JournalsTest < ActionDispatch::IntegrationTest
   def draft = { draft_id: "", expected_draft_version: "", expected_version: "0", contexts: contexts.transform_values(&:to_s), name: "Invoice", posting_date: "2026-06-01", reference: "INV-1", lines: lines.each_with_index.to_h { |l, i| [ i.to_s, l.transform_values { |v| v.nil? ? "" : v.to_s } ] } }
   def token = css_select("#accept-journal input[name=form_token]").first["value"]
   test "drafts require review and signed pointer acceptance with exact minor units" do
-    get path
+    get "#{path}/new"
     assert_response :success
     assert_select "#journal-editor fieldset", count: 2
     attrs = { draft_id: nil, expected_draft_version: nil, expected_version: 0, contexts: contexts, data: journal }

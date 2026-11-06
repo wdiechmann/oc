@@ -1,7 +1,9 @@
 class Views::Journals::Show < Views::Base
   ERRORS = { "account_required"=>"Select a posting account.", "posting_account_required"=>"Headers and calculations cannot be journal accounts.", "account_inactive_or_retired"=>"The account is inactive or retired.", "choose_one_nonzero_side"=>"Enter a nonzero amount on exactly one side.", "inactive_vat_entry"=>"The selected VAT entry is inactive.", "vat_rule_missing"=>"No active VAT rule covers this date.", "invalid_amount"=>"Enter a signed whole-minor-unit VAT base; assessed overrides apply only to import statements.", "assessment_required"=>"Enter the signed VAT amount from the import statement.", "journal_unbalanced"=>"Debit and credit totals differ.", "two_nonzero_lines_required"=>"The journal needs at least two lines and a nonzero total.", "period_not_open"=>"The posting date is not in an open period.", "account_vat_not_selected"=>"This account has a VAT selection; confirm the explicit no-VAT choice or select a rule." }.freeze
-  def initialize(data:, work_token: nil, work_draft: nil, work_header: nil, decimal_separator: ".", review: nil, token: nil, editing: nil, extra_line: false, message: nil, check_url: nil, retry_url: nil, **options)
+  def initialize(data:, new_journal: false, requested_id: nil, requested_version: nil, work_token: nil, work_draft: nil, work_header: nil, decimal_separator: ".", review: nil, token: nil, editing: nil, extra_line: false, message: nil, check_url: nil, retry_url: nil, **options)
     super(**options, full_width: true)
+    @requested_id, @requested_version = requested_id, requested_version
+    @new_journal = new_journal
     @data, @review, @token, @editing, @extra, @message, @check, @retry = data, review, token, editing, extra_line, message, check_url, retry_url
     @work_token, @work_draft, @work_header, @decimal_separator = work_token, work_draft, work_header, decimal_separator
     @tid, @bid = data.fetch("tenant_id"), data.fetch("book_id")
@@ -10,27 +12,20 @@ class Views::Journals::Show < Views::Base
   def url(**query) = tenant_book_journals_path(@tid, @bid, **query)
   def view_template
     div(id: "vera-book-content", class: "min-w-0 break-words") do
-      a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
+      a(href: url, class: "text-teal-900 underline") { "← Journals" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { "#{@data['book_name']} · #{@data['base_currency']}" }
-      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review journal draft" : @data["work_rows_enabled"] && @data["selected"] ? @data["selected"]["data"]["name"] : "Journal drafts" }
+      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review journal draft" : @new_journal ? "New journal" : @data["selected"] ? @data["selected"]["data"]["name"] : "Journal updating…" }
       p(class: "mt-4 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "Prepare unposted journals with one posting date for all lines. Enter whole minor units (10000 means 100.00 in a two-decimal currency), debit or credit on each line, and optional references. Saving preserves a draft and its validation history." }
       p(class: "mt-3 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "VAT quotes use an explicit signed net base and the effective rule for this date. They are separate from entered debit/credit amounts. No VAT counter-lines are generated. Draft checks do not grant posting authority; posting requires a later workflow." }
       p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
       p(class: "mt-3 text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
       p(role: "status", class: "mt-3 text-sm text-amber-900") { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
-      a(href: url, class: "mt-3 inline-block text-sm text-teal-900 underline") { "Refresh drafts" }
+      a(href: @new_journal ? new_tenant_book_journals_path(@tid, @bid) : @review ? url(review_id: @review["review_id"]) : url(draft_id: @data.dig("selected", "id") || @requested_id, version: @requested_version), class: "mt-3 inline-block text-sm text-teal-900 underline") { "Refresh journal" }
       if @check
         a(href: @check, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry
       end
-      if @data["work_rows_enabled"] && @data["selected"]
-        details(class: "mt-4 rounded-lg border border-stone-200 bg-white p-3") do
-          summary(class: "cursor-pointer text-sm text-teal-900") { "Journals and revision history (#{@data.fetch('drafts').length})" }
-          div(class: "max-h-80 overflow-auto") { draft_navigation }
-        end
-      else
-        draft_navigation
-      end
+      journal_history if @data["selected"] && !@review
       if @data["work_rows_enabled"] && !@review && !@editing && !@data["historical"]
         render Components::JournalWork.new(data: @data, token: @work_token, separator: @decimal_separator, draft: @work_draft, header: @work_header)
       elsif @review
@@ -59,25 +54,22 @@ class Views::Journals::Show < Views::Base
       elsif @editable
         editor({ "data"=>{ "name"=>"", "posting_date"=>"", "reference"=>"", "lines"=>[] }, "expected_version"=>@data["latest_version"], "contexts"=>@data["contexts"] })
       end
-      a(href: url, class: "mt-6 block text-sm text-teal-900 underline") { "New journal draft" } if @data["selected"] && @editable
     end
   end
-  def draft_navigation
-      @data.fetch("drafts").each do |draft|
-        div(class: "mt-4 rounded-lg border border-stone-200 bg-white p-4") do
-          a(href: url(draft_id: draft["id"]), class: "font-medium text-teal-900 underline") { "#{draft['data']['name']} · #{draft['data']['posting_date']} · Revision #{draft['version']}" }
-          p(class: "mt-2 text-sm text-stone-600") { @data["work_rows_enabled"] ? "Work in progress" : draft["validation"]["status"] == "prepared" ? "Unposted draft · Checks passed at review" : "Unposted draft · Needs attention" }
-          details(class: "mt-2 text-sm") do
-            summary(class: "cursor-pointer text-teal-900") { "Revision history (#{draft.fetch('history', []).length})" }
-            draft.fetch("history", []).reverse_each do |h|
-              p(class: "mt-2") do
-                a(href: url(draft_id: draft["id"], version: h["version"]), class: "text-teal-900 underline") { "Revision #{h['version']}" }
-                plain " · #{h['accepted_at']} · Actor #{h['actor_identity_id']} · Application #{h['application_id']}"
-              end
-            end
-          end
+  def journal_history
+    selected = @data.fetch("selected")
+    current = @data.fetch("drafts").find { |draft| draft["id"] == selected["id"] } || selected
+    history = current.fetch("history", [])
+    return if history.empty?
+    details(class: "mt-4 text-sm") do
+      summary(class: "cursor-pointer text-teal-900") { "Revision history (#{history.length})" }
+      history.reverse_each do |revision|
+        p(class: "mt-2") do
+          a(href: url(draft_id: selected["id"], version: revision["version"]), class: "text-teal-900 underline") { "Revision #{revision['version']}" }
+          plain " · #{revision['accepted_at']} · Actor #{revision['actor_identity_id']} · Application #{revision['application_id']}"
         end
       end
+    end
   end
   def evidence(data, validation, contexts)
     h2(class: "mt-6 text-xl font-semibold") { "#{data['name']} · #{data['posting_date']}" }

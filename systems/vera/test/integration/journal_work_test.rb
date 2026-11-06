@@ -28,7 +28,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
   end
   test "metadata creates a work journal with its initial numbered line" do
     stub_request(:get, api).to_return(status: 200, body: data.merge(selected: nil).to_json)
-    get path, headers: { "Accept-Language"=>"da-DK" }
+    get "#{path}/new", headers: { "Accept-Language"=>"da-DK" }
     assert_select "#journal-create"
     assert_select "input[name=name]"
     assert_select "input[name=posting_date]"
@@ -253,5 +253,32 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     patch path, params: params.except(:intent).merge(form_token: t), headers: { "Accept-Language"=>"da-DK" }
     assert_response :see_other
     assert_requested command
+  end
+  test "journal index has links while details postings and preview stay on the journal page" do
+    d=data
+    d[:drafts]=[ d[:selected] ]
+    stub_request(:get, api).to_return(status: 200, body: d.to_json)
+    view(d)
+    get path
+    assert_response :success
+    assert_select "h1", text: "Journals"
+    assert_select "a[href='#{path}?draft_id=#{JID}']", text: "Work journal"
+    assert_select "a[href='#{path}/new']", text: "New journal"
+    assert_select "#journal-create, [data-work-row], #journal-posting-preview, [data-journal-details]", count: 0
+    get path, params: { draft_id: JID }
+    assert_response :success
+    assert_select "h1", text: "Work journal"
+    assert_select "a[href='#{path}']", text: "← Journals"
+    assert_select "[data-journal-details]", count: 1
+    assert_select "[data-work-row]", count: 1
+    assert_select "#journal-create", count: 0
+    assert_select "a[href='#{path}/new']", count: 0
+    assert_select "a[href='#{path}?draft_id=#{JID}']", text: "Work journal", count: 0
+    get "#{path}/new"
+    assert_response :success
+    assert_select "h1", text: "New journal"
+    assert_select "#journal-create", count: 1
+    assert_select "[data-work-row], #journal-posting-preview", count: 0
+    assert_not_requested :post, "#{api}/work/create"
   end
 end

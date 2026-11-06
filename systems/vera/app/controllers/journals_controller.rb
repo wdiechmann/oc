@@ -1,4 +1,7 @@
 class JournalsController < FinanceSetupController
+  def new
+    show_setup
+  end
   def review
     return pending_feedback if session[:finance_operation]
     raw = params[:lines]
@@ -122,7 +125,12 @@ class JournalsController < FinanceSetupController
       @editing = { "draft_id"=>data["selected"]["id"], "expected_draft_version"=>data["selected"]["version"], "expected_version"=>data["latest_version"], "contexts"=>data["contexts"], "data"=>data["selected"]["data"], "saved_validation"=>data["selected"]["validation"] }
     end
     token = review_token(review) if review && !review["accepted_command_id"] && data.dig("permissions", "prepare") && data["status"] == "ready" && !session[:finance_operation]
-    render Views::Journals::Show.new(work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+    creation = action_name == "new" || @action == "journal_create"
+    unless creation || params[:draft_id].present? || review_id || @editing || @work_draft || @work_header
+      return render Views::Journals::Index.new(data: data, message: message, signed_in: signed_in?, notice: flash[:notice]), status: status
+    end
+    data = data.merge("selected"=>nil, "historical"=>false) if creation
+    render Views::Journals::Show.new(new_journal: creation, requested_id: params[:draft_id], requested_version: params[:version], work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
   end
   def feedback(message, status:)
     return super unless request.format.turbo_stream? && @action == "journal_attachment"
