@@ -59,6 +59,10 @@ defmodule EpWeb.Router do
         RecruitmentController,
         :applications
 
+    get "/tenants/:tenant_id/finance/books/:book_id/journals/posting-impact",
+        JournalController,
+        :posting_impact
+
     post "/tenants/:tenant_id/finance/books/:book_id/journals/work/:mode",
          JournalController,
          :work

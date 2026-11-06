@@ -82,3 +82,8 @@ vera-toast { display: none; }
   .journal-header-tools { width: 100%; justify-content: flex-end; }
   .journal-header-evidence { width: auto; flex: 1; min-width: 0; }
 }
+
+.vera-post-dialog { max-height: 80dvh; }
+@media (min-width: 768px) {
+  .vera-post-dialog { width: 80vw; max-width: 80vw; }
+}

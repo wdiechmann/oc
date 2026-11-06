@@ -73,7 +73,7 @@ defmodule Ep.Finance.JournalProjector do
       previous = Enum.find(drafts, &(&1["id"] == draft["id"]))
 
       unless (event.event_type == "JournalDraftCreated" && !previous && draft["id"] == event.id) ||
-               (event.event_type == "JournalDraftRevised" && previous),
+               (event.event_type in ["JournalDraftRevised", "JournalPosted"] && previous),
              do: Repo.rollback(:projection_transition)
 
       history = if previous, do: previous["history"], else: []

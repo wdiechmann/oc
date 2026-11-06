@@ -6,7 +6,7 @@ class Components::JournalWork < Components::Base
   def initialize(data:, token:, separator:, draft: nil, header: nil)
     @data, @token, @separator, @draft, @header = data, token, separator, draft, header
     @tid, @bid = data.fetch("tenant_id"), data.fetch("book_id")
-    @editable = data["status"] == "ready" && data.dig("permissions", "prepare")
+    @editable = data["status"] == "ready" && data.dig("permissions", "prepare") && !data.dig("selected", "data", "posted")
   end
   def view_template
     selected = @data["selected"]
@@ -30,7 +30,7 @@ class Components::JournalWork < Components::Base
     end
     header = selected.fetch("data")
     h2(class: "mt-6 text-xl font-semibold") { "Journal lines" }
-    p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, "Work in progress" ].compact.join(" · ") }
+    p(class: "mt-2 text-sm text-stone-600") { [ header["posting_date"], header["reference"].presence, (header["posted"] ? "Posted" : "Work in progress") ].compact.join(" · ") }
     if @draft && !@editable
       p(role: "status", class: "mt-3 rounded bg-amber-50 p-3 text-sm") { "Your unsaved row: #{@draft['reference']} · #{@draft['debit_label']} · #{@draft['amount']} · #{@draft['credit_label']}. Use Back to return to the form after the view catches up." }
     end

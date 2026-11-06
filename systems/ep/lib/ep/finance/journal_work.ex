@@ -14,7 +14,12 @@ defmodule Ep.Finance.JournalWork do
     Setup
   }
 
-  def save(principal, tid, bid, mode, p, key, app \\ "internal") do
+  def save(principal, tid, bid, mode, p, key, app \\ "internal")
+
+  def save(principal, tid, bid, "post", p, key, app),
+    do: Ep.Finance.JournalPosting.post(principal, tid, bid, p, key, app)
+
+  def save(principal, tid, bid, mode, p, key, app) do
     scoped(principal, tid, bid, true, fn tid, bid ->
       unless mode in ~w(create row attachment details delete) && is_map(p) && is_binary(key) &&
                Regex.match?(~r/^[A-Za-z0-9._:-]{1,128}$/, key),
@@ -266,6 +271,7 @@ defmodule Ep.Finance.JournalWork do
             Repo.rollback(:not_found)
 
     if draft && draft.data["deleted"], do: Repo.rollback(:not_found)
+    if draft && draft.data["posted"], do: Repo.rollback(:journal_already_posted)
 
     data =
       if mode == "create",

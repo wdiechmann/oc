@@ -47,6 +47,7 @@ module Ep
       request(action == "revise" ? :patch : :post, "#{book_root(tid)}/#{uuid!(bid)}/periods#{suffix}", body: attrs.except(:period_id), key: key)
     end
     def journal_work(tid, bid, mode, attrs, key) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/work/#{mode}", body: attrs, key: key)
+    def journal_posting_impact(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/posting-impact", query: { draft_id: uuid!(id) })
     def journal_accounts(tid, bid, query) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/accounts", query: { q: query })
     def journal_row_preview(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/row-preview", body: attrs)
     def journal_attachments(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(id)}/attachments")

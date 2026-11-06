@@ -189,6 +189,137 @@ defmodule Ep.Finance.JournalWorkTest do
     r
   end
 
+  test "confirmed posting rolls up accounts, preserves IDs and is immutable and idempotent", c do
+    did = create(c)
+    save(c, did, row(c), "post-row-one")
+    save(c, did, row(c), "post-row-two")
+    alias Ep.Finance.JournalPosting
+    {:ok, plan} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    assert plan["errors"] == []
+    assert length(plan["accounts"]) == 2
+    assert Enum.sort(Enum.map(plan["accounts"], & &1["post_minor"])) == [-25000, 25000]
+
+    assert Enum.all?(
+             plan["accounts"],
+             &(&1["prepost_minor"] == 0 && &1["postpost_minor"] == &1["post_minor"])
+           )
+
+    attrs = Map.take(plan, ~w(contexts digest draft_id expected_draft_version expected_version))
+    numbers = Repo.all(from r in JournalRow, select: r.posting_id, order_by: r.posting_id)
+
+    assert {:error, :forced_post_rollback} =
+             Repo.transaction(fn ->
+               assert {:ok, _} =
+                        JournalWork.save(c.actor, c.tid, c.bid, "post", attrs, "rolled-back-post")
+
+               Repo.rollback(:forced_post_rollback)
+             end)
+
+    refute Repo.get!(JournalDraft, did).data["posted"]
+    assert {:ok, result} = JournalWork.save(c.actor, c.tid, c.bid, "post", attrs, "post-confirm")
+    assert result["posted"]
+    assert {:ok, replay} = JournalWork.save(c.actor, c.tid, c.bid, "post", attrs, "post-confirm")
+    assert replay["replayed"]
+    assert replay["event_ids"] == result["event_ids"]
+    assert Repo.all(from r in JournalRow, select: r.posting_id, order_by: r.posting_id) == numbers
+    {:ok, _} = JournalProjector.deliver(c.tid)
+
+    assert {:error, :journal_already_posted} =
+             JournalWork.save(c.actor, c.tid, c.bid, "post", attrs, "post-again")
+
+    assert {:error, :journal_already_posted} =
+             JournalWork.save(c.actor, c.tid, c.bid, "row", body(c, did, row(c)), "edit-posted")
+
+    {:ok, data} = Journals.get(c.actor, c.tid, c.bid, %{"draft_id" => did})
+    assert data.selected["data"]["posted"]
+    assert data.selected["data"]["authorized_by"] == c.actor.identity_id
+    assert data.selected["data"]["verified_by"] == c.actor.identity_id
+    assert {:ok, :ok} = JournalProjector.rebuild(c.tid)
+    second = create(c, "second-journal")
+    save(c, second, row(c), "second-line")
+    {:ok, next} = JournalPosting.impact(c.actor, c.tid, c.bid, second)
+    assert Enum.sort(Enum.map(next["accounts"], & &1["prepost_minor"])) == [-25000, 25000]
+    assert Enum.sort(Enum.map(next["accounts"], & &1["postpost_minor"])) == [-37500, 37500]
+  end
+
+  test "posting refuses incomplete or changed journals without ledger effects", c do
+    alias Ep.Finance.JournalPosting
+    did = create(c)
+    {:ok, incomplete} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+
+    attrs =
+      Map.take(incomplete, ~w(contexts digest draft_id expected_draft_version expected_version))
+
+    assert {:error, :journal_not_postable} =
+             JournalPosting.post(c.actor, c.tid, c.bid, attrs, "incomplete")
+
+    save(c, did, row(c), "valid-row")
+    {:ok, plan} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    attrs = Map.take(plan, ~w(contexts digest draft_id expected_draft_version expected_version))
+    save(c, did, row(c), "changed-after-preview")
+
+    assert {:error, :version_conflict} =
+             JournalPosting.post(c.actor, c.tid, c.bid, attrs, "stale-post")
+
+    refute Repo.get!(JournalDraft, did).data["posted"]
+
+    assert Repo.aggregate(
+             from(e in Ep.Events.Event,
+               where: e.tenant_id == ^c.tid and e.event_type == "JournalPosted"
+             ),
+             :count
+           ) == 0
+  end
+
+  test "posting checks current authority and protects against period closure", c do
+    alias Ep.Finance.JournalPosting
+    did = create(c)
+    save(c, did, row(c), "before-close")
+    {:ok, plan} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    attrs = Map.take(plan, ~w(contexts digest draft_id expected_draft_version expected_version))
+    stranger = sign_in()
+    assert {:error, :not_found} = JournalPosting.impact(stranger.principal, c.tid, c.bid, did)
+
+    assert {:error, :not_found} =
+             JournalPosting.post(stranger.principal, c.tid, c.bid, attrs, "unauthorized")
+
+    assert {:ok, _} =
+             Periods.command(
+               c.actor,
+               c.tid,
+               c.bid,
+               "close",
+               %{
+                 "period_id" => c.period_id,
+                 "expected_version" => 2,
+                 "expected_period_version" => 2
+               },
+               "close-before-post"
+             )
+
+    assert {:error, :view_pending} =
+             JournalPosting.post(c.actor, c.tid, c.bid, attrs, "closed-pending")
+
+    {:ok, _} = PeriodProjector.deliver(c.tid)
+
+    assert {:error, :version_conflict} =
+             JournalPosting.post(c.actor, c.tid, c.bid, attrs, "closed-stale")
+
+    {:ok, closed} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    assert "period_not_open" in closed["errors"]
+
+    assert {:error, :journal_not_postable} =
+             JournalPosting.post(
+               c.actor,
+               c.tid,
+               c.bid,
+               Map.take(closed, Map.keys(attrs)),
+               "closed-post"
+             )
+
+    refute Repo.get!(JournalDraft, did).data["posted"]
+  end
+
   test "save and next allocates exactly one new line atomically and replays both IDs", c do
     did = create(c)
     save(c, did, row(c), "first")
@@ -1116,6 +1247,43 @@ defmodule Ep.Finance.JournalWorkTest do
     assert credit["credit_minor"] == 12500
     assert credit["debit_minor"] == 0
     assert validation["posting_preview"]["balanced"]
+  end
+
+  test "posting includes generated VAT legs and rejects later deletion", c do
+    {_accounts, _rule, _attrs, expense, bank, _command} = posting_setup(c)
+    did = create(c)
+
+    p =
+      Map.merge(%{"id" => nil, "reference" => "VAT posting", "void" => false}, %{
+        "debit_account_id" => expense.id,
+        "credit_account_id" => bank.id,
+        "amount_minor" => 50000,
+        "amount_basis" => "net",
+        "vat_enabled" => true,
+        "basis_override" => true
+      })
+
+    save(c, did, p, "vat-to-post")
+    alias Ep.Finance.JournalPosting
+    {:ok, impact} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    assert impact["errors"] == []
+    assert Enum.sort(Enum.map(impact["accounts"], & &1["post_minor"])) == [-62500, 12500, 50000]
+    attrs = Map.take(impact, ~w(contexts digest draft_id expected_draft_version expected_version))
+    assert {:ok, _} = JournalPosting.post(c.actor, c.tid, c.bid, attrs, "post-vat")
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    {:ok, current} = Journals.get(c.actor, c.tid, c.bid, %{"draft_id" => did})
+
+    deletion = %{
+      "draft_id" => did,
+      "expected_version" => current.latest_version,
+      "expected_draft_version" => current.selected["version"],
+      "contexts" => current.contexts
+    }
+
+    assert {:error, :journal_already_posted} =
+             JournalWork.save(c.actor, c.tid, c.bid, "delete", deletion, "delete-posted")
+
+    assert current.selected["data"]["posted"]
   end
 
   test "apply VAT keeps the entered expense net even when its old account default is gross", c do

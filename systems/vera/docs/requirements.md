@@ -137,3 +137,5 @@ The chart of accounts must place secondary navigation, configuration and CSV act
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
 
 2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.
+
+Journal index rows provide scoped context menus with Delete journal and Post journal. Post opens a shared dialog (at most 80% viewport height, 80% width from md) containing one summed row per affected account, including VAT accounts, with Prepost/Post/Postpost balances. The Post button sits between title and account table and explicitly confirms authorization and verification. EP accepts only balanced, currently eligible journals; posted journals are immutable and retries cannot duplicate entries.

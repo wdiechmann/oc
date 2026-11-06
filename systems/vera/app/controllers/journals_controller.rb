@@ -14,6 +14,7 @@ class JournalsController < FinanceSetupController
     render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
   end
   def posting_preview
+    posted = false
     if params[:review_id].present?
       review = ep.journal_review(params[:tenant_id], params[:book_id], params[:review_id])
       preview, historical = review.dig("plan", "validation", "posting_preview"), true
@@ -25,13 +26,22 @@ class JournalsController < FinanceSetupController
         return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
       end
       preview, historical = data.dig("selected", "validation", "posting_preview"), !!data["historical"]
+      posted = !!data.dig("selected", "data", "posted")
     end
-    content = Components::JournalPostingPreview.new(preview: preview, separator: decimal_separator, historical: historical, dialog: true)
+    content = Components::JournalPostingPreview.new(preview: preview, separator: decimal_separator, historical: historical, dialog: true, posted: posted)
     render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
+  def post_dialog
+    plan = ep.journal_posting_impact(params[:tenant_id], params[:book_id], params[:draft_id])
+    session[:finance_form_nonce] ||= SecureRandom.hex(16)
+    attrs = plan.slice("draft_id", "expected_version", "expected_draft_version", "contexts", "digest")
+    token = Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>"journal_post", "account_id"=>plan["draft_id"], "posting"=>attrs, "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 15.minutes)
+    content = Components::JournalPostDialog.new(plan: plan, token: token, separator: decimal_separator)
+    render Components::SharedDialogStream.new(content: content, wide: true), content_type: "text/vnd.turbo-stream.html"
   end
   def delete_dialog
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
-    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare")
+    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare") && !data.dig("selected", "data", "posted")
     unless data["status"] == "ready"
       content = Components::SharedDialogFeedback.new(message: "The journal view is updating. Refresh the journal before deleting it.")
       return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
@@ -41,7 +51,7 @@ class JournalsController < FinanceSetupController
   end
   def details_dialog
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
-    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare")
+    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare") && !data.dig("selected", "data", "posted")
     unless data["status"] == "ready"
       content = Components::SharedDialogFeedback.new(message: "The journal view is updating. Refresh the journal before editing its details.")
       return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
@@ -117,6 +127,7 @@ class JournalsController < FinanceSetupController
 
   private
   def accepted_notice(result)
+    return "Journal posted. Authorization, verification and account entries have been recorded." if @action == "journal_post"
     return "Journal deleted. Numbered postings and history are retained for traceability." if @action == "journal_delete"
     result["posting_id"] ? "Posting ID #{result['posting_id']} saved. The journal remains work in progress." : "Journal draft saved. Continue working on its lines."
   end
@@ -128,10 +139,11 @@ class JournalsController < FinanceSetupController
     end
     action == "journal_save" ? ep.accept_journal(params[:tenant_id], params[:book_id], attrs, key) : ep.journal_work(params[:tenant_id], params[:book_id], work_mode(action), attrs, key)
   end
-  def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: @action == "journal_delete" ? nil : result && result["draft_id"])
+  def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: @action.in?(%w[journal_delete journal_post]) ? nil : result && result["draft_id"])
   def attributes_for(action, id)
     unless action == "journal_save"
       signed = Rails.application.message_verifier(:finance_setup).verified(params[:form_token].to_s, purpose: :finance_setup)
+      return signed.fetch("posting").symbolize_keys if action == "journal_post"
       @decimal_separator = signed.fetch("decimal_separator")
       attrs = { expected_version: work_version(params[:expected_version]), contexts: work_contexts }
       attrs.merge!(draft_id: id, expected_draft_version: work_version(params[:expected_draft_version])) unless action == "journal_create"
@@ -206,7 +218,7 @@ class JournalsController < FinanceSetupController
     end
   end
   def decimal_separator = @decimal_separator || JournalMoney.separator(request.headers["Accept-Language"])
-  def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details", "journal_delete"=>"delete" }.fetch(action)
+  def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details", "journal_delete"=>"delete", "journal_post"=>"post" }.fetch(action)
   def work_token(action, draft_id = nil, row_id = nil, upload = nil)
     session[:finance_form_nonce] ||= SecureRandom.hex(16)
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>action, "account_id"=>draft_id, "row_id"=>row_id, "upload_id"=>upload && upload["upload_id"], "decimal_separator"=>decimal_separator, "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 4.hours)
@@ -251,6 +263,10 @@ class JournalsController < FinanceSetupController
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>"journal_save", "account_id"=>review.fetch("review_id"), "digest"=>review.fetch("digest"), "expected_version"=>review.fetch("expected_version"), "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 1.hour)
   end
   def setup_error(error)
+    if request.format.turbo_stream? && action_name == "post_dialog" && ![ 401, 403, 404 ].include?(error.status)
+      content = Components::SharedDialogFeedback.new(message: error_message(error.code))
+      return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: error.status
+    end
     if request.format.turbo_stream? && action_name == "upload_attachment" && [ 409, 422 ].include?(error.status)
       info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
       data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
@@ -275,6 +291,8 @@ class JournalsController < FinanceSetupController
   def error_message(code)
     case code
     when "version_conflict" then "The journal, chart, VAT rules, book or periods changed. Compare your draft with the current saved version and review again explicitly."
+    when "journal_already_posted" then "This journal is already posted. Its postings cannot be edited or deleted."
+    when "journal_not_postable" then "Resolve the journal’s account, VAT, balance and period issues before posting."
     when "invalid_attachment" then "Choose a PDF, PNG or JPEG file up to 5 MiB with a simple filename."
     when "numbered_row_cannot_disappear" then "Numbered rows remain in the audit trail. Void the row instead of removing it."
     when "invalid_journal"

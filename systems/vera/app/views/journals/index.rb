@@ -23,17 +23,29 @@ class Views::Journals::Index < Views::Base
       p(role: "status", class: "mt-4 text-sm text-amber-900") { "The journal list is updating. Refresh to see the latest changes." } unless @data["status"] == "ready"
       div(class: "mt-6 overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         table(class: "w-full text-left text-sm") do
-          thead(class: "border-b bg-stone-100") { tr { [ "Journal", "Posting date", "Reference", "Status" ].each { |label| th(scope: "col", class: "px-4 py-3 font-medium") { label } } } }
+          thead(class: "border-b bg-stone-100") { tr { [ "Journal", "Posting date", "Reference", "Status", "" ].each { |label| th(scope: "col", class: "px-4 py-3 font-medium") { label } } } }
           tbody do
             @data.fetch("drafts").each do |draft|
               tr(class: "border-b last:border-0 hover:bg-teal-50") do
                 td(class: "px-4 py-3") { a(href: tenant_book_journals_path(@tid, @bid, draft_id: draft["id"]), class: "font-medium text-teal-900 underline") { draft.dig("data", "name") } }
                 td(class: "px-4 py-3 whitespace-nowrap") { draft.dig("data", "posting_date") }
                 td(class: "px-4 py-3") { draft.dig("data", "reference") }
-                td(class: "px-4 py-3") { "Work in progress" }
+                td(class: "px-4 py-3") { draft.dig("data", "posted") ? "Posted" : "Work in progress" }
+                td(class: "px-4 py-3 text-right") do
+                  render Components::ContextMenu.new(id: "journal-actions-#{draft['id']}", label: "Actions for #{draft.dig('data', 'name')}") do
+                    can_change = @data["status"] == "ready" && @data.dig("permissions", "prepare") && !draft.dig("data", "posted")
+                    if can_change
+                      a(href: post_dialog_tenant_book_journals_path(@tid, @bid, draft_id: draft["id"]), role: "menuitem", class: "vera-menu-item", data: { turbo_stream: true }) { "Post journal" }
+                      a(href: delete_dialog_tenant_book_journals_path(@tid, @bid, draft_id: draft["id"]), role: "menuitem", class: "vera-menu-item", data: { turbo_stream: true }) { "Delete journal" }
+                    else
+                      button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Post journal" }
+                      button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Delete journal" }
+                    end
+                  end
+                end
               end
             end
-            tr { td(colspan: 4, class: "px-4 py-6 text-stone-500") { "No journals yet." } } if @data.fetch("drafts").empty?
+            tr { td(colspan: 5, class: "px-4 py-6 text-stone-500") { "No journals yet." } } if @data.fetch("drafts").empty?
           end
         end
       end

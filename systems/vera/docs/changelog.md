@@ -237,3 +237,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
 
 2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.
+
+2026-11-06: Added journal index row menus with Delete and Post. Added the 80% account-impact dialog and signed, idempotent posting confirmation with authorization/verification, fresh VAT/period/account checks, immutable posted journals and account-balance rollups.

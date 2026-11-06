@@ -1,23 +1,24 @@
 class Components::JournalPostingPreview < Components::Base
-  def initialize(preview:, separator:, historical: false, dialog: false)
+  def initialize(preview:, separator:, historical: false, dialog: false, posted: false)
+    @posted = posted
     @dialog = dialog
     @preview, @separator, @historical = preview, separator, historical
   end
   def view_template
     if @dialog
       section(id: "journal-posting-preview") do
-        h2(id: "shared-dialog-title", class: "text-2xl font-semibold") { "Saved posting preview · Unposted" }
+        h2(id: "shared-dialog-title", class: "text-2xl font-semibold") { @posted ? "Saved posting preview · Posted" : "Saved posting preview · Unposted" }
         preview_content
       end
     else
       details(id: "journal-posting-preview", class: "mt-6 rounded-lg border border-stone-200 bg-white p-4") do
-        summary(class: "cursor-pointer font-semibold text-teal-900") { "Saved posting preview · Unposted" }
+        summary(class: "cursor-pointer font-semibold text-teal-900") { @posted ? "Saved posting preview · Posted" : "Saved posting preview · Unposted" }
         preview_content
       end
     end
   end
   def preview_content
-    p(class: "mt-3 text-sm text-stone-600") { @historical ? "Saved evidence for this revision. Later configuration changes do not alter these amounts or accounts." : "Save row edits to refresh this preview. Authorization, verification and final posting are separate steps." }
+    p(class: "mt-3 text-sm text-stone-600") { @posted ? "Immutable posted entry evidence. Corrections require a separate adjustment or reversal journal." : @historical ? "Saved evidence for this revision. Later configuration changes do not alter these amounts or accounts." : "Save row edits to refresh this preview. Authorization, verification and final posting are separate steps." }
     unless @preview
       p(class: "mt-3 text-sm") { "Save a row to build the complete posting preview." }
       return

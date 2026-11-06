@@ -132,6 +132,18 @@ defmodule EpWeb.JournalController do
         )
       )
 
+  def posting_impact(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.JournalPosting.impact(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["draft_id"]
+        )
+      )
+
   defp reply(conn, {:ok, data}),
     do: conn |> put_resp_header("cache-control", "no-store") |> json(data)
 

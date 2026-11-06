@@ -7,7 +7,7 @@ class Views::Journals::Show < Views::Base
     @data, @review, @token, @editing, @extra, @message, @check, @retry = data, review, token, editing, extra_line, message, check_url, retry_url
     @work_token, @work_draft, @work_header, @decimal_separator = work_token, work_draft, work_header, decimal_separator
     @tid, @bid = data.fetch("tenant_id"), data.fetch("book_id")
-    @editable = data["status"] == "ready" && data.dig("permissions", "prepare") && !check_url
+    @editable = data["status"] == "ready" && data.dig("permissions", "prepare") && !check_url && !data.dig("selected", "data", "posted")
   end
   def url(**query) = tenant_book_journals_path(@tid, @bid, **query)
   def view_template
@@ -64,7 +64,7 @@ class Views::Journals::Show < Views::Base
       p { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." } if @data["validation_stale"]
       validation = @data.dig("selected", "validation")
       if validation
-        p { validation["status"] == "prepared" ? "Saved draft · Checks passed at review" : "Saved draft · Needs attention" }
+        p { @data.dig("selected", "data", "posted") ? "Posted · Authorized and verified" : validation["status"] == "prepared" ? "Saved draft · Checks passed at review" : "Saved draft · Needs attention" }
         Array(validation["errors"]).each { |error| p { ERRORS.fetch(error, error.tr("_", " ")) } }
         Array(validation["lines"]).each do |line|
           Array(line["errors"]).each { |error| p { "Line #{line['id']} · #{ERRORS.fetch(error, error.tr('_', ' '))}" } }
@@ -96,9 +96,9 @@ class Views::Journals::Show < Views::Base
         button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Show history" }
       end
       if draft || @review
-        a(href: posting_preview_tenant_book_journals_path(@tid, @bid, draft_id: @review ? nil : id, review_id: @review && @review["review_id"], version: @requested_version), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "Saved posting preview · Unposted" }
+        a(href: posting_preview_tenant_book_journals_path(@tid, @bid, draft_id: @review ? nil : id, review_id: @review && @review["review_id"], version: @requested_version), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { draft && draft.dig("data", "posted") ? "Saved posting preview · Posted" : "Saved posting preview · Unposted" }
       else
-        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Saved posting preview · Unposted" }
+        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { draft && draft.dig("data", "posted") ? "Saved posting preview · Posted" : "Saved posting preview · Unposted" }
       end
       a(href: refresh, role: "menuitem", class: "vera-menu-item") { "Refresh journal" }
       a(href: user_manual_tenant_book_journals_path(@tid, @bid), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "User manual" }

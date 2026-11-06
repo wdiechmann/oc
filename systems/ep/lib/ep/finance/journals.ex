@@ -1,5 +1,5 @@
 defmodule Ep.Finance.Journals do
-  @moduledoc "Reviewed, unposted journal preparation and complete posting previews. No ledger changes."
+  @moduledoc "Journal preparation, validated previews and shared protected guards for explicit posting."
   import Ecto.Query
   alias Ep.{Events, Repo}
   alias Ep.Events.{CommandReceipt, Outbox}
@@ -162,6 +162,7 @@ defmodule Ep.Finance.Journals do
               Repo.rollback(:not_found)
 
       if old && old.data["deleted"], do: Repo.rollback(:not_found)
+      if old && old.data["posted"], do: Repo.rollback(:journal_already_posted)
 
       if old &&
            (!is_integer(params["expected_draft_version"]) ||
@@ -175,7 +176,8 @@ defmodule Ep.Finance.Journals do
              from(j in JournalDraft,
                where:
                  j.book_id == ^bid and
-                   fragment("COALESCE(?->>'deleted', 'false') != 'true'", j.data)
+                   fragment("COALESCE(?->>'deleted', 'false') != 'true'", j.data) and
+                   fragment("COALESCE(?->>'posted', 'false') != 'true'", j.data)
              ),
              :count
            ) >= 100,
@@ -326,6 +328,7 @@ defmodule Ep.Finance.Journals do
                   Repo.rollback(:not_found)
 
           if old && old.data["deleted"], do: Repo.rollback(:not_found)
+          if old && old.data["posted"], do: Repo.rollback(:journal_already_posted)
 
           if old && old.version != plan["expected_draft_version"],
             do: Repo.rollback(:version_conflict)
@@ -726,6 +729,22 @@ defmodule Ep.Finance.Journals do
     unless Repo.get_by(Control, tenant_id: tid, name: "finance_journals"),
       do: Repo.insert!(%Control{tenant_id: tid, name: "finance_journals"})
   end
+
+  # Posting shares the protected setup/journal/period lock order with draft acceptance.
+  def posting_scope(principal, tid, bid, write, fun) do
+    scoped(principal, tid, bid, write, fn tid, bid, book, steward ->
+      current = ready!(tid, bid, book)
+      fun.(tid, bid, book, steward, current)
+    end)
+  end
+
+  def posting_command_scope(principal, tid, bid, fun) do
+    scoped(principal, tid, bid, true, fn tid, bid, book, _ -> fun.(tid, bid, book) end)
+  end
+
+  def posting_ready!(tid, bid, book), do: ready!(tid, bid, book)
+  def posting_validation(tid, bid, data), do: validate(tid, bid, data)
+  def posting_snapshot(draft), do: snapshot(draft)
 
   defp scoped(principal, tid, bid, write, fun) do
     with {:ok, tid} <- Ecto.UUID.cast(tid), {:ok, bid} <- Ecto.UUID.cast(bid) do

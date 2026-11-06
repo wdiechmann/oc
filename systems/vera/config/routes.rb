@@ -23,6 +23,7 @@ Rails.application.routes.draw do
       end
       resource :journals, only: %i[new show update], controller: "journals" do
         get :history
+        get :post_dialog
         get :delete_dialog
         get :details_dialog
         get :posting_preview

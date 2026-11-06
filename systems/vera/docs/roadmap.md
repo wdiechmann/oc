@@ -83,3 +83,5 @@ Completed: chart title context menu consolidates refresh, current/retired naviga
 2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
 
 2026-11-06: Journal validation and saved revision/status information occupy a fixed-height, scrollable header panel immediately left of the context menu. Configuration-stale and pending notices share this reserved space so changing feedback does not shift the posting grid on Enter. Floating flashes/toasts and the full saved posting preview dialog retain their existing behavior.
+
+Completed: per-journal row menus, existing audited delete flow, account impact posting dialog and atomic EP-authoritative posting. Post is the explicit authorization/verification confirmation. Posted journals remain readable; external-authority posting/export and adjustment/reversal UI remain future work.

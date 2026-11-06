@@ -1,6 +1,7 @@
 class Components::SharedDialogStream < Components::Base
   register_element :turbo_stream
-  def initialize(content:, journal: nil, body: nil, updates: nil)
+  def initialize(content:, journal: nil, body: nil, updates: nil, wide: false)
+    @wide = wide
     @updates = updates
     @content, @journal, @body = content, journal, body
   end
@@ -10,7 +11,7 @@ class Components::SharedDialogStream < Components::Base
       turbo_stream(action: "replace", target: "vera-book-content", data: { preserve_journal_draft: !!@journal }) { template { render(@journal || @body) } }
     end
     turbo_stream(action: "update", target: "shared-dialog-host") do
-      template { render Components::SharedContentDialog.new(content: @content) }
+      template { render Components::SharedContentDialog.new(content: @content, wide: @wide) }
     end
   end
 end

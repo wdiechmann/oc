@@ -263,6 +263,41 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_response :see_other
     assert_requested command
   end
+  test "journal row menu opens a summed posting dialog and posts only its signed reviewed plan" do
+    plan = { tenant_id: TID, book_id: BID, draft_id: JID, name: "Work journal", posting_date: "2026-06-01", base_currency: "DKK", expected_version: 1, expected_draft_version: 1, contexts: contexts, digest: "reviewed-impact", can_post: true, errors: [], accounts: [ { account: { id: PID, number: "0010", name: "Purchases" }, prepost_minor: 10000, post_minor: 25000, postpost_minor: 35000 } ] }
+    stub_request(:get, "#{api}/posting-impact").with(query: { draft_id: JID }).to_return(status: 200, body: plan.to_json)
+    get "#{path}/post_dialog", params: { draft_id: JID }, headers: { "Accept"=>"text/vnd.turbo-stream.html", "Accept-Language"=>"da-DK" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] dialog.vera-post-dialog"
+    assert_select "table[data-journal-impact] tbody tr", count: 1
+    assert_select "thead th", text: "Prepost"
+    assert_select "thead th", text: "Postpost"
+    assert_select "tbody td", text: "350,00"
+    assert_select "input[type=submit][value=Post]:not([disabled])"
+    signed = css_select("input[name=form_token]").first["value"]
+    command = stub_request(:post, "#{api}/work/post").with(body: plan.slice(:draft_id, :expected_version, :expected_draft_version, :contexts, :digest).to_json).to_return(status: 200, body: { draft_id: JID, stream_version: 2, posted: true }.to_json)
+    patch path, params: { form_token: signed, draft_id: JID, expected_version: "999", digest: "tampered" }
+    assert_redirected_to path
+    assert_requested command
+    plan[:errors] = [ "period_not_open" ]
+    stub_request(:get, "#{api}/posting-impact").with(query: { draft_id: JID }).to_return(status: 200, body: plan.to_json)
+    get "#{path}/post_dialog", params: { draft_id: JID }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_select "input[type=submit][value=Post][disabled]"
+    assert_select "[role=alert]", text: "period not open"
+    d=data
+    d[:selected][:data][:posted] = true
+    d[:drafts] = [ d[:selected] ]
+    stub_request(:get, api).to_return(status: 200, body: d.to_json)
+    view(d)
+    get path
+    assert_select "#journal-actions-#{JID} button[disabled]", text: "Post journal"
+    assert_select "#journal-actions-#{JID} button[disabled]", text: "Delete journal"
+    get path, params: { draft_id: JID }
+    assert_select "#work-row-new", count: 0
+    assert_select "input[name=amount][readonly]"
+    assert_select "#journal-header-actions a", text: "Saved posting preview · Posted"
+  end
+
   test "journal index has links while details postings and preview stay on the journal page" do
     d=data
     d[:drafts]=[ d[:selected] ]
@@ -271,6 +306,8 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get path
     assert_response :success
     assert_select "h1", text: "Journals"
+    assert_select "#journal-actions-#{JID} a[role=menuitem][href='#{path}/post_dialog?draft_id=#{JID}']", text: "Post journal"
+    assert_select "#journal-actions-#{JID} a[role=menuitem][href='#{path}/delete_dialog?draft_id=#{JID}']", text: "Delete journal"
     assert_select "a[href='#{path}?draft_id=#{JID}']", text: "Work journal"
     assert_select "#journals-index-actions a[href='#{path}/new'][role=menuitem]", text: "New journal"
     assert_select "#journals-index-actions a[href='#{path}'][role=menuitem]", text: "Refresh journals"
