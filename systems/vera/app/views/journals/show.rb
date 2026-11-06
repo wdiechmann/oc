@@ -61,6 +61,8 @@ class Views::Journals::Show < Views::Base
     id = draft && draft["id"] || @requested_id
     refresh = @new_journal ? new_tenant_book_journals_path(@tid, @bid) : @review ? url(review_id: @review["review_id"]) : url(draft_id: id, version: @requested_version)
     render Components::ContextMenu.new(id: "journal-header-actions", label: "Journal actions") do
+      can_add = draft && @editable && @data["work_rows_enabled"] && !@data["historical"] && !@review && Array(draft.dig("data", "rows") || draft.dig("data", "lines")).length < 100
+      button(type: "submit", form: "work-row-new", role: "menuitem", disabled: !can_add, class: "vera-menu-item") { "New line" }
       a(href: url, role: "menuitem", class: "vera-menu-item") { "Back to journals" }
       if draft && @editable && !@data["historical"] && !@review
         a(href: details_dialog_tenant_book_journals_path(@tid, @bid, draft_id: id), role: "menuitem", data: { turbo_stream: true, journal_details_link: true }, class: "vera-menu-item") { "Edit journal details" }

@@ -127,3 +127,5 @@ Move Saved posting preview · Unposted from the journal body to its header conte
 Provide a User manual action in the journal header context menu, opening the shared dialog. For now its only journal content is the existing search/keyboard/amount-entry and numbered-line/workflow instructions; remove those paragraphs from the main view.
 
 Place a context menu to the right of the Journals index title, centered vertically with the title. Move Refresh journals and New journal into it while retaining creation permission/readiness guards.
+
+On the work-journal view, New line must be the first header context-menu action, replacing the button in the postings grid. Preserve immediate numbered-row creation, the row cap and unsaved-row guards.

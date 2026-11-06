@@ -147,3 +147,5 @@ The preview-dialog GET reads the scoped selected journal/revision (or the caller
 The user-manual GET checks the current book’s journal-read access through EP and streams a static Phlex manual into the shared dialog. Content is the two former JournalWork description paragraphs; decimal punctuation uses the same request-locale helper. Reading the manual does not mutate or replace the work editor.
 
 The journal index reuses the shared ContextMenu component in a title-only flex row with items-center/justify-between. Refresh remains a read-only index link; New journal retains the existing readiness/prepare check and dedicated creation route.
+
+The header New line submit button targets the existing hidden work-row-new form inside the work editor. Tokens, expected versions, contexts, EP command and dirty-row submit guards are unchanged; the grid no longer renders a visible new-line control.

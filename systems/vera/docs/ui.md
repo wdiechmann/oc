@@ -141,3 +141,5 @@ Open the journal title menu → Saved posting preview · Unposted to inspect the
 Journal title menu → User manual opens the shared dialog with the existing account-search, keyboard, amount-format, posting-ID, attachment and later-workflow instructions. These two paragraphs are currently its only manual content; the main journal view no longer repeats them.
 
 On the Journals index, use the More icon to the right of the title for Refresh journals and New journal. The icon is vertically centered with Journals; New journal is disabled when creation is unavailable.
+
+Open the journal title menu and choose its first item, New line, to create the next numbered row. The separate grid button is removed. Save or cancel current row edits first; the action is disabled for read-only/historical views and at the row limit.

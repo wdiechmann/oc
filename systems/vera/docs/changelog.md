@@ -227,3 +227,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Added User manual to the journal title menu. Moved the two editor/numbering/workflow description paragraphs out of the journal body and into the shared manual dialog.
 
 2026-11-06: Moved Refresh journals and New journal into a right-aligned context menu centered with the Journals title; removed their standalone controls.
+
+2026-11-06: Moved New line from the posting grid to the first journal title menu item, retaining immediate ID allocation and unsaved-row protection.

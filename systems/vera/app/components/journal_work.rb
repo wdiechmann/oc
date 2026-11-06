@@ -40,13 +40,13 @@ class Components::JournalWork < Components::Base
     rows = header["rows"] || legacy_rows(header)
     @entry_row_id = rows.select { |row| blank_row?(row) }.max_by { |row| row["posting_id"] || 0 }&.fetch("id")
     journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), vat_operation_url: vat_operation_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do
+      new_line_form(selected) if @editable && rows.length < 100
       p(role: "status", aria_live: "polite", data: { work_status: true }, class: "mb-3 text-sm text-amber-900")
       div(class: "journal-grid-container max-w-full overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         div(class: "journal-grid") do
           div(class: "journal-columns grid gap-2 border-b border-stone-200 bg-stone-100 p-3 text-xs font-semibold uppercase text-stone-600") do
             [ "ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(class: [ 4, 5, 7, 8 ].include?(index) ? "text-right" : nil, title: index == 5 ? "Checked: apply the account’s VAT rule. Unchecked: no VAT on this row. The result account amount stays net." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
           end
-          new_line_form(selected) if @editable && rows.length < 100
           rows.sort_by { |row| -(row["posting_id"] || 0) }.each { |row| row_form(selected, row) }
           p(class: "p-3 text-sm text-stone-600") { "This journal has 100 rows. Create another journal to continue; posting IDs continue in the same book sequence." } if @editable && rows.length >= 100
         end
@@ -54,13 +54,12 @@ class Components::JournalWork < Components::Base
     end
   end
   def new_line_form(selected)
-    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-new", data: { turbo: false }) do |f|
+    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-new", html: { hidden: true }, data: { turbo: false }) do |f|
       f.hidden_field(:form_token, value: @token.call("journal_row", selected["id"]))
       f.hidden_field(:draft_id, value: selected["id"])
       f.hidden_field(:expected_draft_version, value: selected["version"])
       fences(f)
       { reference: "", amount: "0", basis_override: "false", void: "false" }.each { |key, value| f.hidden_field(key, value: value) }
-      f.submit("New line", class: "m-3 rounded border border-teal-800 px-3 py-2 text-sm text-teal-900")
     end
   end
   def blank_row?(row)

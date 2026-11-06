@@ -73,3 +73,5 @@ Completed: saved posting preview as a journal header action and shared read-only
 Completed: journal User manual dialog from the header menu, containing the relocated editor instructions.
 
 Completed: centered Journals index header menu for refresh and new-journal navigation.
+
+Completed: New line moved to the first journal header menu position.

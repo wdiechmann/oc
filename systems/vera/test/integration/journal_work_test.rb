@@ -94,7 +94,10 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert columns[4].at_css("[data-work-amount].text-right")
     assert columns[5].at_css("[data-work-included].ml-auto")
     assert_select ".journal-columns > .text-right", minimum: 4
-    assert_select "#work-row-new input[type=submit][value='New line']"
+    assert_select "#work-row-new[hidden]"
+    assert_equal "New line", css_select("#journal-header-actions [role=menuitem]").first.text
+    assert_select "#journal-header-actions button[type=submit][form=work-row-new]", text: "New line"
+    assert_select ".journal-grid [type=submit][value='New line']", count: 0
     assert_equal "context-menu", columns[9].name
     assert columns[9].at_css("[data-menu-trigger] svg")
     assert_equal "menu", columns[9].at_css("[data-menu-trigger]")["aria-haspopup"]
