@@ -167,3 +167,5 @@ On Book configuration, Configuration stewards has adjacent Steward assignment an
 2026-11-06: Accounting books has a title context menu containing Create book, Refresh books and Your workspaces. Each book card has its own menu beside the book name linking directly to its Chart of accounts and Journals, scoped by tenant and book ID. Hierarchy and book detail links remain visible.
 
 2026-11-06: Each book’s index context menu includes Setup, linking to that book’s setup view with the current tenant/book scope.
+
+2026-11-06: The Book configuration header menu includes Back to books, returning to the current tenant’s books index.

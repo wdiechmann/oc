@@ -14,6 +14,7 @@ class Components::FinanceSetup < Components::Base
       header(class: "mt-3 flex items-center justify-between gap-4") do
         h1(class: "min-w-0 text-4xl font-semibold tracking-tight") { "Book configuration" }
         render Components::ContextMenu.new(id: "setup-header-actions", label: "Book configuration actions") do
+          a(href: tenant_books_path(@tid), role: "menuitem", class: "vera-menu-item") { "Back to books" }
           a(href: tenant_book_chart_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Open chart of accounts" }
           a(href: tenant_book_catalogues_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "VAT and categories" }
           a(href: tenant_book_periods_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Accounting periods" }
