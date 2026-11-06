@@ -31,6 +31,13 @@ defmodule Ep.Finance.JournalRows do
                  !Regex.match?(~r/[\p{Cc}\p{Cf}]/u, row["reference"]),
                do: Repo.rollback(:invalid_journal)
 
+        row =
+          row
+          |> Map.update!("amount_minor", &abs/1)
+          |> Map.update("credit_amount_minor", nil, fn value ->
+            if is_integer(value), do: abs(value), else: value
+          end)
+
         id = if row["id"] in [nil, ""], do: Ecto.UUID.generate(), else: uuid!(row["id"])
         existing = Repo.get_by(JournalRow, tenant_id: tid, book_id: bid, id: id)
 
@@ -61,9 +68,10 @@ defmodule Ep.Finance.JournalRows do
         if override && is_nil(row["amount_basis"]), do: Repo.rollback(:invalid_journal)
         basis = if override, do: row["amount_basis"], else: default_basis(accounts)
 
-        suggested =
-          suggested_credit(
+        {suggested, posting_debit} =
+          suggested_amounts(
             accounts,
+            row["debit_account_id"],
             basis,
             row["amount_minor"],
             Date.from_iso8601!(data["posting_date"])
@@ -77,6 +85,7 @@ defmodule Ep.Finance.JournalRows do
         row
         |> Map.put("basis_override", override)
         |> Map.put("amount_basis", basis)
+        |> Map.put("posting_debit_minor", posting_debit)
         |> Map.put("suggested_credit_minor", suggested)
         |> Map.put("credit_total_minor", total)
       end)
@@ -121,7 +130,7 @@ defmodule Ep.Finance.JournalRows do
           value =
             if side == "debit", do: row["amount_minor"], else: row["credit_total_minor"] || 0
 
-          debit? = if value < 0, do: side == "credit", else: side == "debit"
+          debit? = side == "debit"
 
           %{
             "id" => row[side <> "_line_id"],
@@ -139,23 +148,23 @@ defmodule Ep.Finance.JournalRows do
     {rows, lines}
   end
 
-  defp suggested_credit(accounts, basis, amount, date) do
+  defp suggested_amounts(accounts, debit_id, basis, amount, date) do
     account = Enum.find(accounts, & &1.vat_entry_id)
 
     cond do
       is_nil(account) ->
-        amount
+        {amount, amount}
 
       is_nil(basis) ->
-        nil
+        {nil, amount}
 
       true ->
         rule =
           Repo.one(
             from r in VatRule,
               where:
-                r.book_id == ^account.book_id and
-                  r.vat_entry_id == ^account.vat_entry_id and r.active and r.valid_from <= ^date and
+                r.book_id == ^account.book_id and r.vat_entry_id == ^account.vat_entry_id and
+                  r.active and r.valid_from <= ^date and
                   (is_nil(r.valid_until) or r.valid_until >= ^date)
           )
 
@@ -167,15 +176,21 @@ defmodule Ep.Finance.JournalRows do
 
           case result do
             {:ok, quote} ->
-              follow =
-                rule.direction in ~w(input output) && amount >= 0 &&
+              net = quote.amounts["net"]
+
+              follows =
+                rule.direction in ~w(input reverse_charge) &&
                   is_nil((rule.posting_accounts || %{})["non_deductible"])
 
-              quote.amounts["net"] + if(follow, do: quote.amounts["non_deductible_vat"], else: 0)
+              cost = net + if(follows, do: quote.amounts["non_deductible_vat"], else: 0)
+              invoice = quote.invoice_total_minor
+              if account.id == debit_id, do: {invoice, cost}, else: {cost, invoice}
 
             _ ->
-              nil
+              {nil, amount}
           end
+        else
+          {nil, amount}
         end
     end
   end

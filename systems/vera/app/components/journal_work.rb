@@ -116,7 +116,7 @@ class Components::JournalWork < Components::Base
       end
       lookup(f, values, "debit", editing)
       div do
-        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_amount: true })
+        input(name: "amount", value: is_draft ? @draft["amount"] : row["id"] ? money(row["amount_minor"]) : "", type: "text", inputmode: "decimal", autocomplete: "off", aria_label: "Debit amount #{label}", title: "The debit column determines the posting side; minus signs are ignored.", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_amount: true })
       end
       div do
         input(type: "hidden", name: "amount_basis", value: values["amount_basis"], data: { work_basis: true })
@@ -126,7 +126,7 @@ class Components::JournalWork < Components::Base
       lookup(f, values, "credit", editing)
       div do
         input(type: "hidden", name: "credit_override", value: credit_override.to_s, data: { credit_override: true })
-        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_credit: true })
+        input(type: "text", name: "credit_amount", value: is_draft ? @draft["credit_amount"] : row["id"] ? credit_value(row) : "", inputmode: "decimal", autocomplete: "off", aria_label: "Credit amount #{label}", title: "The credit column determines the posting side; minus signs are ignored.", readonly: !editing, class: "min-w-0 w-full rounded border border-stone-300 px-2 py-2 text-right text-sm", data: { work_credit: true })
       end
       vat = vat_display(selected, row)
       output(class: "py-2 text-right text-sm tabular-nums text-stone-600", title: vat[:explanation], aria_label: vat[:explanation], data: { work_vat: true }) { vat[:amount] }

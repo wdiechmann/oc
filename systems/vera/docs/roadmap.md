@@ -55,3 +55,5 @@ Completed: compact VAT index and shared detail dialog, including same-code sched
 Completed: development sign-in links in the flash notice; existing confirmation and production delivery preserved.
 
 Completed: VAT row-only Turbo updates after projection catch-up, with automatic read-only refresh and safe cancellation on navigation.
+
+Completed: side-aware VAT amount suggestions and posting previews for income, expenses and reversals; optional minus normalization; VAT-direction preservation and correct cost-side non-deductible VAT.

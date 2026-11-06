@@ -166,11 +166,11 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
   test "saved row shows deductible VAT while retaining the full split on hover" do
     d=data
     row=d[:selected][:data][:rows].first
-    row.merge!(amount_minor: 112500, credit_total_minor: 101250, amount_basis: "gross", debit_account_id: PID, credit_account_id: QID, debit_line_id: "debit")
+    row.merge!(amount_minor: 112500, credit_total_minor: 112500, posting_debit_minor: 101250, amount_basis: "gross", debit_account_id: PID, credit_account_id: QID, debit_line_id: "debit")
     d[:selected][:validation][:lines]=[ { id: "debit", vat: { code: "I25", posting_direction: "input", posting_vat_minor: 11250, amounts: { vat: 22500, deductible_vat: 11250, non_deductible_vat: 11250 } } } ]
     view(d)
     get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
-    assert_select "[data-work-credit][value='1012,50']"
+    assert_select "[data-work-credit][value='1125,00']"
     assert_select "[data-work-vat]", text: "112,50"
     assert_includes css_select("[data-work-vat]").first["title"], "225,00 total VAT"
     assert_includes css_select("[data-work-vat]").first["title"], "112,50 non-deductible"
@@ -202,5 +202,17 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get "#{path}/accounts", params: { q: "x" }
     assert_response :not_found
     assert_not_includes response.body, "Purchases"
+  end
+  test "journal row keeps the VAT debit credit sign supplied by EP for income expense and refunds" do
+    [ [ 125000, 100000, -25000, "output", "−250,00" ], [ 50000, 62500, 12500, "input", "125,00" ], [ 100000, 125000, 25000, "output", "250,00" ] ].each do |debit, credit, vat, direction, expected|
+      d=data
+      row=d[:selected][:data][:rows].first
+      row.merge!(amount_minor: debit, credit_total_minor: credit, debit_line_id: "tax-source")
+      d[:selected][:validation][:lines]=[ { id: "tax-source", vat: { code: "VAT25", posting_direction: direction, posting_vat_minor: vat, amounts: { vat: vat.abs, deductible_vat: vat.abs, non_deductible_vat: 0 } } } ]
+      view(d)
+      get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+      assert_select "[data-work-credit][value='#{JournalMoney.format(credit, separator: ',')}']"
+      assert_select "[data-work-vat]", text: expected
+    end
   end
 end

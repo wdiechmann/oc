@@ -423,7 +423,7 @@ defmodule Ep.Finance.JournalWorkTest do
     assert q["amounts"]["vat"] == 2500
     assert q["amounts"]["net"] == 10000
     [saved] = draft.data["rows"]
-    assert saved["credit_total_minor"] == 10000
+    assert saved["credit_total_minor"] == 12500
     assert saved["amount_basis"] == "gross"
     refute saved["basis_override"]
 
@@ -436,8 +436,8 @@ defmodule Ep.Finance.JournalWorkTest do
 
     overridden = Repo.get!(JournalDraft, did)
     assert hd(overridden.validation["lines"])["vat"]["amounts"]["vat"] == 3125
-    assert hd(overridden.data["rows"])["credit_total_minor"] == 12500
-    assert List.last(overridden.data["lines"])["credit_minor"] == 12500
+    assert hd(overridden.data["rows"])["credit_total_minor"] == 15625
+    assert List.last(overridden.data["lines"])["credit_minor"] == 15625
 
     save(
       c,
@@ -451,14 +451,14 @@ defmodule Ep.Finance.JournalWorkTest do
     )
 
     custom = Repo.get!(JournalDraft, did)
-    assert hd(custom.data["rows"])["suggested_credit_minor"] == 12500
+    assert hd(custom.data["rows"])["suggested_credit_minor"] == 15625
     assert hd(custom.data["rows"])["credit_total_minor"] == 15000
     assert hd(custom.data["rows"])["posting_id"] == saved["posting_id"]
     assert "posting_preview_unbalanced" in custom.validation["posting_preview"]["errors"]
 
     for {amount, credit, vat_amount, direction} <- [
-          {112_500, 90000, 22500, "input"},
-          {-112_500, -90000, -22500, "output"}
+          {112_500, 112_500, 22500, "input"},
+          {-112_500, 112_500, 22500, "input"}
         ] do
       save(
         c,
@@ -479,8 +479,8 @@ defmodule Ep.Finance.JournalWorkTest do
       assert hd(split.data["rows"])["posting_id"] == saved["posting_id"]
 
       if amount < 0 do
-        assert hd(split.data["lines"])["credit_minor"] == 112_500
-        assert List.last(split.data["lines"])["debit_minor"] == 90000
+        assert hd(split.data["lines"])["debit_minor"] == 112_500
+        assert List.last(split.data["lines"])["credit_minor"] == 112_500
       end
     end
 
@@ -795,7 +795,7 @@ defmodule Ep.Finance.JournalWorkTest do
     for {amount, basis, total, net, tax, role} <- [
           {112_500, "gross", 112_500, 90000, 22500, "vat_input"},
           {90000, "net", 112_500, 90000, 22500, "vat_input"},
-          {-112_500, "gross", 112_500, 90000, 22500, "vat_output"}
+          {-112_500, "gross", 112_500, 90000, 22500, "vat_input"}
         ] do
       save(
         c,
@@ -812,11 +812,11 @@ defmodule Ep.Finance.JournalWorkTest do
       [row] = preview["rows"]
       assert row["posting_id"] == saved["posting_id"]
       assert row["vat_rule"]["rule_version"] == rule.version
-      [_, net_leg, tax_leg] = row["legs"]
+      [net_leg, _, tax_leg] = row["legs"]
       assert net_leg["debit_minor"] + net_leg["credit_minor"] == net
       assert tax_leg["role"] == role
       assert tax_leg["debit_minor"] + tax_leg["credit_minor"] == tax
-      assert tax_leg["account"]["id"] == accounts[if(amount < 0, do: "output", else: "input")]
+      assert tax_leg["account"]["id"] == accounts["input"]
     end
 
     maximum =
@@ -828,8 +828,7 @@ defmodule Ep.Finance.JournalWorkTest do
       })
       |> Map.delete("expected_version")
 
-    assert {:ok, %{validation: checked}} = Journals.preview_row(c.actor, c.tid, c.bid, maximum)
-    assert "posting_amount_out_of_range" in checked["posting_preview"]["errors"]
+    assert {:error, :invalid_amount} = Journals.preview_row(c.actor, c.tid, c.bid, maximum)
     {:ok, projected} = Ep.Finance.VatRules.get(c.actor, c.tid, c.bid)
     assert hd(projected.vat_rules)["posting_accounts"] == accounts
     assert hd(hd(projected.vat_rules)["history"])["posting_accounts"] == accounts
@@ -950,8 +949,8 @@ defmodule Ep.Finance.JournalWorkTest do
     assert partial["credit_minor"] == 112_500
 
     for {direction, share, role, amount, leg_count} <- [
-          {"input", 5000, "credit", 101_250, 3},
-          {"input", 0, "credit", 112_500, 2},
+          {"input", 5000, "debit", 101_250, 3},
+          {"input", 0, "debit", 112_500, 2},
           {"reverse_charge", 5000, "debit", 101_250, 4}
         ] do
       {:ok, state} = Setup.get(c.actor, c.tid, c.bid)
@@ -985,18 +984,20 @@ defmodule Ep.Finance.JournalWorkTest do
       assert {:ok, %{validation: validation, row: quoted_row}} =
                Journals.preview_row(c.actor, c.tid, c.bid, request)
 
-      assert quoted_row["credit_total_minor"] == if(direction == "input", do: amount, else: 90000)
+      assert quoted_row["credit_total_minor"] ==
+               if(direction == "input", do: 112_500, else: 90000)
+
       assert validation["posting_preview"]["status"] == "complete"
 
       assert validation["lines"] |> hd() |> get_in(["vat", "posting_vat_minor"]) ==
-               if(direction == "input", do: if(share == 0, do: 0, else: 11250), else: nil)
+               if(direction == "input", do: if(share == 0, do: 0, else: 11250), else: 22500)
 
       if direction == "input",
         do:
           assert(
             hd(validation["posting_preview"]["rows"])["legs"]
-            |> Enum.find(&(&1["role"] == "credit"))
-            |> Map.get("credit_minor") == amount
+            |> Enum.find(&(&1["role"] == "debit"))
+            |> Map.get("debit_minor") == amount
           )
 
       [preview] = validation["posting_preview"]["rows"]
@@ -1007,5 +1008,113 @@ defmodule Ep.Finance.JournalWorkTest do
       assert cost["non_deductible_vat_minor"] == if(share == 0, do: 22500, else: 11250)
       refute Enum.any?(preview["legs"], &(&1["role"] == "vat_non_deductible"))
     end
+  end
+
+  test "income VAT follows credit and reversed income stays on outgoing VAT", c do
+    {accounts, _rule, _attrs, income, asset, _command} = posting_setup(c, "output", 0)
+    did = create(c)
+
+    for {side, entered, basis, credit, vat, tax_side} <- [
+          {"credit", 125_000, "gross", 100_000, -25000, "credit_minor"},
+          {"debit", 100_000, "net", 125_000, 25000, "debit_minor"},
+          {"debit", -100_000, "net", 125_000, 25000, "debit_minor"}
+        ] do
+      p = %{
+        "id" => nil,
+        "reference" => "Income",
+        "debit_account_id" => if(side == "debit", do: income.id, else: asset.id),
+        "credit_account_id" => if(side == "debit", do: asset.id, else: income.id),
+        "amount_minor" => entered,
+        "amount_basis" => basis,
+        "basis_override" => true,
+        "credit_amount_minor" => nil,
+        "void" => false
+      }
+
+      request = body(c, did, p) |> Map.delete("expected_version")
+
+      assert {:ok, %{row: row, validation: validation}} =
+               Journals.preview_row(c.actor, c.tid, c.bid, request)
+
+      assert row["amount_minor"] == abs(entered)
+      assert row["credit_total_minor"] == credit
+      quote = Enum.find(validation["lines"], & &1["vat"])["vat"]
+      assert quote["posting_vat_minor"] == vat
+      assert quote["posting_direction"] == "output"
+      preview = validation["posting_preview"]
+      assert validation["balanced"]
+      assert validation["status"] == "prepared"
+      assert preview["status"] == "complete"
+      assert preview["debit_minor"] == 125_000
+      assert preview["credit_minor"] == 125_000
+      tax = hd(preview["rows"])["legs"] |> Enum.find(&(&1["role"] == "vat_output"))
+      assert tax["account"]["id"] == accounts["output"]
+      assert tax[tax_side] == 25000
+    end
+  end
+
+  test "expense VAT adds to the credit counter account and refund credits reverse input VAT", c do
+    {accounts, _rule, _attrs, expense, asset, _command} = posting_setup(c)
+    did = create(c)
+
+    for {side, entered, basis, credit, vat} <- [
+          {"debit", 50000, "net", 62500, 12500},
+          {"credit", 62500, "gross", 50000, -12500}
+        ] do
+      p = %{
+        "id" => nil,
+        "reference" => "Expense",
+        "debit_account_id" => if(side == "debit", do: expense.id, else: asset.id),
+        "credit_account_id" => if(side == "debit", do: asset.id, else: expense.id),
+        "amount_minor" => entered,
+        "amount_basis" => basis,
+        "basis_override" => true,
+        "credit_amount_minor" => nil,
+        "void" => false
+      }
+
+      assert {:ok, %{row: row, validation: validation}} =
+               Journals.preview_row(
+                 c.actor,
+                 c.tid,
+                 c.bid,
+                 body(c, did, p) |> Map.delete("expected_version")
+               )
+
+      assert row["credit_total_minor"] == credit
+      quote = Enum.find(validation["lines"], & &1["vat"])["vat"]
+      assert quote["posting_vat_minor"] == vat
+      preview = validation["posting_preview"]
+      assert validation["balanced"]
+      assert validation["status"] == "prepared"
+      assert preview["status"] == "complete"
+      assert preview["debit_minor"] == 62500
+      assert preview["credit_minor"] == 62500
+      tax = hd(preview["rows"])["legs"] |> Enum.find(&(&1["role"] == "vat_input"))
+      assert tax["account"]["id"] == accounts["input"]
+      assert tax[if(side == "debit", do: "debit_minor", else: "credit_minor")] == 12500
+    end
+  end
+
+  test "typed minus signs never swap paired columns even without VAT", c do
+    did = create(c)
+    p = row(c) |> Map.put("amount_minor", -12500) |> Map.put("credit_amount_minor", -12500)
+
+    assert {:ok, %{row: result, validation: validation}} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, p) |> Map.delete("expected_version")
+             )
+
+    assert result["amount_minor"] == 12500
+    assert result["credit_total_minor"] == 12500
+    [debit, credit] = hd(validation["posting_preview"]["rows"])["legs"]
+    assert debit["debit_minor"] == 12500
+    assert debit["credit_minor"] == 0
+    assert credit["credit_minor"] == 12500
+    assert credit["debit_minor"] == 0
+    assert validation["posting_preview"]["balanced"]
   end
 end

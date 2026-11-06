@@ -209,3 +209,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Added a clickable development sign-in link to the VERA flash after successful delivery; updated sign-in hints. Production notices continue to omit the URL.
 
 2026-11-06: VAT saves now wait for projection catch-up and Turbo-replace only the affected index row, instead of immediately refreshing the entire index. Pending dialog content becomes editable when ready; closing the dialog leaves the row refresh running.
+
+2026-11-06: Fixed paired journal VAT suggestions and preview legs for VAT on either account. Debit/credit columns now determine sides, typed minus signs normalize, and refunds retain the configured incoming/outgoing VAT mapping. Corrected expense counter-account totals and non-deductible cost placement.

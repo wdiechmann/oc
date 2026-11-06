@@ -54,24 +54,11 @@ defmodule Ep.Finance.JournalPostingPreview do
     base =
       Enum.map(source, fn l ->
         side = if l["id"] == r["debit_line_id"], do: "debit", else: "credit"
-        amount = if side == "debit", do: r["amount_minor"], else: r["credit_total_minor"] || 0
 
         amount =
-          if side == "debit" && quote && r["amount_basis"] == "net" &&
-               quote["direction"] in ~w(input output),
-             do: sign(r["amount_minor"]) * abs(quote["invoice_total_minor"]),
-             else: amount
-
-        amount =
-          if side == "credit" do
-            amount -
-              Enum.sum(
-                Enum.filter(tax_legs, &(&1["follows_account"] == "credit"))
-                |> Enum.map(&(&1["credit_minor"] - &1["debit_minor"]))
-              )
-          else
-            amount
-          end
+          if side == "debit",
+            do: r["posting_debit_minor"] || abs(r["amount_minor"]),
+            else: abs(r["credit_total_minor"] || 0)
 
         signed_credit = if side == "debit", do: -amount, else: amount
         leg(tid, bid, l["account_id"], side, signed_credit)
@@ -84,13 +71,7 @@ defmodule Ep.Finance.JournalPostingPreview do
         if tax["follows_account"] && Enum.any?(acc, &(&1["role"] == tax["follows_account"])) do
           Enum.map(acc, fn leg ->
             if leg["role"] == tax["follows_account"] do
-              signed =
-                leg["credit_minor"] - leg["debit_minor"] + tax["credit_minor"] -
-                  tax["debit_minor"]
-
               leg
-              |> Map.put("debit_minor", max(-signed, 0))
-              |> Map.put("credit_minor", max(signed, 0))
               |> Map.put("non_deductible_vat_minor", tax["debit_minor"] + tax["credit_minor"])
             else
               leg
@@ -126,29 +107,27 @@ defmodule Ep.Finance.JournalPostingPreview do
       {[], ["vat_rule_changed"], q}
     else
       amounts = q["amounts"]
-      vat = abs(amounts["vat"])
-      deductible = abs(amounts["deductible_vat"])
-      non_deductible = vat - deductible
-      direction = q["posting_direction"] || q["direction"]
-      s = sign(r["amount_minor"])
 
       parts =
-        cond do
-          q["direction"] == "none" ->
+        case q["direction"] do
+          "none" ->
             []
 
-          q["direction"] == "reverse_charge" ->
+          "reverse_charge" ->
             [
-              {"output", s * vat},
-              {"input", -s * deductible},
-              {"non_deductible", -s * non_deductible}
+              {"output", amounts["vat"]},
+              {"input", -amounts["deductible_vat"]},
+              {"non_deductible", -amounts["non_deductible_vat"]}
             ]
 
-          direction == "output" ->
-            [{"output", s * vat}]
+          "output" ->
+            [{"output", amounts["vat"]}]
 
-          true ->
-            [{"input", s * deductible}, {"non_deductible", s * non_deductible}]
+          _ ->
+            [
+              {"input", -amounts["deductible_vat"]},
+              {"non_deductible", -amounts["non_deductible_vat"]}
+            ]
         end
 
       resolved =
@@ -158,7 +137,7 @@ defmodule Ep.Finance.JournalPostingPreview do
           mapped = (rule.posting_accounts || %{})[role]
 
           if role == "non_deductible" && is_nil(mapped) do
-            follows = if q["direction"] == "reverse_charge", do: "debit", else: "credit"
+            follows = q["posting_source_side"] || "debit"
             {entry, issues} = leg(tid, bid, r[follows <> "_account_id"], "vat_" <> role, value)
             {Map.put(entry, "follows_account", follows), issues}
           else
@@ -210,8 +189,6 @@ defmodule Ep.Finance.JournalPostingPreview do
       "status" => if(errors == [], do: "complete", else: "needs_attention")
     }
   end
-
-  defp sign(n), do: if(n < 0, do: -1, else: 1)
 
   defp blank?(r),
     do:

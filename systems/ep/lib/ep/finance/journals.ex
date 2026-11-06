@@ -536,27 +536,24 @@ defmodule Ep.Finance.Journals do
                   {:ok, q} ->
                     q = q |> Jason.encode!() |> Jason.decode!() |> Map.put("code", entry.code)
 
-                    q =
-                      if row && rule.direction in ~w(input output),
-                        do:
-                          Map.put(
-                            q,
-                            "posting_vat_minor",
-                            if(row["amount_minor"] < 0,
-                              do: q["amounts"]["vat"],
-                              else: q["amounts"]["deductible_vat"]
-                            )
-                          ),
-                        else: q
+                    if row do
+                      source_side =
+                        if row["debit_line_id"] == l["id"], do: "debit", else: "credit"
 
-                    if row && rule.direction in ~w(input output),
-                      do:
-                        Map.put(
-                          q,
-                          "posting_direction",
-                          if(row["amount_minor"] < 0, do: "output", else: "input")
-                        ),
-                      else: q
+                      signed_vat =
+                        case rule.direction do
+                          "input" -> q["amounts"]["deductible_vat"]
+                          "output" -> -q["amounts"]["vat"]
+                          _ -> q["amounts"]["vat"]
+                        end
+
+                      q
+                      |> Map.put("posting_vat_minor", signed_vat)
+                      |> Map.put("posting_direction", rule.direction)
+                      |> Map.put("posting_source_side", source_side)
+                    else
+                      q
+                    end
 
                   {:error, reason} ->
                     %{"error" => Atom.to_string(reason)}
@@ -625,11 +622,26 @@ defmodule Ep.Finance.Journals do
         end)
     }
     |> then(fn validation ->
-      Map.put(
-        validation,
-        "posting_preview",
-        Ep.Finance.JournalPostingPreview.build(tid, bid, data, validation)
-      )
+      preview = Ep.Finance.JournalPostingPreview.build(tid, bid, data, validation)
+      validation = Map.put(validation, "posting_preview", preview)
+
+      if is_list(data["rows"]) do
+        errors =
+          Enum.uniq(
+            (validation["errors"] -- ["journal_unbalanced", "two_nonzero_lines_required"]) ++
+              preview["errors"]
+          )
+
+        validation
+        |> Map.merge(Map.take(preview, ~w(debit_minor credit_minor difference_minor balanced)))
+        |> Map.put("errors", errors)
+        |> Map.put(
+          "status",
+          if(errors == [] && warnings == [], do: "prepared", else: "needs_attention")
+        )
+      else
+        validation
+      end
     end)
   end
 

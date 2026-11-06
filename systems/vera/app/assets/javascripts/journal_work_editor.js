@@ -8,6 +8,11 @@ class JournalWorkEditor extends HTMLElement {
     this.addEventListener("change", event => this.input(event), opts);
     this.addEventListener("click", event => this.click(event), opts);
     this.addEventListener("focusout",event=>{
+      if (event.target.matches("[data-work-amount],[data-work-credit]")) {
+        const value=event.target.value.trim().replace(/^[−-]\s*/, "");
+        if (value!==event.target.value) {event.target.value=value;this.preview(event.target.closest("[data-work-row]"));}
+        return;
+      }
       if (!event.target.matches("[data-account-search]")) return;
       this.closeLookup();
       if (event.target.skipAccountResolve) {event.target.skipAccountResolve=false;return;}
