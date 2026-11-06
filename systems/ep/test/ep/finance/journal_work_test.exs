@@ -192,10 +192,15 @@ defmodule Ep.Finance.JournalWorkTest do
   test "confirmed posting rolls up accounts, preserves IDs and is immutable and idempotent", c do
     did = create(c)
     save(c, did, row(c), "post-row-one")
-    save(c, did, row(c), "post-row-two")
+    # Enter saves the completed row and prepends an untouched numbered row.
+    payload = body(c, did, row(c)) |> Map.put("append_row", true)
+    assert {:ok, _} = JournalWork.save(c.actor, c.tid, c.bid, "row", payload, "post-row-two")
+    {:ok, _} = JournalProjector.deliver(c.tid)
     alias Ep.Finance.JournalPosting
     {:ok, plan} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
     assert plan["errors"] == []
+    assert plan["row_errors"] == []
+    assert length(Repo.get!(JournalDraft, did).data["rows"]) == 3
     assert length(plan["accounts"]) == 2
     assert Enum.sort(Enum.map(plan["accounts"], & &1["post_minor"])) == [-25000, 25000]
 
@@ -269,6 +274,32 @@ defmodule Ep.Finance.JournalWorkTest do
              ),
              :count
            ) == 0
+  end
+
+  test "posting labels incomplete numbered rows instead of ignoring entered work", c do
+    alias Ep.Finance.JournalPosting
+    did = create(c)
+    save(c, did, row(c), "complete-row")
+
+    partial = %{
+      row(c)
+      | "reference" => "Unfinished receipt",
+        "debit_account_id" => nil,
+        "credit_account_id" => nil,
+        "amount_minor" => 0
+    }
+
+    result = save(c, did, partial, "unfinished-row")
+    {:ok, impact} = JournalPosting.impact(c.actor, c.tid, c.bid, did)
+    assert [issue] = impact["row_errors"]
+    assert issue["posting_id"] == result["posting_id"]
+    assert issue["row_id"] == result["row_id"]
+    assert "account_required" in issue["errors"]
+    assert "choose_one_nonzero_side" in issue["errors"]
+    attrs = Map.take(impact, ~w(contexts digest draft_id expected_draft_version expected_version))
+
+    assert {:error, :journal_not_postable} =
+             JournalPosting.post(c.actor, c.tid, c.bid, attrs, "unfinished-post")
   end
 
   test "posting checks current authority and protects against period closure", c do

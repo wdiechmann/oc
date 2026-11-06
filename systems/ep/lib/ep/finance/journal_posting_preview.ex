@@ -4,7 +4,7 @@ defmodule Ep.Finance.JournalPostingPreview do
   alias Ep.Finance.{Account, VatRule}
 
   def build(tid, bid, data, validation) do
-    rows = Enum.reject(data["rows"] || [], fn r -> r["void"] || blank?(r) end)
+    rows = Enum.reject(data["rows"] || [], fn r -> r["void"] || blank_row?(r) end)
     previews = Enum.map(rows, &row(tid, bid, &1, data, validation))
     legs = Enum.flat_map(previews, & &1["legs"])
 
@@ -190,7 +190,7 @@ defmodule Ep.Finance.JournalPostingPreview do
     }
   end
 
-  defp blank?(r),
+  def blank_row?(r),
     do:
       r["reference"] in [nil, ""] && !r["debit_account_id"] && !r["credit_account_id"] &&
         r["amount_minor"] == 0 && r["credit_amount_minor"] in [nil, 0] &&

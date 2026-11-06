@@ -284,6 +284,13 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get "#{path}/post_dialog", params: { draft_id: JID }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
     assert_select "input[type=submit][value=Post][disabled]"
     assert_select "[role=alert]", text: "period not open"
+    plan[:errors] = [ "account_required", "choose_one_nonzero_side" ]
+    plan[:row_errors] = [ { posting_id: 8, row_id: "unfinished", errors: plan[:errors] } ]
+    stub_request(:get, "#{api}/posting-impact").with(query: { draft_id: JID }).to_return(status: 200, body: plan.to_json)
+    get "#{path}/post_dialog", params: { draft_id: JID }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_select "[role=alert]", count: 2
+    assert_select "[role=alert]", text: "Posting ID 8: Select a posting account."
+    assert_select "[role=alert]", text: "Posting ID 8: Enter a nonzero amount on the selected side."
     d=data
     d[:selected][:data][:posted] = true
     d[:drafts] = [ d[:selected] ]

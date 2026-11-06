@@ -743,6 +743,14 @@ defmodule Ep.Finance.Journals do
   end
 
   def posting_ready!(tid, bid, book), do: ready!(tid, bid, book)
+
+  def posting_validation(tid, bid, %{"rows" => rows} = data) do
+    active = Enum.reject(rows, &(&1["void"] || Ep.Finance.JournalPostingPreview.blank_row?(&1)))
+    ids = Enum.flat_map(active, &[&1["debit_line_id"], &1["credit_line_id"]])
+    lines = Enum.filter(data["lines"], &(&1["id"] in ids))
+    validate(tid, bid, %{data | "rows" => active, "lines" => lines})
+  end
+
   def posting_validation(tid, bid, data), do: validate(tid, bid, data)
   def posting_snapshot(draft), do: snapshot(draft)
 

@@ -164,6 +164,25 @@ defmodule Ep.Finance.JournalPosting do
             if(book.accounting_authority == "ep", do: [], else: ["external_accounting_authority"])
         )
 
+      row_errors =
+        Enum.flat_map(preview["rows"], fn row ->
+          source = Enum.find(draft.data["rows"] || [], &(&1["id"] == row["row_id"]))
+          line_ids = if source, do: [source["debit_line_id"], source["credit_line_id"]], else: []
+
+          warnings =
+            validation["lines"]
+            |> Enum.filter(&(&1["id"] in line_ids))
+            |> Enum.flat_map(& &1["warnings"])
+
+          issues = Enum.uniq(row["errors"] ++ warnings)
+
+          if issues == [],
+            do: [],
+            else: [
+              %{"row_id" => row["row_id"], "posting_id" => row["posting_id"], "errors" => issues}
+            ]
+        end)
+
       plan = %{
         "tenant_id" => tid,
         "book_id" => bid,
@@ -176,6 +195,7 @@ defmodule Ep.Finance.JournalPosting do
         "contexts" => current["contexts"],
         "accounts" => accounts,
         "errors" => errors,
+        "row_errors" => row_errors,
         "validation" => validation
       }
 

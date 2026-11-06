@@ -11,7 +11,12 @@ class Components::JournalPostDialog < Components::Base
       f.submit("Post", disabled: !@plan["can_post"] || @plan["errors"].any?, class: "mt-4 cursor-pointer rounded bg-teal-950 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50")
     end
     p(class: "mt-3 text-sm text-stone-600") { "Post confirms your authorization and verification of this journal. Posted entries are permanent. #{@plan['posting_date']} · #{@plan['base_currency']}. Balances use debit as positive and credit as negative." }
-    @plan["errors"].each { |error| p(role: "alert", class: "mt-2 text-sm text-amber-900") { error.tr("_", " ") } }
+    row_errors = Array(@plan["row_errors"])
+    (@plan["errors"] - row_errors.flat_map { |row| row["errors"] }).each { |error| p(role: "alert", class: "mt-2 text-sm text-amber-900") { error_message(error) } }
+    row_errors.each do |row|
+      label = row["posting_id"] ? "Posting ID #{row['posting_id']}" : "Row #{row['row_id']}"
+      row["errors"].each { |error| p(role: "alert", class: "mt-2 text-sm text-amber-900") { "#{label}: #{error_message(error)}" } }
+    end
     div(class: "mt-4 overflow-x-auto") do
       table(class: "w-full text-sm", data: { journal_impact: true }) do
         thead do
@@ -30,5 +35,8 @@ class Components::JournalPostDialog < Components::Base
         end
       end
     end
+  end
+  def error_message(error)
+    { "account_required"=>"Select a posting account.", "choose_one_nonzero_side"=>"Enter a nonzero amount on the selected side." }.fetch(error, error.tr("_", " "))
   end
 end
