@@ -157,3 +157,5 @@ Book setup must open steward assignment, separate period-reopening permission an
 2026-11-06: The Book configuration header menu includes Back to books, returning to the current tenant’s books index.
 
 2026-11-06: The chart header menu includes Back to books, linking to the current tenant’s books index in both current and retired chart views.
+
+2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.

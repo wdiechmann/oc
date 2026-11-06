@@ -10,6 +10,7 @@ class Views::Journals::Index < Views::Base
       header(class: "mt-2 flex items-center justify-between gap-4") do
         h1(class: "min-w-0 text-3xl font-semibold") { "Journals" }
         render Components::ContextMenu.new(id: "journals-index-actions", label: "Journals actions") do
+          a(href: tenant_books_path(@tid), role: "menuitem", class: "vera-menu-item") { "Back to books" }
           a(href: tenant_book_chart_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Chart of accounts" }
           a(href: tenant_book_journals_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Refresh journals" }
           if @data["status"] == "ready" && @data.dig("permissions", "prepare")
