@@ -34,6 +34,11 @@ class BooksTest < ActionDispatch::IntegrationTest
   test "stale edits return inline conflict feedback without replaying a mutation" do
     views
     get "/tenants/#{TID}/books/#{BID}"
+    assert_select "#book-header-actions [role=menuitem]", text: "Refresh book"
+    assert_select "#book-header-actions a[data-turbo-stream]", text: "Edit name and hierarchy"
+    assert_select "input[name=idempotency_key]", count: 0
+    get "/tenants/#{TID}/books/#{BID}/edit_dialog", headers: STREAM
+    assert_select "turbo-stream[target=shared-dialog-host] form"
     key = css_select("input[name=idempotency_key]").first["value"]
     edit = stub_request(:patch, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 409, body: { error: "version_conflict" }.to_json)
     patch "/tenants/#{TID}/books/#{BID}", params: { name: "My draft", parent_book_id: "", expected_version: "1", idempotency_key: key }, headers: STREAM
@@ -58,6 +63,11 @@ class BooksTest < ActionDispatch::IntegrationTest
   test "revoked access removes the protected book region on a streamed save" do
     views
     get "/tenants/#{TID}/books/#{BID}"
+    assert_select "#book-header-actions [role=menuitem]", text: "Refresh book"
+    assert_select "#book-header-actions a[data-turbo-stream]", text: "Edit name and hierarchy"
+    assert_select "input[name=idempotency_key]", count: 0
+    get "/tenants/#{TID}/books/#{BID}/edit_dialog", headers: STREAM
+    assert_select "turbo-stream[target=shared-dialog-host] form"
     key = css_select("input[name=idempotency_key]").first["value"]
     stub_request(:patch, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 404, body: { error: "not_found" }.to_json)
     patch "/tenants/#{TID}/books/#{BID}", params: { name: "Private draft", parent_book_id: "", expected_version: "1", idempotency_key: key }, headers: STREAM

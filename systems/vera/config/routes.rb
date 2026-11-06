@@ -7,6 +7,7 @@ Rails.application.routes.draw do
   end
   resources :tenants, only: [] do
     resources :books, only: %i[index new create show update] do
+      get :edit_dialog, on: :member
       get :completion, on: :collection
       resource :vat_rules, only: %i[show update], controller: "vat_rules" do
         get :refresh_row

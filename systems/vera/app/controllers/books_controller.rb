@@ -15,6 +15,17 @@ class BooksController < ApplicationController
     prepare_key
     page Views::Books::Show, data: data, detail: detail, key: session[:book_form_key]
   end
+  def edit_dialog
+    detail = ep.book(params[:tenant_id], params[:id])
+    data = ep.books(params[:tenant_id])
+    if detail["status"] != "ready" || !detail["book"] || session[:book_operation]
+      content = Components::SharedDialogFeedback.new(message: "Refresh the book after its view catches up and resolve any pending save before editing.", check_url: session[:book_operation] && completion_tenant_books_path(params[:tenant_id]))
+      return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
+    end
+    prepare_key
+    content = Components::BookDetailsDialog.new(tenant_id: params[:tenant_id], books: data.fetch("books"), book: detail.fetch("book"), key: session[:book_form_key])
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def create
     return unless valid_form?
     operation("FinanceBookCreate")
