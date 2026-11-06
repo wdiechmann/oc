@@ -33,6 +33,11 @@ class ChartAccountsTest < ActionDispatch::IntegrationTest
     get path
     assert_response :success
     assert_select "input[name=number][value='0010']"
+    assert_select "header h1", text: "Chart of accounts"
+    assert_select "#chart-header-actions [role=menuitem]", text: "Refresh chart"
+    assert_select "#chart-header-actions [role=menuitem]", text: "Import CSV"
+    assert_select "#chart-header-actions [data-chart-export]", text: "Export accepted chart"
+    assert_select "coa-editor [data-chart-export]", count: 0
     create = stub_request(:post, "#{api}/accounts").with(body: { expected_version: 2, number: "0020", name: "Cash", kind: "posting", position: 200, vat_code: nil, category: nil, formula: nil }, headers: { "Idempotency-Key"=>/\A[0-9a-f-]{36}\z/ }).to_return(status: 200, body: { stream_version: 3 }.to_json)
     patch path, params: { form_token: token("account_create"), expected_version: "2", number: "0020", name: "Cash", kind: "posting", position: "200" }
     assert_redirected_to path

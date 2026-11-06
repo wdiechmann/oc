@@ -131,3 +131,5 @@ Place a context menu to the right of the Journals index title, centered vertical
 On the work-journal view, New line must be the first header context-menu action, replacing the button in the postings grid. Preserve immediate numbered-row creation, the row cap and unsaved-row guards.
 
 Display VERA flash/info/notice and transient application feedback as dismissible floating toasts in the top-left, without consuming page layout space. Keep recovery links/retry forms usable and preserve contextual validation/evidence.
+
+The chart of accounts must place secondary navigation, configuration and CSV actions in a right-aligned context menu centered with its title; search and line editing remain directly accessible, with existing permissions and unsaved-edit guards preserved.

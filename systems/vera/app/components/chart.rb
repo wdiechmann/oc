@@ -7,19 +7,12 @@ class Components::Chart < Components::Base
   end
   def view_template
     div(id: "vera-book-content") do
-      a(href: tenant_book_setup_path(@tid, @bid), class: "text-sm font-medium text-teal-900 hover:underline") { "← Roles and occasions" }
-      div(class: "mt-6 flex flex-wrap items-end justify-between gap-4") do
-        div do
-          p(class: "text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
-          h1(class: "mt-2 text-3xl font-semibold tracking-tight") { @data["retired"] ? "Retired accounts" : "Chart of accounts" }
-        end
-        a(href: tenant_book_chart_path(@tid, @bid, focus_id: @focus, retired: @data["retired"] ? "1" : nil), class: "text-sm font-medium text-teal-900 hover:underline") { "Refresh chart" }
+      p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
+      header(class: "mt-2 flex items-center justify-between gap-4") do
+        h1(class: "min-w-0 text-3xl font-semibold tracking-tight") { @data["retired"] ? "Retired accounts" : "Chart of accounts" }
+        chart_menu
       end
-      a(href: tenant_book_chart_path(@tid, @bid, retired: @data["retired"] ? nil : "1"), class: "mt-3 mr-4 inline-block text-sm font-medium text-teal-900 hover:underline") { @data["retired"] ? "Current chart" : "Retired accounts" }
       p(class: "mt-3 text-sm text-stone-600") { "Retired accounts are read-only history. Their original positions, numbers, identities and references are preserved." } if @data["retired"]
-      a(href: tenant_book_periods_path(@tid, @bid), class: "mt-3 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
-      a(href: tenant_book_vat_rules_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "VAT code settings" }
-      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 text-sm font-medium text-teal-900 hover:underline") { "Categories and code names" }
       unless @data["catalogues_initialized"]
         p(class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { "Initialize this book’s VAT/category catalogues before editing the chart. Existing selections will be preserved and bound to stable entries." }
       end
@@ -40,19 +33,7 @@ class Components::Chart < Components::Base
         f.submit("Search", class: "cursor-pointer rounded-lg bg-teal-950 px-4 py-2 text-sm font-medium text-white")
       end
       coa_editor(data: { page: @collection.current_page.to_i, pages: @collection.total_pages, source_version: @data.fetch("source_version"), chart_url: tenant_book_chart_path(@tid, @bid, q: @query.presence, retired: @data["retired"] ? "1" : nil), focus_id: @focus, focus_edge: @edge, pending: (@data["status"] != "ready").to_s }, class: "block", aria_describedby: "coa-help") do
-        unless @data["retired"]
-        div(class: "mb-4 flex flex-wrap gap-4 text-sm text-teal-900 underline") do
-          a(href: export_tenant_book_chart_import_path(@tid, @bid, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export accepted chart" }
-          a(href: export_tenant_book_chart_import_path(@tid, @bid, q: @query, source_version: @data["source_version"]), data: { turbo: false, chart_export: true }) { "Export filtered chart" } if @query.present?
-          a(href: template_tenant_book_chart_import_path(@tid, @bid), data: { turbo: false, chart_export: true }) { "CSV template" }
-          a(href: tenant_book_journals_path(@tid, @bid)) { "Journal drafts" } if @data["status"] == "ready" && !@check
-          a(href: tenant_book_reports_path(@tid, @bid)) { "Report definitions" } if @data["status"] == "ready" && !@check
-          a(href: tenant_book_formula_preview_path(@tid, @bid)) { "Formula preview" } if @data["status"] == "ready" && !@check
-          a(href: tenant_book_chart_order_path(@tid, @bid)) { "Reorder / rebalance" } if @data.dig("permissions", "configure") && @data["status"] == "ready" && @data["catalogues_initialized"] && !@check
-          a(href: tenant_book_chart_import_path(@tid, @bid)) { "Import CSV" } if @data.dig("permissions", "configure")
-        end
-        end
-        p(id: "coa-status", role: "status", aria_live: "polite", class: "mb-3 text-sm text-amber-900")
+        p(id: "coa-status", hidden: true)
         div(class: "coa-scroll", tabindex: "-1") do
           div(class: "coa-grid", role: "table", aria_label: "Chart of accounts") do
             div(class: "coa-columns coa-heading", role: "row") do
@@ -77,5 +58,32 @@ class Components::Chart < Components::Base
         end
       end
     end
+  end
+  def chart_menu
+    render Components::ContextMenu.new(id: "chart-header-actions", label: "Chart actions") do
+      menu_link(tenant_book_chart_path(@tid, @bid, focus_id: @focus, retired: @data["retired"] ? "1" : nil), "Refresh chart")
+      menu_link(tenant_book_chart_path(@tid, @bid, retired: @data["retired"] ? nil : "1"), @data["retired"] ? "Current chart" : "Retired accounts")
+      menu_link(tenant_book_setup_path(@tid, @bid), "Roles and occasions")
+      menu_link(tenant_book_periods_path(@tid, @bid), "Accounting periods")
+      menu_link(tenant_book_vat_rules_path(@tid, @bid), "VAT code settings")
+      menu_link(tenant_book_catalogues_path(@tid, @bid), "Categories and code names")
+      unless @data["retired"]
+        hr(role: "separator", class: "my-1 border-stone-200")
+        if @data["status"] == "ready" && !@check
+          menu_link(tenant_book_journals_path(@tid, @bid), "Journals")
+          menu_link(tenant_book_reports_path(@tid, @bid), "Report definitions")
+          menu_link(tenant_book_formula_preview_path(@tid, @bid), "Formula preview")
+        end
+        menu_link(tenant_book_chart_order_path(@tid, @bid), "Reorder / rebalance") if @data.dig("permissions", "configure") && @data["status"] == "ready" && @data["catalogues_initialized"] && !@check
+        hr(role: "separator", class: "my-1 border-stone-200")
+        menu_link(tenant_book_chart_import_path(@tid, @bid), "Import CSV") if @data.dig("permissions", "configure")
+        menu_link(export_tenant_book_chart_import_path(@tid, @bid, source_version: @data["source_version"]), "Export accepted chart", export: true)
+        menu_link(export_tenant_book_chart_import_path(@tid, @bid, q: @query, source_version: @data["source_version"]), "Export filtered chart", export: true) if @query.present?
+        menu_link(template_tenant_book_chart_import_path(@tid, @bid), "CSV template", export: true)
+      end
+    end
+  end
+  def menu_link(href, text, export: false)
+    a(href: href, role: "menuitem", class: "vera-menu-item", data: export ? { turbo: false, chart_export: true } : {}) { text }
   end
 end

@@ -151,3 +151,5 @@ The journal index reuses the shared ContextMenu component in a title-only flex r
 The header New line submit button targets the existing hidden work-row-new form inside the work editor. Tokens, expected versions, contexts, EP command and dirty-row submit guards are unchanged; the grid no longer renders a visible new-line control.
 
 Layout owns a fixed notification region outside main. Shared Toast renders escaped content, a dismiss control, development sign-in links and receipt/retry actions. A custom element promotes page-message toasts into that region; FeedbackStream appends to it and journal transient status dispatches the same notification event. Toasts remain until dismissed and do not steal focus on arrival. Modal validation and protected unavailable views remain in context.
+
+Components::Chart renders the shared ContextMenu beside its title. Export links retain source-version/filter parameters; the chart editor intercepts document capture clicks because the menu sits outside coa-editor. Chart transient feedback dispatches vera:notify into the shared floating toast stack.

@@ -77,3 +77,5 @@ Completed: centered Journals index header menu for refresh and new-journal navig
 Completed: New line moved to the first journal header menu position.
 
 Completed: shared top-left toast stack for flash, streamed feedback, page messages and live journal notifications.
+
+Completed: chart title context menu consolidates refresh, current/retired navigation, related configuration, reports, ordering and CSV actions while retaining direct search and line editing.
