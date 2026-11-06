@@ -119,3 +119,5 @@ Allow choosing the VAT rule used by a journal row in the shared VAT operation di
 Keep the journal index limited to journal links/metadata and a New journal link. Journal details, posting editor and saved posting preview belong on the selected journal’s own view; creation gets a separate form page.
 
 Journal title actions belong in a right-aligned header context menu: Back to journals, Delete journal, Show history and Refresh journal. History and deletion confirmation use the shared dialog. Deletion must retain numbered rows, history and enclosures for traceability.
+
+Edit journal details belongs in the title context menu and opens the existing metadata fields in a shared dialog. Remove the inline details expander. Preserve version fences, rejected field values and unsaved-row protection.

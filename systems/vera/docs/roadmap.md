@@ -65,3 +65,5 @@ Completed: dated VAT rule picker and source-side selection in the VAT operation 
 Completed: separate journal index, creation page and full-width journal detail with postings, saved preview and revision history.
 
 Completed: journal header actions menu, shared history/delete dialogs and governed audited journal deletion with retained posting IDs.
+
+Completed: journal details editing from the header menu through a shared dialog, replacing the inline expander.

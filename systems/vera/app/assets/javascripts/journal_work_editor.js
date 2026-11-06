@@ -43,6 +43,7 @@ class JournalWorkEditor extends HTMLElement {
         if (host.querySelector("[data-account-search]").value && !host.querySelector("[data-account-id]").value) { event.preventDefault(); return this.status("Choose an account from the lookup results."); }
       }
     },opts);
+    document.addEventListener("click",event=>{if(this.isConnected && this.dirty && event.target.closest("[data-journal-details-link]")){event.preventDefault();this.status("Save or cancel your row before editing journal details.");}},{...opts,capture:true});
     document.addEventListener("submit",event=>{ if (this.isConnected && this.dirty && event.target.matches("[data-journal-details],#work-row-new")) { event.preventDefault(); this.status("Save or cancel your row before changing journal details or creating another line."); } },opts);
     document.addEventListener("turbo:before-visit", event => { if (this.isConnected && this.dirty) { event.preventDefault(); this.status("Save or cancel your current row before leaving the journal."); } },opts);
     this.querySelectorAll("[data-account-lookup]").forEach(host => { if (host.querySelector("[data-account-id]").value) host.querySelector("[data-account-search]").dataset.chosenLabel = host.querySelector("[data-account-search]").value; });

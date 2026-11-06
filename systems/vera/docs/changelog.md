@@ -219,3 +219,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Split journal navigation into a compact index, New journal page and selected journal view. Removed inline creation/other-journal lists from journal details and kept refresh on the selected draft/revision.
 
 2026-11-06: Added the journal title context menu with Back, Delete, Show history and Refresh. Removed duplicate links/inline history. Added explicit delete confirmation and audited draft removal that retains numbered postings and history.
+
+2026-11-06: Moved Edit journal details into the header context menu and a shared dialog. Removed the inline form and retained metadata validation/error drafts and unsaved posting guards.

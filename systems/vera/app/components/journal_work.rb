@@ -39,24 +39,6 @@ class Components::JournalWork < Components::Base
     if @draft && !@editable
       p(role: "status", class: "mt-3 rounded bg-amber-50 p-3 text-sm") { "Your unsaved row: #{@draft['reference']} · #{@draft['debit_label']} · #{@draft['amount']} · #{@draft['credit_label']}. Use Back to return to the form after the view catches up." }
     end
-    if @editable
-      details(class: "mt-4") do
-        summary(class: "cursor-pointer text-sm text-teal-900") { "Edit journal details" }
-        form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, data: { turbo: false, journal_details: true }) do |f|
-          f.hidden_field(:form_token, value: @token.call("journal_details", selected["id"]))
-          f.hidden_field(:draft_id, value: selected["id"])
-          f.hidden_field(:expected_draft_version, value: selected["version"])
-          fences(f)
-          values = @header || header
-          div(class: "mt-3 grid gap-3 sm:grid-cols-3") do
-            div { f.label(:name, "Draft name"); f.text_field(:name, value: values["name"], required: true, maxlength: 120, class: FIELD) }
-            div { f.label(:posting_date, "Posting date"); f.date_field(:posting_date, value: values["posting_date"], required: true, class: FIELD) }
-            div { f.label(:reference, "Reference"); f.text_field(:reference, value: values["reference"], maxlength: 120, class: FIELD) }
-          end
-          f.submit("Save journal details", class: BUTTON)
-        end
-      end
-    end
     rows = header["rows"] || legacy_rows(header)
     @entry_row_id = rows.select { |row| blank_row?(row) }.max_by { |row| row["posting_id"] || 0 }&.fetch("id")
     journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), vat_operation_url: vat_operation_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do

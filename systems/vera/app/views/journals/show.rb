@@ -63,6 +63,11 @@ class Views::Journals::Show < Views::Base
     render Components::ContextMenu.new(id: "journal-header-actions", label: "Journal actions") do
       a(href: url, role: "menuitem", class: "vera-menu-item") { "Back to journals" }
       if draft && @editable && !@data["historical"] && !@review
+        a(href: details_dialog_tenant_book_journals_path(@tid, @bid, draft_id: id), role: "menuitem", data: { turbo_stream: true, journal_details_link: true }, class: "vera-menu-item") { "Edit journal details" }
+      else
+        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Edit journal details" }
+      end
+      if draft && @editable && !@data["historical"] && !@review
         a(href: delete_dialog_tenant_book_journals_path(@tid, @bid, draft_id: id), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item text-red-800") { "Delete journal" }
       else
         button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Delete journal" }

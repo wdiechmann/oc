@@ -18,6 +18,16 @@ class JournalsController < FinanceSetupController
     content = Components::JournalDeleteDialog.new(data: data, token: work_token("journal_delete", data["selected"]["id"]))
     render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
   end
+  def details_dialog
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
+    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare")
+    unless data["status"] == "ready"
+      content = Components::SharedDialogFeedback.new(message: "The journal view is updating. Refresh the journal before editing its details.")
+      return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
+    end
+    content = Components::JournalDetailsDialog.new(data: data, token: work_token("journal_details", data["selected"]["id"]))
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def review
     return pending_feedback if session[:finance_operation]
     raw = params[:lines]
@@ -149,7 +159,10 @@ class JournalsController < FinanceSetupController
       return render Views::Journals::Index.new(data: data, message: message, signed_in: signed_in?, notice: flash[:notice]), status: status
     end
     data = data.merge("selected"=>nil, "historical"=>false) if creation
-    render Views::Journals::Show.new(new_journal: creation, requested_id: params[:draft_id], requested_version: params[:version], work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
+    if @action == "journal_details" && @work_header && message && data["selected"] && data.dig("permissions", "prepare") && data["status"] == "ready" && !session[:finance_operation]
+      dialog = Components::JournalDetailsDialog.new(data: data, token: work_token("journal_details", data["selected"]["id"]), values: @work_header, message: message)
+    end
+    render Views::Journals::Show.new(dialog: dialog, new_journal: creation, requested_id: params[:draft_id], requested_version: params[:version], work_token: method(:work_token), work_draft: @work_draft, work_header: @work_header, decimal_separator: decimal_separator, data: data, review: review, token: token, editing: @editing, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
   end
   def feedback(message, status:)
     return super unless request.format.turbo_stream? && @action == "journal_attachment"

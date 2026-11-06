@@ -269,7 +269,8 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "h1", text: "Work journal"
     assert_select "a[href='#{path}']", text: "Back to journals"
-    assert_select "[data-journal-details]", count: 1
+    assert_select "[data-journal-details]", count: 0
+    assert_select "#journal-header-actions [data-journal-details-link]", text: "Edit journal details"
     assert_select "[data-work-row]", count: 1
     assert_select "#journal-create", count: 0
     assert_select "a[href='#{path}/new']", count: 0
@@ -309,6 +310,27 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get path, params: { draft_id: JID }
     assert_select "#journal-header-actions button[disabled]", text: "Delete journal"
     get "#{path}/delete_dialog", params: { draft_id: JID }, as: :turbo_stream
+    assert_response :not_found
+  end
+  test "journal details edit opens a shared dialog and preserves rejected values" do
+    view
+    get "#{path}/details_dialog", params: { draft_id: JID }, as: :turbo_stream
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-dialog-title", text: "Edit journal details"
+    assert_select "[data-journal-details] input[name=name][value='Work journal']"
+    t=token("[data-journal-details]")
+    attrs={ expected_version: 1, expected_draft_version: 1, draft_id: JID, contexts: contexts, data: { name: "Renamed", posting_date: "2026-06-02", reference: "REF" } }
+    command=stub_request(:post, "#{api}/work/details").with(body: attrs).to_return(status: 409, body: { error: "version_conflict" }.to_json)
+    patch path, params: { form_token: t, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s), name: "Renamed", posting_date: "2026-06-02", reference: "REF" }
+    assert_response :conflict
+    assert_select "#shared-dialog-host [data-journal-details] input[name=name][value=Renamed]"
+    assert_requested command
+    t=token("#shared-dialog-host [data-journal-details]")
+    command.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: { form_token: t, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s), name: "Renamed", posting_date: "2026-06-02", reference: "REF" }
+    assert_redirected_to "#{path}?draft_id=#{JID}"
+    view(data.merge(permissions: { prepare: false }))
+    get "#{path}/details_dialog", params: { draft_id: JID }, as: :turbo_stream
     assert_response :not_found
   end
 end
