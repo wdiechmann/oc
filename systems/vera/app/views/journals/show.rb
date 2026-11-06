@@ -12,20 +12,20 @@ class Views::Journals::Show < Views::Base
   def url(**query) = tenant_book_journals_path(@tid, @bid, **query)
   def view_template
     div(id: "vera-book-content", class: "min-w-0 break-words") do
-      a(href: url, class: "text-teal-900 underline") { "← Journals" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { "#{@data['book_name']} · #{@data['base_currency']}" }
-      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review journal draft" : @new_journal ? "New journal" : @data["selected"] ? @data["selected"]["data"]["name"] : "Journal updating…" }
+      header(class: "mt-2 flex items-start justify-between gap-4") do
+        h1(class: "min-w-0 text-3xl font-semibold") { @review ? "Review journal draft" : @new_journal ? "New journal" : @data["selected"] ? @data["selected"]["data"]["name"] : "Journal updating…" }
+        journal_menu
+      end
       p(class: "mt-4 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "Prepare unposted journals with one posting date for all lines. Enter whole minor units (10000 means 100.00 in a two-decimal currency), debit or credit on each line, and optional references. Saving preserves a draft and its validation history." }
       p(class: "mt-3 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "VAT quotes use an explicit signed net base and the effective rule for this date. They are separate from entered debit/credit amounts. No VAT counter-lines are generated. Draft checks do not grant posting authority; posting requires a later workflow." }
       p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
       p(class: "mt-3 text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
       p(role: "status", class: "mt-3 text-sm text-amber-900") { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
-      a(href: @new_journal ? new_tenant_book_journals_path(@tid, @bid) : @review ? url(review_id: @review["review_id"]) : url(draft_id: @data.dig("selected", "id") || @requested_id, version: @requested_version), class: "mt-3 inline-block text-sm text-teal-900 underline") { "Refresh journal" }
       if @check
         a(href: @check, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry
       end
-      journal_history if @data["selected"] && !@review
       if @data["work_rows_enabled"] && !@review && !@editing && !@data["historical"]
         render Components::JournalWork.new(data: @data, token: @work_token, separator: @decimal_separator, draft: @work_draft, header: @work_header)
       elsif @review
@@ -56,19 +56,23 @@ class Views::Journals::Show < Views::Base
       end
     end
   end
-  def journal_history
-    selected = @data.fetch("selected")
-    current = @data.fetch("drafts").find { |draft| draft["id"] == selected["id"] } || selected
-    history = current.fetch("history", [])
-    return if history.empty?
-    details(class: "mt-4 text-sm") do
-      summary(class: "cursor-pointer text-teal-900") { "Revision history (#{history.length})" }
-      history.reverse_each do |revision|
-        p(class: "mt-2") do
-          a(href: url(draft_id: selected["id"], version: revision["version"]), class: "text-teal-900 underline") { "Revision #{revision['version']}" }
-          plain " · #{revision['accepted_at']} · Actor #{revision['actor_identity_id']} · Application #{revision['application_id']}"
-        end
+  def journal_menu
+    draft = @data["selected"]
+    id = draft && draft["id"] || @requested_id
+    refresh = @new_journal ? new_tenant_book_journals_path(@tid, @bid) : @review ? url(review_id: @review["review_id"]) : url(draft_id: id, version: @requested_version)
+    render Components::ContextMenu.new(id: "journal-header-actions", label: "Journal actions") do
+      a(href: url, role: "menuitem", class: "vera-menu-item") { "Back to journals" }
+      if draft && @editable && !@data["historical"] && !@review
+        a(href: delete_dialog_tenant_book_journals_path(@tid, @bid, draft_id: id), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item text-red-800") { "Delete journal" }
+      else
+        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Delete journal" }
       end
+      if draft
+        a(href: history_tenant_book_journals_path(@tid, @bid, draft_id: id), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "Show history" }
+      else
+        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Show history" }
+      end
+      a(href: refresh, role: "menuitem", class: "vera-menu-item") { "Refresh journal" }
     end
   end
   def evidence(data, validation, contexts)

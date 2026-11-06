@@ -268,7 +268,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get path, params: { draft_id: JID }
     assert_response :success
     assert_select "h1", text: "Work journal"
-    assert_select "a[href='#{path}']", text: "← Journals"
+    assert_select "a[href='#{path}']", text: "Back to journals"
     assert_select "[data-journal-details]", count: 1
     assert_select "[data-work-row]", count: 1
     assert_select "#journal-create", count: 0
@@ -280,5 +280,35 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "#journal-create", count: 1
     assert_select "[data-work-row], #journal-posting-preview", count: 0
     assert_not_requested :post, "#{api}/work/create"
+  end
+  test "journal header menu replaces the standalone links and opens history and delete dialogs" do
+    d=data
+    d[:drafts]=[ d[:selected].merge(history: [ { version: 1, accepted_at: "2026-06-01", actor_identity_id: PID, application_id: "vera" } ]) ]
+    view(d)
+    get path, params: { draft_id: JID }
+    assert_select "header h1", text: "Work journal"
+    assert_select "#journal-header-actions [role=menuitem]", text: "Back to journals"
+    assert_select "#journal-header-actions [role=menuitem]", text: "Delete journal"
+    assert_select "#journal-header-actions [role=menuitem]", text: "Show history"
+    assert_select "#journal-header-actions [role=menuitem]", text: "Refresh journal"
+    assert_select "a", text: "← Journals", count: 0
+    assert_select "summary", text: /Revision history/, count: 0
+    get "#{path}/history", params: { draft_id: JID }, as: :turbo_stream
+    assert_response :success
+    assert_select "#shared-dialog-title", text: "Journal history · Work journal"
+    assert_select "a[href='#{path}?draft_id=#{JID}&version=1']", text: "Revision 1"
+    get "#{path}/delete_dialog", params: { draft_id: JID }, as: :turbo_stream
+    assert_response :success
+    assert_select "#shared-dialog-title", text: "Delete journal?"
+    t=token("#shared-content-dialog form")
+    command=stub_request(:post, "#{api}/work/delete").with(body: { expected_version: 1, expected_draft_version: 1, draft_id: JID, contexts: contexts }).to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: { form_token: t, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s) }
+    assert_redirected_to path
+    assert_requested command
+    view(d.merge(permissions: { prepare: false }))
+    get path, params: { draft_id: JID }
+    assert_select "#journal-header-actions button[disabled]", text: "Delete journal"
+    get "#{path}/delete_dialog", params: { draft_id: JID }, as: :turbo_stream
+    assert_response :not_found
   end
 end

@@ -70,6 +70,9 @@ defmodule Ep.Finance.Journals do
           selected
         end
 
+      if selected && selected["data"]["deleted"] && is_nil(params["version"]),
+        do: Repo.rollback(:not_found)
+
       requested_pending =
         if requested_id && !selected do
           protected = Repo.get_by(JournalDraft, id: requested_id, tenant_id: tid, book_id: bid)
@@ -121,7 +124,9 @@ defmodule Ep.Finance.Journals do
           end),
         vat_entries: Enum.filter(setup.catalogue_entries, &(&1["kind"] == "vat" && &1["active"])),
         drafts:
-          Enum.map(drafts, fn d ->
+          drafts
+          |> Enum.reject(& &1["data"]["deleted"])
+          |> Enum.map(fn d ->
             Map.take(d, ~w(id data version validation contexts actor_identity_id application_id))
             |> Map.put(
               "history",
@@ -156,6 +161,8 @@ defmodule Ep.Finance.Journals do
             Repo.get_by(JournalDraft, tenant_id: tid, book_id: bid, id: uuid!(params["draft_id"])) ||
               Repo.rollback(:not_found)
 
+      if old && old.data["deleted"], do: Repo.rollback(:not_found)
+
       if old &&
            (!is_integer(params["expected_draft_version"]) ||
               old.version != params["expected_draft_version"]),
@@ -163,14 +170,23 @@ defmodule Ep.Finance.Journals do
 
       if !old && params["expected_draft_version"] != nil, do: Repo.rollback(:invalid_journal)
 
-      if !old && Repo.aggregate(from(j in JournalDraft, where: j.book_id == ^bid), :count) >= 100,
-        do: Repo.rollback(:journal_limit)
+      if !old &&
+           Repo.aggregate(
+             from(j in JournalDraft,
+               where:
+                 j.book_id == ^bid and
+                   fragment("COALESCE(?->>'deleted', 'false') != 'true'", j.data)
+             ),
+             :count
+           ) >= 100,
+         do: Repo.rollback(:journal_limit)
 
       if old && old.data["rows"] &&
            (!is_map(params["data"]) || !Map.has_key?(params["data"], "rows")),
          do: Repo.rollback(:invalid_journal)
 
       data = data!(tid, bid, params["data"])
+      if data["deleted"] && !old, do: Repo.rollback(:invalid_journal)
       validation = validate(tid, bid, data)
 
       plan = %{
@@ -224,6 +240,8 @@ defmodule Ep.Finance.Journals do
       unless p["expected_draft_version"] === draft.version &&
                p["contexts"] === current["contexts"],
              do: Repo.rollback(:version_conflict)
+
+      if draft.data["deleted"], do: Repo.rollback(:not_found)
 
       data =
         draft.data
@@ -306,6 +324,8 @@ defmodule Ep.Finance.Journals do
               do:
                 Repo.get_by(JournalDraft, tenant_id: tid, book_id: bid, id: plan["draft_id"]) ||
                   Repo.rollback(:not_found)
+
+          if old && old.data["deleted"], do: Repo.rollback(:not_found)
 
           if old && old.version != plan["expected_draft_version"],
             do: Repo.rollback(:version_conflict)
@@ -401,13 +421,19 @@ defmodule Ep.Finance.Journals do
   end
 
   defp data!(tid, bid, %{"rows" => _} = p) do
-    unless Enum.sort(Map.keys(p)) == ~w(name posting_date reference rows),
-      do: Repo.rollback(:invalid_journal)
+    unless Enum.sort(Map.keys(Map.delete(p, "deleted"))) == ~w(name posting_date reference rows) &&
+             is_boolean(Map.get(p, "deleted", false)),
+           do: Repo.rollback(:invalid_journal)
 
-    base = data!(tid, bid, p |> Map.delete("rows") |> Map.put("lines", []))
+    base = data!(tid, bid, p |> Map.drop(["rows", "deleted"]) |> Map.put("lines", []))
     {rows, lines} = Ep.Finance.JournalRows.expand!(tid, bid, Map.put(base, "rows", p["rows"]))
     normalized = line_data!(tid, bid, Map.put(base, "lines", lines), 200)
-    Map.put(normalized, "rows", rows)
+    if p["deleted"] && Enum.any?(rows, &(!&1["void"])), do: Repo.rollback(:invalid_journal)
+    normalized = Map.put(normalized, "rows", rows)
+
+    if Map.has_key?(p, "deleted"),
+      do: Map.put(normalized, "deleted", p["deleted"]),
+      else: normalized
   end
 
   defp data!(tid, bid, p), do: line_data!(tid, bid, p, 100)

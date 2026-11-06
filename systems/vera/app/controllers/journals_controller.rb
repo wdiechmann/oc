@@ -2,6 +2,22 @@ class JournalsController < FinanceSetupController
   def new
     show_setup
   end
+  def history
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
+    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"]
+    content = Components::JournalHistory.new(data: data)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
+  def delete_dialog
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
+    raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare")
+    unless data["status"] == "ready"
+      content = Components::SharedDialogFeedback.new(message: "The journal view is updating. Refresh the journal before deleting it.")
+      return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
+    end
+    content = Components::JournalDeleteDialog.new(data: data, token: work_token("journal_delete", data["selected"]["id"]))
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def review
     return pending_feedback if session[:finance_operation]
     raw = params[:lines]
@@ -70,6 +86,7 @@ class JournalsController < FinanceSetupController
 
   private
   def accepted_notice(result)
+    return "Journal deleted. Numbered postings and history are retained for traceability." if @action == "journal_delete"
     result["posting_id"] ? "Posting ID #{result['posting_id']} saved. The journal remains work in progress." : "Journal draft saved. Continue working on its lines."
   end
   def command_type(action) = action == "journal_save" ? "FinanceJournalDraft:save" : "FinanceJournalWork:#{work_mode(action)}"
@@ -80,7 +97,7 @@ class JournalsController < FinanceSetupController
     end
     action == "journal_save" ? ep.accept_journal(params[:tenant_id], params[:book_id], attrs, key) : ep.journal_work(params[:tenant_id], params[:book_id], work_mode(action), attrs, key)
   end
-  def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: result && result["draft_id"])
+  def destination(result = nil) = tenant_book_journals_path(params[:tenant_id], params[:book_id], draft_id: @action == "journal_delete" ? nil : result && result["draft_id"])
   def attributes_for(action, id)
     unless action == "journal_save"
       signed = Rails.application.message_verifier(:finance_setup).verified(params[:form_token].to_s, purpose: :finance_setup)
@@ -97,6 +114,8 @@ class JournalsController < FinanceSetupController
         @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "vat_enabled", "vat_entry_id", "vat_source_side", "void").merge("id"=>signed["row_id"])
         attrs[:row] = work_row_attributes(signed["row_id"])
         attrs[:append_row] = true if params[:intent] == "next_row"
+      when "journal_delete"
+        # The signed journal ID, versions and contexts govern audited deletion.
       when "journal_attachment"
         @attachment_row_id = signed.fetch("row_id")
         attrs[:upload_id] = signed.fetch("upload_id")
@@ -153,7 +172,7 @@ class JournalsController < FinanceSetupController
     end
   end
   def decimal_separator = @decimal_separator || JournalMoney.separator(request.headers["Accept-Language"])
-  def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details" }.fetch(action)
+  def work_mode(action) = { "journal_create"=>"create", "journal_row"=>"row", "journal_attachment"=>"attachment", "journal_details"=>"details", "journal_delete"=>"delete" }.fetch(action)
   def work_token(action, draft_id = nil, row_id = nil, upload = nil)
     session[:finance_form_nonce] ||= SecureRandom.hex(16)
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>action, "account_id"=>draft_id, "row_id"=>row_id, "upload_id"=>upload && upload["upload_id"], "decimal_separator"=>decimal_separator, "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 4.hours)

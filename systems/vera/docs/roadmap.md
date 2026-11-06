@@ -63,3 +63,5 @@ Completed: explicit apply-VAT flag, net result-account amounts independent of le
 Completed: dated VAT rule picker and source-side selection in the VAT operation dialog, Turbo draft-row recalculation and persisted per-row VAT overrides.
 
 Completed: separate journal index, creation page and full-width journal detail with postings, saved preview and revision history.
+
+Completed: journal header actions menu, shared history/delete dialogs and governed audited journal deletion with retained posting IDs.

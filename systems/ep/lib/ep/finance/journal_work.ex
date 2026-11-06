@@ -16,7 +16,7 @@ defmodule Ep.Finance.JournalWork do
 
   def save(principal, tid, bid, mode, p, key, app \\ "internal") do
     scoped(principal, tid, bid, true, fn tid, bid ->
-      unless mode in ~w(create row attachment details) && is_map(p) && is_binary(key) &&
+      unless mode in ~w(create row attachment details delete) && is_map(p) && is_binary(key) &&
                Regex.match?(~r/^[A-Za-z0-9._:-]{1,128}$/, key),
              do: Repo.rollback(:invalid_journal)
 
@@ -238,6 +238,7 @@ defmodule Ep.Finance.JournalWork do
       case mode do
         "create" -> ~w(contexts data expected_version)
         "details" -> ~w(contexts data draft_id expected_draft_version expected_version)
+        "delete" -> ~w(contexts draft_id expected_draft_version expected_version)
         "row" -> ~w(contexts draft_id expected_draft_version expected_version row)
         "attachment" -> ~w(contexts draft_id expected_draft_version expected_version upload_id)
       end
@@ -263,6 +264,8 @@ defmodule Ep.Finance.JournalWork do
         do:
           Repo.get_by(JournalDraft, tenant_id: tid, book_id: bid, id: uuid!(p["draft_id"])) ||
             Repo.rollback(:not_found)
+
+    if draft && draft.data["deleted"], do: Repo.rollback(:not_found)
 
     data =
       if mode == "create",
@@ -293,6 +296,14 @@ defmodule Ep.Finance.JournalWork do
 
     data =
       case mode do
+        "delete" ->
+          rows =
+            if is_list(draft.data["rows"]),
+              do: Enum.map(data["rows"], &Map.put(&1, "void", true)),
+              else: []
+
+          data |> Map.put("rows", rows) |> Map.put("deleted", true)
+
         "details" ->
           Map.merge(data, Map.take(p["data"], ~w(name posting_date reference)))
 

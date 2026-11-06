@@ -117,3 +117,5 @@ The journal VAT checkbox applies or disables VAT; it must never treat an entered
 Allow choosing the VAT rule used by a journal row in the shared VAT operation dialog. Apply it to that row through Turbo without changing entered amounts or shared account/rule configuration. Preserve the selection through subsequent previews and explicit row save.
 
 Keep the journal index limited to journal links/metadata and a New journal link. Journal details, posting editor and saved posting preview belong on the selected journal’s own view; creation gets a separate form page.
+
+Journal title actions belong in a right-aligned header context menu: Back to journals, Delete journal, Show history and Refresh journal. History and deletion confirmation use the shared dialog. Deletion must retain numbered rows, history and enclosures for traceability.

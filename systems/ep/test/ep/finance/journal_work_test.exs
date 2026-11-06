@@ -1283,4 +1283,75 @@ defmodule Ep.Finance.JournalWorkTest do
                |> Map.delete("expected_version")
              )
   end
+
+  test "deleting a journal voids its numbered rows preserves audit and never reuses IDs", c do
+    did = create(c)
+    save(c, did, row(c), "before-delete")
+    old = Repo.one!(JournalRow)
+    original = Repo.get!(JournalDraft, did)
+    p = body(c, did, row(c, old.id)) |> Map.delete("row")
+
+    assert {:error, :not_found} =
+             JournalWork.save(sign_in().principal, c.tid, c.bid, "delete", p, "denied-delete")
+
+    assert {:error, :version_conflict} =
+             JournalWork.save(
+               c.actor,
+               c.tid,
+               c.bid,
+               "delete",
+               Map.put(p, "expected_draft_version", 0),
+               "stale-delete"
+             )
+
+    assert {:error, :forced} =
+             Repo.transaction(fn ->
+               assert {:ok, _} =
+                        JournalWork.save(c.actor, c.tid, c.bid, "delete", p, "rollback-delete")
+
+               Repo.rollback(:forced)
+             end)
+
+    refute Repo.get!(JournalDraft, did).data["deleted"]
+    refute Repo.get!(JournalRow, old.id).data["void"]
+    assert {:ok, result} = JournalWork.save(c.actor, c.tid, c.bid, "delete", p, "delete-journal")
+
+    assert {:ok, %{"replayed" => true}} =
+             JournalWork.save(c.actor, c.tid, c.bid, "delete", p, "delete-journal")
+
+    assert Repo.get!(JournalDraft, did).data["deleted"]
+    assert Repo.get!(JournalRow, old.id).data["void"]
+    assert Repo.get!(JournalCounter, c.bid).last_number == 1
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    assert {:ok, listing} = Journals.get(c.actor, c.tid, c.bid)
+    assert listing.drafts == []
+    assert {:error, :not_found} = Journals.get(c.actor, c.tid, c.bid, %{"draft_id" => did})
+
+    assert {:ok, historical} =
+             Journals.get(c.actor, c.tid, c.bid, %{
+               "draft_id" => did,
+               "version" => original.version
+             })
+
+    assert hd(historical.selected["data"]["rows"])["posting_id"] == 1
+
+    assert {:error, :not_found} =
+             JournalWork.save(
+               c.actor,
+               c.tid,
+               c.bid,
+               "row",
+               p |> Map.put("row", row(c, old.id)),
+               "edit-deleted"
+             )
+
+    assert {:ok, :ok} = JournalProjector.rebuild(c.tid)
+    assert {:ok, rebuilt} = Journals.get(c.actor, c.tid, c.bid)
+    assert rebuilt.drafts == []
+    assert rebuilt.source_version == result["stream_version"]
+    another = create(c, "after-delete")
+    save(c, another, row(c), "new-number")
+    assert Repo.get!(JournalCounter, c.bid).last_number == 2
+    assert Repo.all(from r in JournalRow, order_by: r.posting_id, select: r.posting_id) == [1, 2]
+  end
 end

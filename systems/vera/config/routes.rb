@@ -22,6 +22,8 @@ Rails.application.routes.draw do
         post :retry
       end
       resource :journals, only: %i[new show update], controller: "journals" do
+        get :history
+        get :delete_dialog
         get :accounts
         post :row_preview
         post :vat_operation
