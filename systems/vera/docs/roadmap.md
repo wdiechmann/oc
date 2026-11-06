@@ -105,3 +105,5 @@ Completed: setup section actions open shared dialogs for steward assignment, per
 2026-11-06: The chart header menu includes Back to books, linking to the current tenant’s books index in both current and retired chart views.
 
 2026-11-06: The Journals index header menu includes Back to books, returning to the current tenant’s books index.
+
+2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
