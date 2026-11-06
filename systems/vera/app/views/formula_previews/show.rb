@@ -13,7 +13,7 @@ class Views::FormulaPreviews::Show < Views::Base
       h1(class: "mt-2 text-3xl font-semibold") { "Formula preview" }
       p(class: "mt-4 text-sm text-stone-600") { "Try the accepted chart formulas with test balances. Enter signed whole minor units (for example, 10000 for 100.00 in a two-decimal currency). Formula constants use the same units. Blank means unknown; enter 0 explicitly for a zero balance. Test balances are not saved." }
       p(class: "mt-3 text-sm text-stone-600") { "References follow saved account identities even after renumbering or reordering. Inactive current accounts remain available and are marked. Arithmetic stays exact through nested formulas; each displayed amount rounds to the nearest minor unit, with ties away from zero." }
-      p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       p(class: "mt-4 text-xs text-stone-500") { "Chart revision #{@data.fetch('source_version')} · Test calculation" }
       form_with(url: tenant_book_formula_preview_path(@tid, @bid), method: :post, id: "formula-preview", data: { turbo: false }, class: "mt-6 space-y-4") do |f|
         f.hidden_field(:expected_version, value: @data.fetch("source_version"))

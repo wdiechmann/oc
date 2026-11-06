@@ -18,7 +18,7 @@ class Views::VatRules::Show < Views::Base
         end
         a(href: tenant_book_catalogues_path(@tid, @bid), class: "text-sm text-teal-900 underline") { "Code names and categories" }
       end
-      p(role: "alert", class: "mt-4 rounded bg-amber-50 p-3") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       p(role: "status", class: "mt-4 text-amber-900") { "The view is updating. Refresh before saving changes." } unless @data["status"] == "ready"
       form_with(url: tenant_book_vat_rules_path(@tid, @bid), method: :get, class: "mt-5 flex flex-wrap items-end gap-3", id: "vat-settings-date") do |f|
         div { f.label(:as_of, "Settings valid on"); f.date_field(:as_of, value: @as_of.iso8601, required: true, class: FIELD) }

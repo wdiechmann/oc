@@ -75,3 +75,5 @@ Completed: journal User manual dialog from the header menu, containing the reloc
 Completed: centered Journals index header menu for refresh and new-journal navigation.
 
 Completed: New line moved to the first journal header menu position.
+
+Completed: shared top-left toast stack for flash, streamed feedback, page messages and live journal notifications.

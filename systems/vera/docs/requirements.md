@@ -129,3 +129,5 @@ Provide a User manual action in the journal header context menu, opening the sha
 Place a context menu to the right of the Journals index title, centered vertically with the title. Move Refresh journals and New journal into it while retaining creation permission/readiness guards.
 
 On the work-journal view, New line must be the first header context-menu action, replacing the button in the postings grid. Preserve immediate numbered-row creation, the row cap and unsaved-row guards.
+
+Display VERA flash/info/notice and transient application feedback as dismissible floating toasts in the top-left, without consuming page layout space. Keep recovery links/retry forms usable and preserve contextual validation/evidence.

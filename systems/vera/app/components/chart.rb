@@ -24,7 +24,7 @@ class Components::Chart < Components::Base
         p(class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { "Initialize this book’s VAT/category catalogues before editing the chart. Existing selections will be preserved and bound to stable entries." }
       end
       p(class: "mt-4 text-sm text-stone-600", id: "coa-help") { @data["retired"] ? "↑/↓ move · Home/End first/last · PgUp/PgDn page. Retired rows are read-only." : "↑/↓ move · Home/End first/last · PgUp/PgDn page · Enter edit/save · Escape cancel. Tab moves between fields while editing." }
-      p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-3 text-sm") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: Views::Base::BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: Views::Base::BUTTON) } if @retry

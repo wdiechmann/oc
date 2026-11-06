@@ -20,7 +20,7 @@ class Components::Periods < Components::Base
       if @data["accounting_authority"] == "external"
         p(class: "mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm") { "These are local preparation controls. They do not change periods in your external accounting system." }
       end
-      p(role: "alert", class: "mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry

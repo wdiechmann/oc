@@ -8,7 +8,7 @@ class Views::ChartImports::Show < Views::Base
     a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
     h1(class: "mt-6 text-3xl font-semibold") { "Import chart CSV" }
     p(class: "mt-4 text-stone-600") { "Upload → choose replacement or merge → map columns → review → accept. Replacement retires omitted accounts; merge keeps them. History is preserved and all changes are accepted together." }
-    p(role: "alert", class: "mt-4 bg-amber-50 p-4") { @message } if @message
+    render Components::Toast.new(message: @message, kind: "alert") if @message
     p(class: "mt-3 text-sm text-stone-600") { "VAT values and account categories are separate catalogues: VAT examples include Dansk salgsmoms and UEUV - Varesalg EU; category examples include Aktiv, Passiv and Indtægt. Descriptive text is preserved." }
     p(class: "mt-3 text-sm text-stone-600") { "Types: header, posting, calculation. The demo uses header. Blank types are guessed: numbered rows as posting, formula rows or unnumbered rows after postings as calculation, otherwise header. Check every guess; calculations require a valid formula." }
     if @data["import_id"]

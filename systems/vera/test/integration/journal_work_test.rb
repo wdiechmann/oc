@@ -42,6 +42,8 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get path, params: { draft_id: JID }
     assert_select "journal-work-editor[data-pending=true]", count: 1
     assert_select "#journal-create", count: 0
+    assert_select "body > #vera-feedback.vera-toast-stack vera-toast [role=status]", text: "Journal draft saved. Continue working on its lines."
+    assert_select "#main-content #vera-feedback", count: 0
   end
   test "paired row saves comma amounts exactly and uses original key for receipt recovery" do
     view

@@ -12,7 +12,7 @@ class Views::Reports::Show < Views::Base
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review report definition" : "Report definitions" }
       p(class: "mt-4 text-sm text-stone-600") { "Map posting accounts to named report lines. Totals reference line codes, for example [REVENUE] - [COSTS]. Each accepted revision preserves its account labels, mappings and formulas. Test balances use whole minor units and are not saved." }
-      p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       p(class: "mt-3 text-xs text-stone-500") { "View revision #{@data['source_version']} · Latest accepted #{@data['latest_version']}" }
       p(role: "status", class: "mt-4 text-sm text-amber-900") { "The report view is updating. Refresh before editing or previewing." } unless @data["status"] == "ready"
       a(href: url, class: "mt-3 inline-block text-sm text-teal-900 underline") { "Refresh reports" }

@@ -10,7 +10,7 @@ class Views::ChartOrders::Show < Views::Base
     p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
     h1(class: "mt-2 text-3xl font-semibold") { @data["review_id"] ? "Review chart order" : "Reorder chart" }
     p(class: "mt-4 text-sm text-stone-600") { "The complete current chart, including inactive rows. Only positions change: account numbers, IDs, fields and formula references stay the same. Positions are reassigned as 100, 200, 300… before atomic acceptance." }
-    p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
+    render Components::Toast.new(message: @message, kind: "alert") if @message
     @data["review_id"] ? review : editor
   end
   def editor

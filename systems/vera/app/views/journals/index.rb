@@ -19,7 +19,7 @@ class Views::Journals::Index < Views::Base
           end
         end
       end
-      p(role: "alert", class: "mt-4 rounded bg-amber-50 p-3") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       p(role: "status", class: "mt-4 text-sm text-amber-900") { "The journal list is updating. Refresh to see the latest changes." } unless @data["status"] == "ready"
       div(class: "mt-6 overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         table(class: "w-full text-left text-sm") do

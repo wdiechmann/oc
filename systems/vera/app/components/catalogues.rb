@@ -19,7 +19,7 @@ class Components::Catalogues < Components::Base
       p(class: "mt-4 max-w-3xl text-sm leading-relaxed text-stone-600") { "Manage classification labels for this book. Accounts keep stable references when codes or names change. Inactive entries remain on existing accounts but cannot be selected for new associations." }
       p(class: "mt-3 text-xs text-stone-500") { "A VAT code is the same selection used on chart accounts. Open its settings to configure rates, deductions and posting accounts by date." }
       a(href: tenant_book_vat_rules_path(@tid, @bid), class: "mt-3 block text-sm font-medium text-teal-900 underline") { "VAT code settings" }
-      p(role: "alert", class: "mt-5 rounded-lg bg-amber-50 p-4 text-sm") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry

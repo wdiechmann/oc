@@ -53,7 +53,7 @@ class JournalWorkEditor extends HTMLElement {
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
   disconnectedCallback() { this.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); clearTimeout(this.refreshTimer); this.abort.abort(); this.vatOperationAbort?.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
-  status(text) { this.querySelector("[data-work-status]").textContent = text; }
+  status(text) { this.querySelector("[data-work-status]").textContent = text; document.dispatchEvent(new CustomEvent("vera:notify",{detail:{id:"journal-work-feedback",message:text,kind:"alert"}})); }
   input(event) {
     const form = event.target.closest("[data-work-row]");
     if (!form) return;

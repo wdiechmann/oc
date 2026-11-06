@@ -19,7 +19,7 @@ class Views::Journals::Show < Views::Base
       end
       p(class: "mt-4 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "Prepare unposted journals with one posting date for all lines. Enter whole minor units (10000 means 100.00 in a two-decimal currency), debit or credit on each line, and optional references. Saving preserves a draft and its validation history." }
       p(class: "mt-3 text-sm text-stone-600", hidden: @data["work_rows_enabled"]) { "VAT quotes use an explicit signed net base and the effective rule for this date. They are separate from entered debit/credit amounts. No VAT counter-lines are generated. Draft checks do not grant posting authority; posting requires a later workflow." }
-      p(role: "alert", class: "mt-4 rounded-lg bg-amber-50 p-4") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       p(class: "mt-3 text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
       p(role: "status", class: "mt-3 text-sm text-amber-900") { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
       if @check

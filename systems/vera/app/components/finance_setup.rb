@@ -14,7 +14,7 @@ class Components::FinanceSetup < Components::Base
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       h1(class: "mt-3 text-4xl font-semibold tracking-tight") { "Book configuration" }
       p(class: "mt-4 max-w-3xl leading-relaxed text-stone-600") { "Assign stewards and link occasions. Open the chart of accounts to maintain its rows. Setup permissions apply to this book only and grant no journal approval, posting or payment authority." }
-      p(role: "alert", class: "mt-5 rounded-lg border border-amber-200 bg-amber-50 p-4") { @message } if @message
+      render Components::Toast.new(message: @message, kind: "alert") if @message
       if @check
         a(href: @check, data: { turbo_stream: true }, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry

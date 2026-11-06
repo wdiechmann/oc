@@ -143,3 +143,5 @@ Journal title menu → User manual opens the shared dialog with the existing acc
 On the Journals index, use the More icon to the right of the title for Refresh journals and New journal. The icon is vertically centered with Journals; New journal is disabled when creation is unavailable.
 
 Open the journal title menu and choose its first item, New line, to create the next numbered row. The separate grid button is removed. Save or cancel current row edits first; the action is disabled for read-only/historical views and at the row limit.
+
+Flash and transient app messages now float in a top-left notification stack instead of pushing the page down. Dismiss a message with ×; important links and retry controls remain available until dismissed. Journal row notifications use this area too. Field/modal validation and saved accounting evidence stay alongside their context.
