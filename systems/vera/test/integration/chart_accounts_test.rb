@@ -138,7 +138,21 @@ class ChartAccountsTest < ActionDispatch::IntegrationTest
     get "/tenants/#{TID}/books/#{BID}/setup"
     assert_select "a[href='#{path}']", text: "Open chart of accounts"
     assert_select "input[name=number]", count: 0
-    assert_select "#setup-steward-new"
+    assert_select "#setup-steward-new, #setup-binding-new", count: 0
+    assert_select "section header a[data-turbo-stream]", text: "Steward assignment"
+    setup_path = "/tenants/#{TID}/books/#{BID}/setup"
+    get "#{setup_path}/assignment_dialog", params: { kind: "steward" }, headers: STREAM
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #setup-steward-new"
+    get "#{setup_path}/assignment_dialog", params: { kind: "binding" }, headers: STREAM
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #setup-binding-new"
+    binding_token = token("binding")
+    command = stub_request(:post, "#{api}/bindings").with(body: { expected_version: 2, occasion_id: AID, active: false }).to_return(status: 409, body: { error: "version_conflict" }.to_json)
+    patch setup_path, params: { form_token: binding_token, expected_version: "2", occasion_id: AID, active: "false" }
+    assert_response :conflict
+    assert_requested command
+    assert_select "#shared-dialog-host #setup-binding-new select[name=active] option[value=false][selected]"
   end
 
   test "paginated streams append only the requested page and replace pagination controls" do

@@ -157,3 +157,5 @@ Each Journals row has a More menu: Delete journal reuses the existing confirmati
 2026-11-06: Posting ignores untouched empty entry rows while retaining their numbered audit records. Entered references, accounts, amounts or attachments still require validation. Posting dialog row issues show the posting ID and avoid duplicate generic messages.
 
 2026-11-06: The Post journal account-impact table ends with a Total footer summing the displayed accounts’ Prepost, Post and Postpost columns using exact minor units and the current decimal separator.
+
+On Book configuration, Configuration stewards has adjacent Steward assignment and Permission to reopen periods buttons on the right. Linked occasions has a Link occasion button. Each opens its form in the shared dialog; reopening permission remains disabled until a steward exists. Assign/revoke and link/unlink choices remain available, and successful saves return to setup.

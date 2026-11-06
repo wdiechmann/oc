@@ -63,6 +63,7 @@ Rails.application.routes.draw do
         post :retry
       end
       resource :setup, only: %i[show update], controller: "finance_setup" do
+        get :assignment_dialog
         get :completion
         post :retry
       end

@@ -6,6 +6,18 @@ class FinanceSetupController < ApplicationController
     show_setup
   end
 
+  def assignment_dialog
+    data = ep.finance_setup(params[:tenant_id], params[:book_id])
+    kind = params[:kind].to_s
+    raise Ep::Client::Error.new(404, code: "not_found") unless assignment_allowed?(data, kind)
+    if session[:finance_operation] || data["status"] != "ready"
+      content = Components::SharedDialogFeedback.new(message: "Resolve any pending save and refresh setup before making another change.", check_url: completion_url, retry_url: retry_url)
+      return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
+    end
+    content = Components::FinanceSetupDialog.new(data: data, kind: kind, token: form_token(kind))
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
+
   def update
     return pending_feedback if session[:finance_operation]
     form = Rails.application.message_verifier(:finance_setup).verified(params[:form_token].to_s, purpose: :finance_setup)
@@ -47,6 +59,14 @@ class FinanceSetupController < ApplicationController
 
   private
 
+  def assignment_allowed?(data, kind)
+    case kind
+    when "steward" then data.dig("permissions", "assign_stewards")
+    when "reopening_authority" then data.dig("permissions", "assign_stewards") && data.fetch("stewards").any?
+    when "binding" then data.dig("permissions", "configure")
+    else false
+    end
+  end
   def require_finance_session
     return if signed_in?
     reset_session
@@ -82,10 +102,15 @@ class FinanceSetupController < ApplicationController
     data = ep.finance_setup(params[:tenant_id], params[:book_id])
     draft = @attrs && { action: @action, attrs: @attrs }
     options = { data: data, token: method(:form_token), draft: draft, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, query: params[:q].to_s }
-    if request.format.turbo_stream?
+    dialog = if message && @attrs && data["status"] == "ready" && !session[:finance_operation] && assignment_allowed?(data, @action)
+      Components::FinanceSetupDialog.new(data: data, kind: @action, token: form_token(@action), values: @attrs)
+    end
+    if request.format.turbo_stream? && dialog
+      render Components::SharedDialogStream.new(content: dialog, body: Components::FinanceSetup.new(**options.except(:signed_in))), content_type: "text/vnd.turbo-stream.html", status: status
+    elsif request.format.turbo_stream?
       render Components::FinanceSetupStream.new(**options), content_type: "text/vnd.turbo-stream.html", status: status
     else
-      render Views::FinanceSetup::Show.new(**options, notice: flash[:notice]), status: status
+      render Views::FinanceSetup::Show.new(**options, dialog: dialog, notice: flash[:notice]), status: status
     end
   end
   def completion_url

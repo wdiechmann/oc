@@ -163,3 +163,5 @@ JournalPosting computes fresh validation and all-time account balances from immu
 2026-11-06: Posting ignores untouched empty entry rows while retaining their numbered audit records. Entered references, accounts, amounts or attachments still require validation. Posting dialog row issues show the posting ID and avoid duplicate generic messages.
 
 2026-11-06: The Post journal account-impact table ends with a Total footer summing the displayed accounts’ Prepost, Post and Postpost columns using exact minor units and the current decimal separator.
+
+FinanceSetup renders section-header dialog links. FinanceSetupController#assignment_dialog reads current EP setup, checks the requested kind against assign_stewards/configure authority and readiness, then Turbo-renders FinanceSetupDialog in the shared host. Existing signed commands and success redirects remain; rejected forms reopen with submitted values and current version fences. Unknown-outcome reconciliation retains its existing flow.

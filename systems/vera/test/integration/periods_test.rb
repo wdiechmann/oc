@@ -157,6 +157,11 @@ class PeriodsTest < ActionDispatch::IntegrationTest
     setup_data = { tenant_id: TID, book_id: BID, book_name: "SL2030", status: "ready", source_version: 1, latest_version: 1, permissions: { assign_stewards: true, configure: true }, stewards: [ { identity_id: PID, can_reopen_periods: false } ], candidates: [ { identity_id: PID, label: "owner@example.test" } ], occasions: [], bindings: [], accounts: [] }
     stub_request(:get, root).to_return(status: 200, body: setup_data.to_json)
     get "/tenants/#{TID}/books/#{BID}/setup"
+    assert_select "#setup-reopening_authority-new", count: 0
+    assert_select "section header a[data-turbo-stream]", text: "Permission to reopen periods"
+    get "/tenants/#{TID}/books/#{BID}/setup/assignment_dialog", params: { kind: "reopening_authority" }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #setup-reopening_authority-new"
     key = css_select("#setup-reopening_authority-new input[name=form_token]").first["value"]
     grant = stub_request(:post, "#{root}/reopening-authority").with(body: { expected_version: 1, identity_id: PID, allow: true }).to_return(status: 200, body: { stream_version: 2 }.to_json)
     patch "/tenants/#{TID}/books/#{BID}/setup", params: { form_token: key, expected_version: "1", identity_id: PID, allow: "true" }

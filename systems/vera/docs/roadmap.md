@@ -89,3 +89,5 @@ Completed: per-journal row menus, existing audited delete flow, account impact p
 2026-11-06: Posting ignores untouched empty entry rows while retaining their numbered audit records. Entered references, accounts, amounts or attachments still require validation. Posting dialog row issues show the posting ID and avoid duplicate generic messages.
 
 2026-11-06: The Post journal account-impact table ends with a Total footer summing the displayed accounts’ Prepost, Post and Postpost columns using exact minor units and the current decimal separator.
+
+Completed: setup section actions open shared dialogs for steward assignment, permission to reopen periods and occasion links; inline assignment forms removed.
