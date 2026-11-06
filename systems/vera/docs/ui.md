@@ -155,3 +155,5 @@ Use the More icon at the right of the Chart of accounts title for refresh, curre
 Each Journals row has a More menu: Delete journal reuses the existing confirmation; Post journal opens the account-impact dialog. Prepost is the current all-time posted balance, Post is this journal’s summed change including VAT legs, and Postpost is their sum. Debit balances are positive; credit balances negative. The Post button below the title confirms authorization and verification and is disabled while issues remain. The dialog scrolls within 80% viewport height and uses 80% viewport width at md and larger. Posted journals show Posted and cannot be edited, posted again or deleted.
 
 2026-11-06: Posting ignores untouched empty entry rows while retaining their numbered audit records. Entered references, accounts, amounts or attachments still require validation. Posting dialog row issues show the posting ID and avoid duplicate generic messages.
+
+2026-11-06: The Post journal account-impact table ends with a Total footer summing the displayed accounts’ Prepost, Post and Postpost columns using exact minor units and the current decimal separator.

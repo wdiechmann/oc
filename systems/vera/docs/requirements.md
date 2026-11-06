@@ -141,3 +141,5 @@ The chart of accounts must place secondary navigation, configuration and CSV act
 Journal index rows provide scoped context menus with Delete journal and Post journal. Post opens a shared dialog (at most 80% viewport height, 80% width from md) containing one summed row per affected account, including VAT accounts, with Prepost/Post/Postpost balances. The Post button sits between title and account table and explicitly confirms authorization and verification. EP accepts only balanced, currently eligible journals; posted journals are immutable and retries cannot duplicate entries.
 
 2026-11-06: Posting ignores untouched empty entry rows while retaining their numbered audit records. Entered references, accounts, amounts or attachments still require validation. Posting dialog row issues show the posting ID and avoid duplicate generic messages.
+
+2026-11-06: The Post journal account-impact table ends with a Total footer summing the displayed accounts’ Prepost, Post and Postpost columns using exact minor units and the current decimal separator.

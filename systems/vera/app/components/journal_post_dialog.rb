@@ -33,6 +33,14 @@ class Components::JournalPostDialog < Components::Base
             end
           end
         end
+        tfoot(class: "border-t-2 border-stone-300 bg-stone-100 font-semibold") do
+          tr do
+            th(scope: "row", class: "p-3 text-left") { "Total" }
+            %w[prepost_minor post_minor postpost_minor].each do |key|
+              td(class: "p-3 text-right tabular-nums whitespace-nowrap") { JournalMoney.format(@plan["accounts"].sum { |row| row[key] }, separator: @separator) }
+            end
+          end
+        end
       end
     end
   end
