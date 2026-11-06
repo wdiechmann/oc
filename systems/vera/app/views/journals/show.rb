@@ -83,6 +83,7 @@ class Views::Journals::Show < Views::Base
         button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Saved posting preview · Unposted" }
       end
       a(href: refresh, role: "menuitem", class: "vera-menu-item") { "Refresh journal" }
+      a(href: user_manual_tenant_book_journals_path(@tid, @bid), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "User manual" }
     end
   end
   def evidence(data, validation, contexts)

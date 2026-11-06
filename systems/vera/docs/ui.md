@@ -137,3 +137,5 @@ Use the More icon to the right of the journal title for Back to journals, Delete
 Open the journal title menu → Edit journal details to change the draft name, posting date or reference in the shared dialog. Save journal details returns to the updated journal. Save or cancel any posting edits before opening it; the former inline details expander is removed.
 
 Open the journal title menu → Saved posting preview · Unposted to inspect the saved debit/credit legs, VAT accounts, issues and totals in the shared dialog. It opens fully expanded. Historical views show their stored revision evidence; current unsaved row edits are not included until saved. The journal body no longer contains the preview expander.
+
+Journal title menu → User manual opens the shared dialog with the existing account-search, keyboard, amount-format, posting-ID, attachment and later-workflow instructions. These two paragraphs are currently its only manual content; the main journal view no longer repeats them.

@@ -143,3 +143,5 @@ Journal deletion reuses FinanceJournalWork receipts and reviewed acceptance with
 The details-dialog GET reads the selected journal from EP, verifies current preparation permission/readiness, and streams a shared Phlex form. The existing signed journal_details command still saves metadata and redirects to the selected journal. Rejected values reopen in the shared dialog on the error response. The work editor prevents opening metadata editing while a row has unsaved changes.
 
 The preview-dialog GET reads the scoped selected journal/revision (or the caller’s private reviewed plan) through EP and streams the existing preview component in dialog mode. It displays stored validation evidence without a financial command or quote recalculation. Live and historical inline preview calls are removed; the selected revision is preserved in the menu URL.
+
+The user-manual GET checks the current book’s journal-read access through EP and streams a static Phlex manual into the shared dialog. Content is the two former JournalWork description paragraphs; decimal punctuation uses the same request-locale helper. Reading the manual does not mutate or replace the work editor.

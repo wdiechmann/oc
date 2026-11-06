@@ -223,3 +223,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Moved Edit journal details into the header context menu and a shared dialog. Removed the inline form and retained metadata validation/error drafts and unsaved posting guards.
 
 2026-11-06: Moved Saved posting preview · Unposted into the journal header menu and shared dialog. Kept stored leg/account/tax evidence and revision-specific reads; removed the inline expander.
+
+2026-11-06: Added User manual to the journal title menu. Moved the two editor/numbering/workflow description paragraphs out of the journal body and into the shared manual dialog.

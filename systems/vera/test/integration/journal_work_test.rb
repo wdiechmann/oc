@@ -348,4 +348,21 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_requested stub
     assert_not_requested :post, "#{api}/reviews"
   end
+  test "journal instructions live only in the shared user manual dialog" do
+    view
+    get path, params: { draft_id: JID }
+    assert_select "#journal-header-actions a[data-turbo-stream]", text: "User manual"
+    assert_not_includes response.body, "Type two or more characters"
+    assert_not_includes response.body, "final posting follow in a later workflow"
+    stub_request(:get, api).to_return(status: 200, body: data.merge(permissions: { prepare: false }).to_json)
+    get "#{path}/user_manual", headers: { "Accept"=>"text/vnd.turbo-stream.html", "Accept-Language"=>"da-DK" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-dialog-title", text: "User manual"
+    assert_select "#journal-user-manual p", count: 2
+    assert_includes response.body, "Type two or more characters"
+    assert_includes response.body, "Amounts use , as the decimal point"
+    assert_includes response.body, "final posting follow in a later workflow"
+    assert_select "#shared-content-dialog form", count: 0
+    assert_not_requested :post, "#{api}/work/row"
+  end
 end

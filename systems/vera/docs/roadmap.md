@@ -69,3 +69,5 @@ Completed: journal header actions menu, shared history/delete dialogs and govern
 Completed: journal details editing from the header menu through a shared dialog, replacing the inline expander.
 
 Completed: saved posting preview as a journal header action and shared read-only dialog, replacing the inline expander.
+
+Completed: journal User manual dialog from the header menu, containing the relocated editor instructions.
