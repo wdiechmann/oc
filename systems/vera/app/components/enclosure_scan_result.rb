@@ -4,13 +4,13 @@ class Components::EnclosureScanResult < Components::Base
     @frame_id, @result, @separator, @retry = frame_id, result, separator, retry_url
   end
   def view_template
-    turbo_frame(id: @frame_id, class: "block min-w-0") do
+    turbo_frame(id: @frame_id, class: "enclosure-suggestions") do
       h3(class: "font-semibold") { "Suggested document values" }
       if @result["status"] == "ready"
         p(class: "mt-2 text-xs text-stone-500") { "Review suggestions against the document before using them. Dates use day/month/year when not in ISO format." }
         p(class: "mt-1 text-xs text-stone-500") { "First 3 PDF pages inspected." } if @result["limited_pages"]
         p(class: "mt-3 text-sm") { "No labelled values recognized. Check the extracted text below." } if @result["fields"].empty?
-        dl(class: "mt-3 max-h-[45vh] space-y-3 overflow-y-auto break-words") do
+        dl(class: "mt-3 grid gap-3 break-words sm:grid-cols-2") do
           @result["fields"].each do |field|
             div do
               dt(class: "text-xs text-stone-500") { field["label"] }
@@ -21,7 +21,7 @@ class Components::EnclosureScanResult < Components::Base
         end
         details(class: "mt-4") do
           summary(class: "cursor-pointer text-sm text-teal-900") { "Extracted text" }
-          pre(class: "mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-stone-100 p-3 text-xs") { @result["text"] }
+          pre(class: "mt-2 whitespace-pre-wrap break-words rounded bg-stone-100 p-3 text-xs") { @result["text"] }
         end
       else
         p(role: "status", class: "mt-3 text-sm text-stone-600") do

@@ -88,3 +88,8 @@ vera-toast { display: none; }
 @media (min-width: 768px) {
   .vera-post-dialog { width: 80vw; max-width: 80vw; }
 }
+
+.enclosure-preview { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 3fr) minmax(0, 1fr); gap: 1rem; height: 64dvh; min-height: 24rem; min-width: 0; }
+.enclosure-document { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.enclosure-document > iframe, .enclosure-document > img { display: block; flex: 1; width: 100%; height: 0; min-height: 0; object-fit: contain; }
+.enclosure-suggestions { display: block; min-width: 0; min-height: 0; overflow-y: auto; }

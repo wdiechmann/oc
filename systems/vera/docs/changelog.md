@@ -265,3 +265,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Added enclosure previews to the shared dialog: inline PDFs/images before attachment confirmation and expandable previews for saved documents, with protected staged preview reads and unchanged download controls.
 
 2026-11-06: Added automatic local document scanning beside enclosure previews, showing supplier, amounts/VAT, currency, invoice/date/due-date and tax-ID candidates with source lines and extracted text. Added production Linux packaging with Poppler/Tesseract Danish/English, private bounded processing and no automatic journal changes.
+
+2026-11-06: Enclosure preview spans the full width above suggested document values. A bounded single-column grid allocates vertical space in a 3:1 preview/values ratio; suggestions scroll within their own panel, including while scanning. The layout applies to staged and saved documents on desktop and mobile.

@@ -49,16 +49,16 @@ class Components::JournalAttachments < Components::Base
     end
   end
   def document_preview(url, type, filename, **query)
-    div(class: "mt-3 grid min-w-0 gap-4 md:grid-cols-2", data: { enclosure_preview: true }) do
-      div(class: "min-w-0") do
+    div(class: "enclosure-preview mt-3", data: { enclosure_preview: true }) do
+      div(class: "enclosure-document") do
         if type == "application/pdf"
-          iframe(src: url, title: "Preview of #{filename}", loading: "lazy", class: "block h-[50vh] min-h-64 w-full rounded border border-stone-200")
+          iframe(src: url, title: "Preview of #{filename}", loading: "lazy", class: "rounded border border-stone-200")
         elsif %w[image/png image/jpeg].include?(type)
-          img(src: url, alt: "Preview of #{filename}", loading: "lazy", class: "mx-auto block max-h-[50vh] max-w-full rounded object-contain")
+          img(src: url, alt: "Preview of #{filename}", loading: "lazy", class: "rounded")
         end
         a(href: url, target: "_blank", rel: "noopener", data: { turbo: false }, class: "mt-2 inline-block text-sm text-teal-900 underline") { "Open document" }
       end
-      turbo_frame_tag("enclosure-scan-#{query[:upload_id] || query[:attachment_id]}", src: scan_attachment_tenant_book_journals_path(@tid, @bid, **query), loading: "lazy", class: "block min-w-0") do
+      turbo_frame_tag("enclosure-scan-#{query[:upload_id] || query[:attachment_id]}", src: scan_attachment_tenant_book_journals_path(@tid, @bid, **query), loading: "lazy", class: "enclosure-suggestions") do
         p(role: "status", class: "text-sm text-stone-500") { "Scanning document for suggested values…" }
       end
     end
