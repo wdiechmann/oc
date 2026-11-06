@@ -9,6 +9,7 @@ Rails.application.routes.draw do
     resources :books, only: %i[index new create show update] do
       get :completion, on: :collection
       resource :vat_rules, only: %i[show update], controller: "vat_rules" do
+        get :refresh_row
         get :completion
         post :retry
       end

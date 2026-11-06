@@ -53,3 +53,5 @@ Completed: code-centered VAT settings, date-specific coverage, grouped scheduled
 Completed: compact VAT index and shared detail dialog, including same-code scheduling, presets, revision/source references, streamed save/error recovery and index refresh after acceptance.
 
 Completed: development sign-in links in the flash notice; existing confirmation and production delivery preserved.
+
+Completed: VAT row-only Turbo updates after projection catch-up, with automatic read-only refresh and safe cancellation on navigation.

@@ -107,3 +107,5 @@ VAT configuration must be organized by the same stable VAT code selected on char
 Keep the VAT index simple: one row per code. Its row link opens the shared dialog containing settings, references, revisions and all configuration actions; saves/errors/recovery use Turbo Streams and preserve authority and version fences.
 
 In development, VERA exposes a successfully issued sign-in link as a clickable one-display flash notice. Production keeps normal provider delivery and the generic notice; absent delivery material never produces a link.
+
+After a VAT settings save is accepted, Turbo must refresh only the concerned index row once the EP projection is ready at or beyond the accepted revision. Polls are read-only, scoped to the book/code/date, and continue if the dialog is closed.

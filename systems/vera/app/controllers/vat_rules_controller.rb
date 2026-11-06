@@ -1,4 +1,12 @@
 class VatRulesController < FinanceSetupController
+  def refresh_row
+    ticket = Rails.application.message_verifier(:vat_row_refresh).verified(params[:ticket].to_s, purpose: :vat_row_refresh)
+    unless ticket && ticket["scope"] == form_scope
+      return protected_feedback("Refresh the VAT index to check the updated settings.", 422)
+    end
+    data = ep.vat_rules(params[:tenant_id], params[:book_id])
+    render Components::VatRowRefreshStream.new(data: data, entry_id: ticket.fetch("entry_id"), as_of: Date.iso8601(ticket.fetch("as_of")), version: ticket.fetch("version"), refresh_url: request.fullpath, token: method(:form_token)), content_type: "text/vnd.turbo-stream.html"
+  end
   private
   def destination(_result = nil)
     entry=@attrs && (@attrs[:vat_entry_id] || @attrs["vat_entry_id"])
@@ -67,9 +75,14 @@ class VatRulesController < FinanceSetupController
     selected ||= @attrs && @attrs[:vat_entry_id]
     options = { data: data, token: method(:form_token), draft: @attrs && { action: @action, attrs: @attrs }, selected_entry: selected, as_of: as_of, message: message, check_url: completion_url, retry_url: retry_url }
     if request.format.turbo_stream? && selected
-      content = Views::VatRules::Detail.new(**options)
-      body = Views::VatRules::Show.new(**options.merge(selected_entry: nil, message: nil), fragment: true) if @refresh_index
-      render Components::SharedDialogStream.new(content: content, body: body), content_type: "text/vnd.turbo-stream.html", status: status
+      display_data = @refresh_version && data["source_version"].to_i < @refresh_version ? data.merge("status"=>"pending") : data
+      content = Views::VatRules::Detail.new(**options.merge(data: display_data))
+      if @refresh_version
+        ticket = Rails.application.message_verifier(:vat_row_refresh).generate({ scope: form_scope, entry_id: selected, as_of: as_of.iso8601, version: @refresh_version }, purpose: :vat_row_refresh, expires_in: 1.hour)
+        url = refresh_row_tenant_book_vat_rules_path(params[:tenant_id], params[:book_id], ticket: ticket)
+        updates = Components::VatRowRefreshStream.new(data: data, entry_id: selected, as_of: as_of, version: @refresh_version, refresh_url: url, token: method(:form_token))
+      end
+      render Components::SharedDialogStream.new(content: content, updates: updates), content_type: "text/vnd.turbo-stream.html", status: status
     else
       render Views::VatRules::Show.new(**options, signed_in: signed_in?, notice: flash[:notice]), status: status
     end
@@ -78,7 +91,7 @@ class VatRulesController < FinanceSetupController
     return super unless request.format.turbo_stream?
     params[:vat_entry_id] = @attrs[:vat_entry_id]
     @attrs = nil
-    @refresh_index = true
+    @refresh_version = result.fetch("stream_version").to_i
     show_setup(message: notice)
   end
   def feedback(message, status:)

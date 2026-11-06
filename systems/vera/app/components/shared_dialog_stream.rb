@@ -1,9 +1,11 @@
 class Components::SharedDialogStream < Components::Base
   register_element :turbo_stream
-  def initialize(content:, journal: nil, body: nil)
+  def initialize(content:, journal: nil, body: nil, updates: nil)
+    @updates = updates
     @content, @journal, @body = content, journal, body
   end
   def view_template
+    render @updates if @updates
     if @journal || @body
       turbo_stream(action: "replace", target: "vera-book-content", data: { preserve_journal_draft: !!@journal }) { template { render(@journal || @body) } }
     end

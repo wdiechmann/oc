@@ -194,7 +194,7 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     view(data.merge(source_version: 3, latest_version: 3, vat_rules: [ dated_settings(RID, "2026-01-01") ]))
     patch path, params: form(t).merge(as_of: "2026-06-01"), as: :turbo_stream
     assert_response :success
-    assert_select "turbo-stream[target=vera-book-content] #vat-code-row-#{VID} td", text: "Configured"
+    assert_select "turbo-stream[target='vat-code-row-#{VID}'] #vat-code-row-#{VID} td", text: "Configured"
     assert_select "turbo-stream[target=shared-dialog-host] [data-vat-settings='Current settings']"
     assert_select "#shared-content-dialog [role=alert]", text: /Setup accepted/
   end
@@ -205,5 +205,42 @@ class VatRulesTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream[target=shared-dialog-host] template", text: ""
     assert_select "turbo-stream[target=vera-book-content]"
     assert_not_includes response.body, "Input VAT"
+  end
+  test "accepted changes wait for the projected revision then replace only their index row" do
+    view
+    get path, params: { vat_entry_id: VID }
+    t = token
+    command = stub_request(:post, api).to_return(status: 200, body: { stream_version: 3 }.to_json)
+    view(data.merge(status: "pending", latest_version: 3))
+    patch path, params: form(t).merge(as_of: "2026-06-01"), as: :turbo_stream
+    assert_response :success
+    assert_select "turbo-stream[target='vat-code-row-#{VID}']", count: 0
+    assert_select "turbo-stream[target='vat-refresh-#{VID}'] vat-index-refresh", count: 1
+    refresh_url = css_select("vat-index-refresh").first["data-url"]
+    get refresh_url, as: :turbo_stream
+    assert_response :success
+    assert_select "vat-index-refresh", count: 1
+    view(data.merge(source_version: 3, latest_version: 3, vat_rules: [ dated_settings(RID, "2026-01-01") ]))
+    get refresh_url, as: :turbo_stream
+    assert_response :success
+    assert_select "turbo-stream[target='vat-code-row-#{VID}'] td", text: "25,00%"
+    assert_select "turbo-stream[target=vera-book-content], turbo-stream[target=shared-dialog-host], vat-index-refresh", count: 0
+    assert_requested command, times: 1
+    get refresh_url.sub(BID, RID), as: :turbo_stream
+    assert_response :unprocessable_entity
+    assert_not_requested :get, api.sub(BID, RID)
+  end
+  test "a ready projection older than the accepted revision keeps waiting" do
+    ticket = Rails.application.message_verifier(:vat_row_refresh).generate({ scope: "#{TID}/#{BID}", entry_id: VID, as_of: "2026-06-01", version: 3 }, purpose: :vat_row_refresh, expires_in: 1.hour)
+    view
+    get "#{path}/refresh_row", params: { ticket: ticket }, as: :turbo_stream
+    assert_response :success
+    assert_select "vat-index-refresh", count: 1
+    assert_select "turbo-stream[target='vat-code-row-#{VID}']", count: 0
+    stub_request(:get, api).to_return(status: 403, body: { error: "forbidden" }.to_json)
+    get "#{path}/refresh_row", params: { ticket: ticket }, as: :turbo_stream
+    assert_response :forbidden
+    assert_select "turbo-stream[target=vera-book-content]"
+    assert_select "turbo-stream[target=shared-dialog-host]"
   end
 end

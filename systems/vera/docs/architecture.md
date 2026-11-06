@@ -127,3 +127,5 @@ VERA groups EP VAT-rule projections beneath their catalogue VAT code without cha
 The VAT Show view renders the index; the fragment Detail view supplies the existing SharedContentDialog. GET row links stream only the dialog, preserving index focus. Accepted mutations stream both refreshed index and detail. Direct URLs seed the same dialog through the layout host. No EP contract or financial rule changes.
 
 Magic-link delivery returns its already constructed application URL only in development. The controller puts it in the encrypted flash and the Phlex layout renders the link only in development. No additional token issuance or verification endpoint is introduced.
+
+Accepted VAT commands issue a signed expiring refresh ticket containing book scope, VAT code, selected settings date and accepted stream version. A row-owned custom element GETs the current authorized projection. The stream replaces that row only after ready/source-version catch-up; it may also replace the matching disabled pending-dialog content. Navigation disconnects/aborts the poller; no poll retries a mutation or reopens a closed dialog.

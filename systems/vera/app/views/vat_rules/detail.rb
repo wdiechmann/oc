@@ -7,6 +7,9 @@ class Views::VatRules::Detail < Views::Base
     @editable = data["status"] == "ready" && data["catalogues_initialized"] && data.dig("permissions", "configure") && !check_url
   end
   def view_template
+    div(id: @data["status"] == "ready" ? "vat-settings-detail-#{@selected_entry}" : "vat-settings-pending-#{@selected_entry}") { detail_content }
+  end
+  def detail_content
     entry = @data.fetch("vat_entries").find { |e| e["id"] == @selected_entry }
     h2(id: "shared-dialog-title", class: "text-2xl font-semibold") { entry ? "#{entry['code']} · #{entry['name']}" : "VAT settings" }
     p(class: "mt-2 text-sm text-stone-600") { "Settings apply by journal posting date. Keep this code when scheduling a change." }

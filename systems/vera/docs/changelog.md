@@ -207,3 +207,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-05: Simplified VAT setup to a one-code-per-row index. Moved all dated settings, history, source references and forms into the shared dialog; kept presets, validation and unknown-outcome recovery within the streamed dialog flow.
 
 2026-11-06: Added a clickable development sign-in link to the VERA flash after successful delivery; updated sign-in hints. Production notices continue to omit the URL.
+
+2026-11-06: VAT saves now wait for projection catch-up and Turbo-replace only the affected index row, instead of immediately refreshing the entire index. Pending dialog content becomes editable when ready; closing the dialog leaves the row refresh running.
