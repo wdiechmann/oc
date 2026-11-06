@@ -11,7 +11,14 @@ class Components::FinanceSetup < Components::Base
     div(id: "vera-book-content") do
       a(href: root_path, class: "text-sm font-medium text-teal-900 hover:underline") { "← Your workspaces" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
-      h1(class: "mt-3 text-4xl font-semibold tracking-tight") { "Book configuration" }
+      header(class: "mt-3 flex items-center justify-between gap-4") do
+        h1(class: "min-w-0 text-4xl font-semibold tracking-tight") { "Book configuration" }
+        render Components::ContextMenu.new(id: "setup-header-actions", label: "Book configuration actions") do
+          a(href: tenant_book_chart_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Open chart of accounts" }
+          a(href: tenant_book_catalogues_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "VAT and categories" }
+          a(href: tenant_book_periods_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Accounting periods" }
+        end
+      end
       p(class: "mt-4 max-w-3xl leading-relaxed text-stone-600") { "Assign stewards and link occasions. Open the chart of accounts to maintain its rows. Roles apply to this book only. Permission to reopen closed periods is granted separately." }
       render Components::Toast.new(message: @message, kind: "alert") if @message
       if @check
@@ -32,9 +39,6 @@ class Components::FinanceSetup < Components::Base
       end
       stewards if @data.dig("permissions", "assign_stewards")
       bindings
-      accounts
-      a(href: tenant_book_catalogues_path(@tid, @bid), class: "ml-4 inline-block text-sm font-medium text-teal-900 hover:underline") { "VAT and categories" }
-      a(href: tenant_book_periods_path(@tid, @bid), class: "ml-4 inline-block text-sm font-medium text-teal-900 hover:underline") { "Accounting periods" }
     end
   end
   private
@@ -74,8 +78,5 @@ class Components::FinanceSetup < Components::Base
     else
       button(type: "button", disabled: true, class: "#{styles} opacity-50") { label }
     end
-  end
-  def accounts
-    a(href: tenant_book_chart_path(@tid, @bid), class: BUTTON) { "Open chart of accounts" }
   end
 end

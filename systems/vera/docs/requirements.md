@@ -147,3 +147,5 @@ Journal index rows provide scoped context menus with Delete journal and Post jou
 Book setup must open steward assignment, separate period-reopening permission and occasion linking forms in shared dialogs from action buttons aligned with their section headings. Preserve permissions, version fences, pending-save protection and submitted selections after rejection.
 
 2026-11-06: The book detail title has a right-aligned, vertically centered context menu for Edit name and hierarchy, Back to books, Roles and occasions, Chart of accounts, Accounting periods, VAT and categories, and Refresh book. Editing opens the existing BookForm in the shared dialog; pending views/saves block opening it, and existing version/key, save, conflict and completion handling remain intact. Standalone navigation/actions and the inline editor are removed.
+
+2026-11-06: Book configuration has a shared context menu aligned to the right and vertically centered beside its title. Open chart of accounts, VAT and categories, and Accounting periods move into this menu; their standalone links are removed.
