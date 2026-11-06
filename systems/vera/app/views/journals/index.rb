@@ -6,11 +6,11 @@ class Views::Journals::Index < Views::Base
   end
   def view_template
     div(id: "vera-book-content") do
-      a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
       header(class: "mt-2 flex items-center justify-between gap-4") do
         h1(class: "min-w-0 text-3xl font-semibold") { "Journals" }
         render Components::ContextMenu.new(id: "journals-index-actions", label: "Journals actions") do
+          a(href: tenant_book_chart_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Chart of accounts" }
           a(href: tenant_book_journals_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Refresh journals" }
           if @data["status"] == "ready" && @data.dig("permissions", "prepare")
             a(href: new_tenant_book_journals_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "New journal" }

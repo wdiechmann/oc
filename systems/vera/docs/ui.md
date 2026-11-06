@@ -147,3 +147,5 @@ Open the journal title menu and choose its first item, New line, to create the n
 Flash and transient app messages now float in a top-left notification stack instead of pushing the page down. Dismiss a message with ×; important links and retry controls remain available until dismissed. Journal row notifications use this area too. Field/modal validation and saved accounting evidence stay alongside their context.
 
 Use the More icon at the right of the Chart of accounts title for refresh, current/retired accounts, related configuration, journals/reports, formula preview, reordering and CSV import/export/template actions. The icon is vertically centered with the title. Search and account line editing remain visible; save or cancel an edited line before exporting.
+
+2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.

@@ -233,3 +233,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Replaced inline transient notices with floating top-left toasts across VERA. Added dismissal, stacking, responsive sizing and journal feedback integration; retained development sign-in and completion/retry actions.
 
 2026-11-06: Added the chart title context menu and moved secondary navigation, configuration, ordering and CSV actions into it. Preserved readiness/authority guards and unsaved export protection; chart feedback now uses the floating toast stack.
+
+2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.

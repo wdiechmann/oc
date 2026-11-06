@@ -79,3 +79,5 @@ Completed: New line moved to the first journal header menu position.
 Completed: shared top-left toast stack for flash, streamed feedback, page messages and live journal notifications.
 
 Completed: chart title context menu consolidates refresh, current/retired navigation, related configuration, reports, ordering and CSV actions while retaining direct search and line editing.
+
+2026-11-06: The Journals index places its Chart of accounts navigation link in the header context menu; the standalone back link is removed.
