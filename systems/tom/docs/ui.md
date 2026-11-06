@@ -70,3 +70,5 @@ Monitoring scope selection offers Platform monitoring only to an explicitly gran
 Development sign-in: submit the email form, then click the sign-in link in the flash notice. The link leads to the existing confirmation page; the flash disappears after one display. Default private file delivery remains available as before.
 
 Monitoring opens on the scope list without the persistent reporting warning. Expand Reporting setup to inspect reporting-source availability and whether this instance recorded a successful alert-worker check within 30 seconds. Settings links use the existing authorized tenant/occasion flows.
+
+Recruitment posters and application receipts have no TOM administration topbar/footer. Both signed-out and signed-in visitors see the required privacy acknowledgment. Signed-out visitors continue to sign-in, return to the poster and confirm the current notice when submitting; the sign-in step creates no application. Privacy link, checkbox and CTA occupy separate blocks on desktop and mobile.

@@ -5,7 +5,8 @@ class Components::Layout < Components::Base
   include Phlex::Rails::Helpers::JavascriptIncludeTag
   include Phlex::Rails::Helpers::FormWith
 
-  def initialize(signed_in: false, notice: nil, alert: nil)
+  def initialize(signed_in: false, notice: nil, alert: nil, public_page: false)
+    @public_page = public_page
     @signed_in, @notice, @alert = signed_in, notice, alert
   end
 
@@ -38,7 +39,7 @@ class Components::Layout < Components::Base
               form_with(url: session_path, method: :delete) { |f| f.submit("Sign out", class: "cursor-pointer text-sm font-medium text-stone-600 hover:text-emerald-800") }
             end
           end
-        end
+        end unless @public_page
         main(class: "mx-auto max-w-6xl px-6 py-12 md:py-20") do
           p(role: "status", class: "mb-8 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900") do
               if Rails.env.development? && @notice.is_a?(Hash)
@@ -53,7 +54,7 @@ class Components::Layout < Components::Base
           div(id: "tom-feedback", aria_live: "polite", aria_atomic: "true")
           div(id: "tom-content") { yield }
         end
-        footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") { "A shared foundation for every occasion." }
+        footer(class: "mx-auto max-w-6xl border-t border-stone-200 px-6 py-6 text-xs text-stone-500") { "A shared foundation for every occasion." } unless @public_page
       end
     end
   end

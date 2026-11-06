@@ -26,3 +26,5 @@
 Completed: development sign-in links in the flash notice; existing confirmation and production delivery preserved.
 
 Completed: optional monitoring setup details with source availability, a separate successful-worker heartbeat and direct scope-settings links.
+
+Completed: standalone recruitment poster and receipt, visible signed-out privacy checkbox, and separated responsive privacy/CTA layout.

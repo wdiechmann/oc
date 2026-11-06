@@ -39,3 +39,5 @@ Local monitoring must survive EP outages through a bounded encrypted transport q
 In development, TOM exposes a successfully issued sign-in link as a clickable one-display flash notice. Production keeps normal provider delivery and the generic notice; absent delivery material never produces a link.
 
 Keep the monitoring scope selector free of a blanket disabled-reporting warning. Offer source availability and local alert-worker heartbeat under collapsed Reporting setup, with links to the authorized scope settings.
+
+Public recruitment posters must use a standalone layout without TOM administration chrome. Show the privacy acknowledgment checkbox before the CTA for signed-out and signed-in visitors, with separate blocks that fit narrow screens.

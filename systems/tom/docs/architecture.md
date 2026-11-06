@@ -61,3 +61,5 @@ TOM remains database-free and uses only EP APIs for authority and durable facts.
 Magic-link delivery returns its already constructed application URL only in development. The controller puts it in the encrypted flash and the Phlex layout renders the link only in development. No additional token issuance or verification endpoint is introduced.
 
 Monitoring scopes no longer equate an empty reporting-source lookup with disabled reporting. Setup details describe what this process can observe. Dispatcher heartbeat freshness is shared with /up/monitoring (0–30 seconds, missing/invalid/unreadable is unconfirmed); this is local worker evidence, not end-to-end delivery proof.
+
+The shared Phlex layout accepts public_page for recruitment landing/receipt pages, suppressing administration header/footer while keeping assets, CSRF and feedback. Signed-out acknowledgment gates the GET sign-in form only; the authenticated application POST still requires its current notice version and acknowledgment through EP.

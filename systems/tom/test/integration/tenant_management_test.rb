@@ -316,11 +316,16 @@ class TenantManagementTest < ActionDispatch::IntegrationTest
     config = { title: "Join us", instructions: "Manual review", privacy_notice_url: "https://example.test/privacy", notice_version: "policy-v1" }
     stub_request(:get, "#{EP}/recruitment/#{TENANT}/sl2030").to_return(status: 200, body: { status: "ready", tenant_id: TENANT, occasion_id: TENANT, name: "SL2030", slug: "sl2030", config: config }.to_json)
     get recruitment_path(TENANT, "sl2030")
-    assert_select "a", "Sign in to apply"
+    assert_select "body > header", count: 0
+    assert_select "body > footer", count: 0
+    assert_select "input[type=checkbox][name=acknowledge_notice][required]", count: 1
+    assert_select "form[action='/session/new'][method=get] input[type=submit][value='Sign in to apply']"
     delete session_path
     sign_in
     get recruitment_path(TENANT, "sl2030")
     assert_select "h1", "Join us"
+    assert_select "body > header", count: 0
+    assert_select "input[type=checkbox][name=acknowledge_notice][required]", count: 1
     key = css_select("input[name=idempotency_key]").first["value"]
     stub_request(:post, "#{EP}/tenants/#{TENANT}/occasions/#{TENANT}/recruitment/applications").with(body: { notice_version: "policy-v1", acknowledge_notice: true }.to_json).to_return(status: 201, body: { application_id: TENANT, status: "pending_review" }.to_json)
     post recruitment_applications_path(TENANT, "sl2030"), params: { notice_version: "policy-v1", acknowledge_notice: "1", idempotency_key: key, status: "accepted" }

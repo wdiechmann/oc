@@ -38,3 +38,5 @@ Added EP-backed monitoring capture and tenant/occasion list/detail/timeline/acti
 2026-11-06: Added a clickable development sign-in link to the TOM flash after successful delivery; updated sign-in hints. Production notices continue to omit the URL.
 
 2026-11-06: Replaced the blanket monitoring warning with collapsed Reporting setup details. Separated source discovery from the alert worker heartbeat and linked scope settings.
+
+2026-11-06: Removed TOM administration chrome from public recruitment posters and application receipts. Made the privacy checkbox visible before sign-in and separated the privacy link, acknowledgment and CTA into responsive blocks.
