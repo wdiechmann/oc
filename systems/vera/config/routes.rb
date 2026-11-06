@@ -24,6 +24,7 @@ Rails.application.routes.draw do
       resource :journals, only: %i[show update], controller: "journals" do
         get :accounts
         post :row_preview
+        post :vat_operation
         get :attachments
         post :upload_attachment
         get :download_attachment

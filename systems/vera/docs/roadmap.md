@@ -57,3 +57,5 @@ Completed: development sign-in links in the flash notice; existing confirmation 
 Completed: VAT row-only Turbo updates after projection catch-up, with automatic read-only refresh and safe cancellation on navigation.
 
 Completed: side-aware VAT amount suggestions and posting previews for income, expenses and reversals; optional minus normalization; VAT-direction preservation and correct cost-side non-deductible VAT.
+
+Completed: explicit apply-VAT flag, net result-account amounts independent of legacy account inclusion defaults, VAT-off overrides and read-only VAT operation dialog.

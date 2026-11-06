@@ -523,7 +523,7 @@ defmodule Ep.Finance.Journals do
                   end)
 
                 quote =
-                  if row && row["amount_basis"] == "gross",
+                  if row && row["amount_basis"] == "gross" && rule.direction in ~w(input output),
                     do: VatRules.calculate_gross(rule, date, l["net_minor"]),
                     else: VatRules.calculate(rule, date, l["net_minor"], l["assessed_vat_minor"])
 
@@ -563,8 +563,16 @@ defmodule Ep.Finance.Journals do
 
         errors = errors ++ if(vat && vat["error"], do: [vat["error"]], else: [])
 
+        explicitly_disabled =
+          Enum.any?(data["rows"] || [], fn row ->
+            row["vat_enabled"] == false &&
+              l["id"] in [row["debit_line_id"], row["credit_line_id"]]
+          end)
+
         warnings =
-          if a && a.vat_entry_id && !l["vat_entry_id"], do: ["account_vat_not_selected"], else: []
+          if a && a.vat_entry_id && !l["vat_entry_id"] && !explicitly_disabled,
+            do: ["account_vat_not_selected"],
+            else: []
 
         %{
           "id" => l["id"],

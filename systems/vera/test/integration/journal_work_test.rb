@@ -85,7 +85,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_equal "2", columns.first.text
     assert columns[5].at_css("[data-work-included]")
     assert_equal "", columns[5].text.strip
-    assert_includes columns[5].at_css("[data-work-included]")["title"], "VAT included"
+    assert_includes columns[5].at_css("[data-work-included]")["title"], "apply VAT"
     assert_equal "0.00", columns[8].text
     assert_equal "No VAT configured", columns[8]["title"]
     assert_select "#main-content.w-full"
@@ -99,7 +99,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert columns[9].at_css("[data-menu-trigger] svg")
     assert_equal "menu", columns[9].at_css("[data-menu-trigger]")["aria-haspopup"]
     assert_equal "auto", columns[9].at_css("[role=menu]")["popover"]
-    assert_equal [ "Edit", "Void" ], columns[9].css("[role=menuitem]:not([hidden])").map(&:text)
+    assert_equal [ "VAT operation", "Edit", "Void" ], columns[9].css("[role=menuitem]:not([hidden])").map(&:text)
     assert columns[9].at_css("[data-work-edit]").ancestors("[role=menu]").any?
     assert_select "#work-row-row2 [data-menu-trigger][aria-expanded=false]"
     assert_select "#work-row-row2 [role=menu] [data-work-save]", count: 1
@@ -214,5 +214,21 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
       assert_select "[data-work-credit][value='#{JournalMoney.format(credit, separator: ',')}']"
       assert_select "[data-work-vat]", text: expected
     end
+  end
+  test "apply VAT is a separate flag and the operation dialog previews without saving" do
+    view
+    get path, params: { draft_id: JID }
+    assert_select "input[name=vat_enabled]"
+    assert_select "button[data-work-vat-operation]", text: "VAT operation"
+    quote={ code: "I25", rate_bps: 2500, amounts: { net: 50000, vat: 12500 } }
+    result={ row: { amount_minor: 50000, credit_total_minor: 62500, vat_enabled: true, posting_id: 8 }, validation: { lines: [ { vat: quote } ], posting_preview: { rows: [ { legs: [ { account: { number: "2000", name: "Expenses" }, debit_minor: 50000, credit_minor: 0 }, { account: { number: "63000", name: "Bank" }, debit_minor: 0, credit_minor: 62500 } ] } ] } } }
+    preview=stub_request(:post, "#{api}/row-preview").with { |r| JSON.parse(r.body).dig("row", "vat_enabled")==true && JSON.parse(r.body).dig("row", "amount_minor")==50000 }.to_return(status: 200, body: result.to_json)
+    post "#{path}/vat_operation", params: row_form(nil).merge(row_id: "", amount: "500,00", vat_enabled: "true"), headers: { "Accept-Language"=>"da-DK", "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-dialog-title", text: "VAT operation · ID 8"
+    assert_select "td", text: "500,00"
+    assert_select "td", text: "625,00"
+    assert_requested preview
+    assert_not_requested :post, "#{api}/work/row"
   end
 end

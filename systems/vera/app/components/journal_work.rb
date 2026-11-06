@@ -59,12 +59,12 @@ class Components::JournalWork < Components::Base
     end
     rows = header["rows"] || legacy_rows(header)
     @entry_row_id = rows.select { |row| blank_row?(row) }.max_by { |row| row["posting_id"] || 0 }&.fetch("id")
-    journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do
+    journal_work_editor(class: "mt-5 block min-w-0", data: { lookup_url: accounts_tenant_book_journals_path(@tid, @bid), preview_url: row_preview_tenant_book_journals_path(@tid, @bid), vat_operation_url: vat_operation_tenant_book_journals_path(@tid, @bid), setup_version: @data.dig("contexts", "setup_version"), decimal_separator: @separator, pending: (@data["status"] == "pending").to_s }) do
       p(role: "status", aria_live: "polite", data: { work_status: true }, class: "mb-3 text-sm text-amber-900")
       div(class: "journal-grid-container max-w-full overflow-x-auto rounded-lg border border-stone-200 bg-white") do
         div(class: "journal-grid") do
           div(class: "journal-columns grid gap-2 border-b border-stone-200 bg-stone-100 p-3 text-xs font-semibold uppercase text-stone-600") do
-            [ "ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(class: [ 4, 5, 7, 8 ].include?(index) ? "text-right" : nil, title: index == 5 ? "Checked: debit amount includes VAT. Unchecked: VAT is added. Defaults to the selected account; each posting can override it." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
+            [ "ID", "Line reference", "Files", "Debit account", "Debit amount", "VAT", "Credit account", "Credit amount", "VAT", "" ].each_with_index { |label, index| div(class: [ 4, 5, 7, 8 ].include?(index) ? "text-right" : nil, title: index == 5 ? "Checked: apply the account’s VAT rule. Unchecked: no VAT on this row. The result account amount stays net." : index == 8 ? "Calculated VAT amount; hover over a row amount for its account and rule details." : nil) { label } }
           end
           new_line_form(selected) if @editable && rows.length < 100
           rows.sort_by { |row| -(row["posting_id"] || 0) }.each { |row| row_form(selected, row) }
@@ -93,6 +93,7 @@ class Components::JournalWork < Components::Base
     editing = is_draft || (@editable && !@draft && row["id"] == @entry_row_id)
     credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
     override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
+    enabled = values.key?("vat_enabled") ? [ true, "true" ].include?(values["vat_enabled"]) : @data["accounts"].any? { |a| [ values["debit_account_id"], values["credit_account_id"] ].include?(a["id"]) && a["vat_entry_id"].present? }
     label = row["posting_id"] ? row["posting_id"].to_s : row["id"] ? "On next save" : "On save"
     form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "journal-columns grid items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, draft: is_draft.to_s, editing: editing.to_s }) do |f|
       f.hidden_field(:form_token, value: @token.call("journal_row", selected["id"], row["id"]))
@@ -121,7 +122,8 @@ class Components::JournalWork < Components::Base
       div do
         input(type: "hidden", name: "amount_basis", value: values["amount_basis"], data: { work_basis: true })
         input(type: "hidden", name: "basis_override", value: override.to_s, data: { basis_override: true })
-        input(type: "checkbox", checked: values["amount_basis"] == "gross", disabled: !editing, aria_label: "VAT included #{label}", title: basis_title(values), class: "mt-3 ml-auto block", data: { work_included: true })
+        input(type: "hidden", name: "vat_enabled", value: enabled.to_s, data: { work_vat_enabled: true })
+        input(type: "checkbox", checked: enabled, disabled: !editing, aria_label: "Apply VAT #{label}", title: "Checked: apply VAT. Unchecked: no VAT. The result account amount stays net.", class: "mt-3 ml-auto block", data: { work_included: true })
       end
       lookup(f, values, "credit", editing)
       div do
@@ -131,6 +133,7 @@ class Components::JournalWork < Components::Base
       vat = vat_display(selected, row)
       output(class: "py-2 text-right text-sm tabular-nums text-stone-600", title: vat[:explanation], aria_label: vat[:explanation], data: { work_vat: true }) { vat[:amount] }
       render Components::ContextMenu.new(id: "work-actions-#{row['id'] || 'new'}", label: "More actions for posting #{label}", hidden: !@editable) do
+        button(type: "button", data: { work_vat_operation: true }, role: "menuitem", class: "vera-menu-item") { "VAT operation" }
         button(type: "button", hidden: !editing || !credit_override, data: { credit_default: true }, role: "menuitem", class: "vera-menu-item") { "Use calculated amount" }
 
         button(type: "button", hidden: !editing || !override, data: { basis_default: true }, role: "menuitem", class: "vera-menu-item") { "Use account default" }
@@ -161,12 +164,6 @@ class Components::JournalWork < Components::Base
   end
   def legacy_rows(data)
     data["lines"].map { |l| { "id"=>l["id"], "reference"=>l["reference"], "debit_account_id"=>l["debit_minor"]>0 ? l["account_id"] : nil, "credit_account_id"=>l["credit_minor"]>0 ? l["account_id"] : nil, "amount_minor"=>l["debit_minor"]+l["credit_minor"], "amount_basis"=>"net", "basis_override"=>true, "void"=>false } }
-  end
-  def basis_title(row)
-    override = [ true, "true" ].include?(row["basis_override"])
-    source = override ? "Posting override" : "Account default"
-    basis = { "gross"=>"VAT included in debit amount", "net"=>"VAT added to debit amount" }[row["amount_basis"]] || "VAT inclusion unspecified; select an account default or toggle this posting"
-    "#{source}: #{basis}. Toggle to override this posting; Use account default restores the account setting."
   end
   def vat_display(selected, row)
     entries = Array(selected.dig("validation", "lines")).select { |l| [ row["debit_line_id"], row["credit_line_id"], row["id"] ].compact.include?(l["id"]) }

@@ -35,7 +35,7 @@ class Components::ChartRow < Components::Base
   end
   private
   def cells(account)
-    values = [ account["kind"].to_s.capitalize, account["number"], account["name"], [ (account["vat_label"] || label(account["vat_code"])), { "gross"=>"VAT included", "net"=>"VAT excluded" }[account["vat_basis"]] ].compact.join(" · "), account["category_label"] || label(account["category"]), account["position"], account["formula"] ]
+    values = [ account["kind"].to_s.capitalize, account["number"], account["name"], account["vat_label"] || label(account["vat_code"]), account["category_label"] || label(account["category"]), account["position"], account["formula"] ]
     values.each_with_index do |value, index|
       div(role: "cell", class: "coa-cell", title: value.to_s) do
         if index==3 && account["vat_entry_id"]
@@ -95,10 +95,6 @@ class Components::ChartRow < Components::Base
         end
       end
       f.select(name, choices, { selected: selected, include_blank: "—" }, class: FIELD)
-      if name == :vat_entry_id
-        f.label(:vat_basis, "Default VAT inclusion", class: "sr-only")
-        f.select(:vat_basis, [ [ "VAT basis unspecified", "" ], [ "Postings include VAT", "gross" ], [ "Postings exclude VAT", "net" ] ], { selected: @values["vat_basis"] }, class: FIELD, title: "Default inclusion for journal postings; each posting can override it")
-      end
     end
   end
 end

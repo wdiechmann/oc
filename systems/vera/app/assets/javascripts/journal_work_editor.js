@@ -50,7 +50,7 @@ class JournalWorkEditor extends HTMLElement {
     if (!document.querySelector("dialog[open]") && !this.querySelector("[data-work-row][data-draft=true]")) this.querySelector("[data-work-row] input[name=reference]")?.focus();
     this.querySelectorAll("[data-work-row][data-draft=true]").forEach(form=>{ this.dirty=form; this.preview(form); });
   }
-  disconnectedCallback() { this.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); clearTimeout(this.refreshTimer); this.abort.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
+  disconnectedCallback() { this.querySelectorAll("[data-account-search]").forEach(input=>input.accountResolution?.abort.abort()); clearTimeout(this.refreshTimer); this.abort.abort(); this.vatOperationAbort?.abort(); this.lookupAbort?.abort(); this.previewAbort?.abort(); clearTimeout(this.timer); clearTimeout(this.vatTimer); }
   status(text) { this.querySelector("[data-work-status]").textContent = text; }
   input(event) {
     const form = event.target.closest("[data-work-row]");
@@ -64,7 +64,7 @@ class JournalWorkEditor extends HTMLElement {
     }
     if (event.target.matches("[data-work-included]")) {
       form.querySelector("[data-basis-override]").value="true";
-      form.querySelector("[data-work-basis]").value=event.target.checked ? "gross" : "net";
+      form.querySelector("[data-work-vat-enabled]").value=String(event.target.checked);
       event.target.indeterminate=false;
     } else if (event.target.matches("[data-account-search]")) this.accountBasis(form);
     if (event.target.matches("[data-work-credit]")) {
@@ -160,6 +160,7 @@ class JournalWorkEditor extends HTMLElement {
     }
     const option = event.target.closest("[data-result-index]"); if (option) { event.preventDefault(); return this.choose(Number(option.dataset.resultIndex)); }
     const form = event.target.closest("[data-work-row]"); if (!form) return;
+    if (event.target.closest("[data-work-vat-operation]")) {event.preventDefault();return this.vatOperation(form);}
     if (event.target.closest("[data-credit-default]")) {
       if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first.");
       form.querySelector("[data-credit-override]").value="false"; form.querySelector("[data-credit-default]").hidden=true;
@@ -281,19 +282,27 @@ class JournalWorkEditor extends HTMLElement {
       } catch (error) { if (error.name !== "AbortError") { out.textContent="—"; this.vatHint(out,"VAT unavailable — save will revalidate"); } }
     },200);
   }
+  async vatOperation(form) {
+    this.vatOperationAbort?.abort();this.vatOperationAbort=new AbortController();
+    const body=new FormData(form);body.delete("_method");
+    try {
+      const response=await fetch(this.dataset.vatOperationUrl,{method:"POST",body,signal:this.vatOperationAbort.signal,headers:{Accept:"text/vnd.turbo-stream.html","X-CSRF-Token":document.querySelector("meta[name=csrf-token]").content}});
+      if (!form.isConnected) return;
+      if ([401,403,404].includes(response.status)) return this.clearProtected();
+      if (response.headers.get("content-type")?.includes("text/vnd.turbo-stream.html")) window.Turbo.renderStreamMessage(await response.text());
+      else this.status("VAT operation unavailable. Check the accounts and amount, then try again.");
+    } catch (error) {if(error.name!=="AbortError")this.status("VAT operation unavailable. Your row has not been saved.");}
+  }
   accountBasis(form) {
     if (form.querySelector("[data-basis-override]").value === "true") return this.paintBasis(form);
     const accounts=[...form.querySelectorAll("[data-account-lookup]")].filter(h=>h.querySelector("[data-account-id]").value).map(h=>h.querySelector("[data-account-search]"));
-    const taxed=accounts.filter(a=>a.dataset.accountVat);
-    const bases=taxed.map(a=>a.dataset.accountBasis || "");
-    const basis=taxed.length ? (bases.every(b=>b && b===bases[0]) ? bases[0] : "") : (accounts.find(a=>a.dataset.accountBasis)?.dataset.accountBasis || "");
-    form.querySelector("[data-work-basis]").value=basis;
+    form.querySelector("[data-work-vat-enabled]").value=String(accounts.some(a=>a.dataset.accountVat));
     this.paintBasis(form);
   }
   paintBasis(form) {
-    const basis=form.querySelector("[data-work-basis]").value, override=form.querySelector("[data-basis-override]").value === "true", toggle=form.querySelector("[data-work-included]");
-    toggle.checked=basis === "gross"; toggle.indeterminate=!basis;
-    toggle.title=`${override ? "Posting override" : "Account default"}: ${basis === "gross" ? "VAT included in debit amount" : basis === "net" ? "VAT added to debit amount" : "VAT inclusion unspecified"}. Toggle to override this posting; Use account default restores the account setting.`;
+    const enabled=form.querySelector("[data-work-vat-enabled]").value === "true", override=form.querySelector("[data-basis-override]").value === "true", toggle=form.querySelector("[data-work-included]");
+    toggle.checked=enabled; toggle.indeterminate=false;
+    toggle.title=`${override ? "Posting override" : "Account default"}: ${enabled ? "Apply VAT" : "No VAT"}. The result account amount stays net. Use VAT operation in More for the exact calculation.`;
     form.querySelector("[data-basis-default]").hidden=form.dataset.editing !== "true" || !override;
   }
   vatHint(out,text) { out.title=text || ""; out.setAttribute("aria-label",text || ""); }

@@ -37,6 +37,12 @@ class JournalsController < FinanceSetupController
     row = work_row_attributes
     render json: ep.journal_row_preview(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id], expected_draft_version: Integer(params[:expected_draft_version], exception: false), contexts: work_contexts, row: row })
   end
+  def vat_operation
+    row = work_row_attributes
+    result = ep.journal_row_preview(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id], expected_draft_version: Integer(params[:expected_draft_version], exception: false), contexts: work_contexts, row: row })
+    content = Components::JournalVatOperation.new(result: result, separator: decimal_separator)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def attachments
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
@@ -83,7 +89,7 @@ class JournalsController < FinanceSetupController
         @work_header = attrs[:data].stringify_keys
         raise Ep::Client::Error.new(422, code: "invalid_journal") unless @work_header["name"].length <= 120 && @work_header["reference"].length <= 120 && @work_header["posting_date"].length <= 10
       when "journal_row"
-        @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "void").merge("id"=>signed["row_id"])
+        @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "vat_enabled", "void").merge("id"=>signed["row_id"])
         attrs[:row] = work_row_attributes(signed["row_id"])
         attrs[:append_row] = true if params[:intent] == "next_row"
       when "journal_attachment"
@@ -164,7 +170,12 @@ class JournalsController < FinanceSetupController
     raise Ep::Client::Error.new(422, code: "invalid_amount") if minor.nil?
     credit = params[:credit_override] == "true" ? JournalMoney.parse(params[:credit_amount], separator: decimal_separator, signed: true) : nil
     raise Ep::Client::Error.new(422, code: "invalid_amount") if params[:credit_override] == "true" && credit.nil?
-    { credit_amount_minor: credit, id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
+    attrs = { credit_amount_minor: credit, id: id, reference: params[:reference].to_s, debit_account_id: params[:debit_account_id].presence, credit_account_id: params[:credit_account_id].presence, amount_minor: minor, amount_basis: params[:amount_basis].presence, basis_override: params.key?(:basis_override) ? params[:basis_override] == "true" : params[:amount_basis].present?, void: params[:void] == "true" }
+    if params.key?(:vat_enabled)
+      raise Ep::Client::Error.new(422, code: "invalid_journal") unless %w[true false].include?(params[:vat_enabled])
+      attrs[:vat_enabled] = params[:vat_enabled] == "true"
+    end
+    attrs
   end
   def review_token(review)
     session[:finance_form_nonce] ||= SecureRandom.hex(16)

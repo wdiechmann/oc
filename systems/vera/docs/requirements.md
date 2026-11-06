@@ -111,3 +111,5 @@ In development, VERA exposes a successfully issued sign-in link as a clickable o
 After a VAT settings save is accepted, Turbo must refresh only the concerned index row once the EP projection is ready at or beyond the accepted revision. Polls are read-only, scoped to the book/code/date, and continue if the dialog is closed.
 
 Paired journal columns determine posting side independently of typed sign. Derive VAT and the opposite amount from the VAT-bearing account on either side; retain its configured VAT direction/account for reversals. Income 1250/1000/−250, expense 500/625/+125 and reversed income 1000/1250/+250 must balance.
+
+The journal VAT checkbox applies or disables VAT; it must never treat an entered result-account amount as VAT-inclusive. Expense debit 500 with VAT enabled must remain 500 in the saved preview, with input VAT 125 and counter credit 625. Offer a shared VAT operation dialog from the row context menu.

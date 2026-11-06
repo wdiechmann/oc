@@ -1117,4 +1117,77 @@ defmodule Ep.Finance.JournalWorkTest do
     assert credit["debit_minor"] == 0
     assert validation["posting_preview"]["balanced"]
   end
+
+  test "apply VAT keeps the entered expense net even when its old account default is gross", c do
+    {_accounts, _rule, _attrs, expense, asset, _command} = posting_setup(c)
+    did = create(c)
+
+    p = %{
+      "id" => nil,
+      "reference" => "500 stays 500",
+      "debit_account_id" => expense.id,
+      "credit_account_id" => asset.id,
+      "amount_minor" => 50000,
+      "amount_basis" => "gross",
+      "basis_override" => true,
+      "vat_enabled" => true,
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+
+    save(c, did, p, "apply-vat-net")
+    draft = Repo.get!(JournalDraft, did)
+    [saved] = draft.data["rows"]
+    assert saved["amount_minor"] == 50000
+    assert saved["posting_debit_minor"] == 50000
+    assert saved["credit_total_minor"] == 62500
+    assert saved["amount_basis"] == "net"
+    assert saved["vat_enabled"]
+    assert draft.validation["status"] == "prepared"
+    [debit, credit, tax] = hd(draft.validation["posting_preview"]["rows"])["legs"]
+    assert debit["account"]["id"] == expense.id
+    assert debit["debit_minor"] == 50000
+    assert credit["credit_minor"] == 62500
+    assert tax["debit_minor"] == 12500
+    save(c, did, %{p | "id" => saved["id"], "vat_enabled" => false}, "no-vat-net")
+    disabled = Repo.get!(JournalDraft, did)
+    [row] = disabled.data["rows"]
+    assert row["amount_minor"] == 50000
+    assert row["credit_total_minor"] == 50000
+    assert disabled.validation["status"] == "prepared"
+    assert Enum.all?(disabled.validation["lines"], &is_nil(&1["vat"]))
+    assert length(hd(disabled.validation["posting_preview"]["rows"])["legs"]) == 2
+    assert row["posting_id"] == saved["posting_id"]
+  end
+
+  test "apply VAT derives net income from the asset counter amount without a gross checkbox", c do
+    {_accounts, _rule, _attrs, income, asset, _command} = posting_setup(c, "output", 0)
+    did = create(c)
+
+    p = %{
+      "id" => nil,
+      "reference" => "Income",
+      "debit_account_id" => asset.id,
+      "credit_account_id" => income.id,
+      "amount_minor" => 125_000,
+      "amount_basis" => "net",
+      "basis_override" => true,
+      "vat_enabled" => true,
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+
+    assert {:ok, %{row: row, validation: validation}} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, p) |> Map.delete("expected_version")
+             )
+
+    assert row["credit_total_minor"] == 100_000
+    assert validation["balanced"]
+    quote = Enum.find(validation["lines"], & &1["vat"])["vat"]
+    assert quote["posting_vat_minor"] == -25000
+  end
 end

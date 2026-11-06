@@ -6,7 +6,7 @@ defmodule Ep.Finance.JournalRows do
   @keys ~w(id reference debit_account_id credit_account_id amount_minor amount_basis void)
   def input(row) do
     row
-    |> Map.take(@keys ++ ["basis_override", "credit_amount_minor"])
+    |> Map.take(@keys ++ ["basis_override", "credit_amount_minor", "vat_enabled"])
     |> Map.put_new("credit_amount_minor", if(row["posting_id"], do: row["amount_minor"]))
   end
 
@@ -17,8 +17,13 @@ defmodule Ep.Finance.JournalRows do
     rows =
       Enum.map(rows, fn row ->
         unless is_map(row) &&
-                 Enum.sort(Map.keys(Map.drop(row, ["basis_override", "credit_amount_minor"]))) ==
+                 Enum.sort(
+                   Map.keys(
+                     Map.drop(row, ["basis_override", "credit_amount_minor", "vat_enabled"])
+                   )
+                 ) ==
                    Enum.sort(@keys) &&
+                 (not Map.has_key?(row, "vat_enabled") || is_boolean(row["vat_enabled"])) &&
                  is_integer(row["amount_minor"]) &&
                  row["amount_minor"] in -9_000_000_000_000..9_000_000_000_000 &&
                  row["amount_basis"] in [nil, "gross", "net"] &&
@@ -65,12 +70,25 @@ defmodule Ep.Finance.JournalRows do
           |> Enum.reject(&is_nil/1)
 
         override = Map.get(row, "basis_override", !is_nil(row["amount_basis"]))
-        if override && is_nil(row["amount_basis"]), do: Repo.rollback(:invalid_journal)
-        basis = if override, do: row["amount_basis"], else: default_basis(accounts)
+        explicit_vat = Map.has_key?(row, "vat_enabled")
+
+        if !explicit_vat && override && is_nil(row["amount_basis"]),
+          do: Repo.rollback(:invalid_journal)
+
+        vat_account = Enum.find(accounts, & &1.vat_entry_id)
+
+        basis =
+          if explicit_vat do
+            if vat_account && vat_account.id != row["debit_account_id"], do: "gross", else: "net"
+          else
+            if override, do: row["amount_basis"], else: default_basis(accounts)
+          end
+
+        calculation_accounts = if row["vat_enabled"] == false, do: [], else: accounts
 
         {suggested, posting_debit} =
           suggested_amounts(
-            accounts,
+            calculation_accounts,
             row["debit_account_id"],
             basis,
             row["amount_minor"],
@@ -108,7 +126,7 @@ defmodule Ep.Finance.JournalRows do
               do:
                 Repo.get_by(Account, tenant_id: tid, book_id: bid, id: row[side <> "_account_id"])
 
-          vat = a && a.vat_entry_id
+          vat = if row["vat_enabled"] == false, do: nil, else: a && a.vat_entry_id
           date = Date.from_iso8601!(data["posting_date"])
 
           rule =
@@ -170,7 +188,7 @@ defmodule Ep.Finance.JournalRows do
 
         if rule do
           result =
-            if basis == "gross",
+            if basis == "gross" && rule.direction in ~w(input output),
               do: VatRules.calculate_gross(rule, date, amount),
               else: VatRules.calculate(rule, date, amount, nil)
 

@@ -211,3 +211,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: VAT saves now wait for projection catch-up and Turbo-replace only the affected index row, instead of immediately refreshing the entire index. Pending dialog content becomes editable when ready; closing the dialog leaves the row refresh running.
 
 2026-11-06: Fixed paired journal VAT suggestions and preview legs for VAT on either account. Debit/credit columns now determine sides, typed minus signs normalize, and refunds retain the configured incoming/outgoing VAT mapping. Corrected expense counter-account totals and non-deductible cost placement.
+
+2026-11-06: Corrected VAT checkbox semantics to apply/no VAT. Result-account debit 500 stays net 500 even with a legacy gross account default. Added More → VAT operation with exact debit/credit legs, rule/rate and current amounts; removed the misleading chart inclusion selector.
