@@ -122,12 +122,12 @@ class JournalsController < FinanceSetupController
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: info.fetch("draft_id") })
     render_attachments(data, info, upload: upload)
   end
+  def scan_attachment
+    result = EnclosureScan.call(enclosure_file)
+    render Components::EnclosureScanResult.new(frame_id: scan_frame_id, result: result, separator: decimal_separator, retry_url: scan_attachment_tenant_book_journals_path(params[:tenant_id], params[:book_id], params.permit(:row_id, :upload_id, :attachment_id).to_h))
+  end
   def preview_attachment
-    file = if params[:upload_id].present?
-      ep.staged_journal_attachment(params[:tenant_id], params[:book_id], params[:row_id], params[:upload_id])
-    else
-      ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])
-    end
+    file = enclosure_file
     raise Ep::Client::Error.new(422, code: "invalid_attachment") unless %w[application/pdf image/png image/jpeg].include?(file["content_type"])
     response.headers["X-Content-Type-Options"] = "nosniff"
     send_data Base64.strict_decode64(file.fetch("content")), filename: file.fetch("filename"), type: file.fetch("content_type"), disposition: "inline"
@@ -139,6 +139,14 @@ class JournalsController < FinanceSetupController
   end
 
   private
+  def enclosure_file
+    if params[:upload_id].present?
+      ep.staged_journal_attachment(params[:tenant_id], params[:book_id], params[:row_id], params[:upload_id])
+    else
+      ep.journal_attachment(params[:tenant_id], params[:book_id], params[:attachment_id])
+    end
+  end
+  def scan_frame_id = "enclosure-scan-#{params[:upload_id].presence || params[:attachment_id]}"
   def accepted_notice(result)
     return "Journal posted. Authorization, verification and account entries have been recorded." if @action == "journal_post"
     return "Journal deleted. Numbered postings and history are retained for traceability." if @action == "journal_delete"

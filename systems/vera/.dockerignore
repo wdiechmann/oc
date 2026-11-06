@@ -1,0 +1,15 @@
+.git
+.env*
+.bundle
+vendor/bundle
+log/*
+tmp/*
+coverage
+node_modules
+graphify-out
+config/ep_backend_token
+config/master.key
+config/credentials/*.key
+public/assets
+storage
+.DS_Store

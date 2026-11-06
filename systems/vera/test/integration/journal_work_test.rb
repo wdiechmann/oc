@@ -1,5 +1,7 @@
 require "test_helper"
+require "active_support/testing/constant_stubbing"
 class JournalWorkTest < ActionDispatch::IntegrationTest
+  include ActiveSupport::Testing::ConstantStubbing
   EP = "http://localhost:4000/api/v1"
   TID = "657df2d1-0f99-4007-a914-e26de1d58dc9"
   BID = "df763842-2538-4ccb-8445-17e232c37d84"
@@ -136,6 +138,7 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "turbo-stream[target=shared-dialog-host] #attach-enclosure"
     assert_select "turbo-stream[target=shared-dialog-host] iframe[src*=preview_attachment][title='Preview of receipt.pdf']"
+    assert_select "turbo-frame[src*=scan_attachment][loading=lazy]"
     signed_token = token("#attach-enclosure")
     binding = stub_request(:post, "#{api}/work/attachment").to_timeout
     refreshed = data.merge(source_version: 2, latest_version: 2)
@@ -180,6 +183,29 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     get "#{path}/attachments", params: { row_id: rid }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
     assert_select "details img[alt='Preview of receipt.png'][src*=preview_attachment]"
     assert_select "a[href*='download_attachment']", text: "receipt.png"
+  end
+
+  test "document scanning returns scoped suggestions without changing the journal" do
+    aid = "dd763842-2538-4ccb-8445-17e232c37d84"
+    doc = { filename: "receipt.pdf", content_type: "application/pdf", content: Base64.strict_encode64("synthetic") }
+    stub_request(:get, "#{api}/attachments/#{aid}").to_return(status: 200, body: doc.to_json)
+    text = "Supplier: Example Ltd
+VAT 25% 250,00
+Total 1.250,00 DKK
+<script>alert(1)</script>"
+    result = { "status"=>"ready", "method"=>"pdf_text", "limited_pages"=>true, "text"=>text, "fields"=>EnclosureSuggestions.call(text) }
+    scanner = Object.new
+    scanner.define_singleton_method(:call) { |_file| result }
+    stub_const(Object, :EnclosureScan, scanner) do
+      get "#{path}/scan_attachment", params: { attachment_id: aid }, headers: { "Turbo-Frame"=>"enclosure-scan-#{aid}", "Accept-Language"=>"da-DK" }
+    end
+    assert_response :success
+    assert_select "turbo-frame[id='enclosure-scan-#{aid}'] dd", text: "1250,00"
+    assert_select "dd", text: "Example Ltd"
+    assert_select "details pre", text: text
+    assert_select "script", count: 0
+    assert_not_requested :post, "#{api}/work/row"
+    assert_not_requested :post, "#{api}/work/post"
   end
 
   test "saved complete posting preview shows all unposted legs and exact totals" do

@@ -109,3 +109,5 @@ Completed: setup section actions open shared dialogs for steward assignment, per
 2026-11-06: Disabled context-menu items are visibly muted, use the unavailable cursor and do not show an active hover highlight. Posted journal rows retain native disabled Post journal and Delete journal buttons, which keyboard navigation skips.
 
 Completed: PDF/image enclosure previews in attachment review and saved document panels. Existing confirmation, download and unknown-outcome recovery remain available.
+
+Completed: portable local PDF-text extraction and image/scanned-PDF OCR in enclosure preview, with read-only labelled suggestions and source text. Added a production Linux image with Danish/English Tesseract, Poppler, nonroot runtime and Linux gem platforms. Applying verified suggestions to a journal remains a later explicit action.

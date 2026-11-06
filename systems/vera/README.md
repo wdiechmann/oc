@@ -73,3 +73,18 @@ bundle exec brakeman --no-pager
 ```
 
 Tests block real network connections and cover the landing page, database-free boot, dependency outage, malformed readiness responses, fixed-origin validation and redirect refusal. Tailwind is built as part of Rails tests. Browser verification uses Playwright.
+
+## Portable document scanning and production image
+
+Enclosure review automatically scans visible PDF, PNG and JPEG previews for suggested supplier, invoice number/date, due date, CVR/VAT number, currency, net amount, VAT and total. Text PDFs use Poppler; scanned PDFs/images use Tesseract. Suggestions include their source lines; competing values remain candidates. They never change rows, journals, VAT rules or posting authority. All processing runs locally on the VERA server: no external OCR/AI service receives documents.
+
+The production Dockerfile uses Linux Ruby 3.4.4, installs `poppler-utils`, `tesseract-ocr`, `tesseract-ocr-dan` and `tesseract-ocr-eng`, precompiles assets and runs as a nonroot user. Gemfile.lock includes Linux amd64/arm64 platforms as well as local macOS. From this directory:
+
+```sh
+docker build -t vera .
+docker run --rm --env-file /secure/vera-production.env -p 127.0.0.1:3001:3001 vera
+```
+
+Provision the normal Rails secret, VERA/EP backend credential, trusted public URLs and delivery settings at runtime, and use the existing HTTPS reverse proxy. The image excludes local credentials, environment files, document/output directories and logs. For a non-container Debian/Ubuntu deployment install the same four packages and provide writable private temporary space. `VERA_OCR_LANGUAGES` defaults to `dan+eng`; only installed requested languages are used, with English fallback when available. macOS development can use Homebrew `tesseract` and `poppler`; production has no macOS API dependency.
+
+Scanning is a bounded, read-only request: first three PDF pages, images scaled to 2000px when rendering PDF pages, at most two scans per Rails process, a 25-second total deadline and 12-second subprocess deadlines. Processes run without a shell and with one OCR thread. Temporary files are removed after success/failure; OCR text stays in the response rather than sessions, business records or logs. Missing tools, unreadable documents and scanner saturation leave the attachment flow usable and offer Scan again. Results are heuristic, not certified invoice interpretation; verify against the preview. PDF/date scans interpret non-ISO numeric dates as day/month/year. Current scans do not automatically apply values or infer posting accounts.

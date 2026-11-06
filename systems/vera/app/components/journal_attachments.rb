@@ -1,5 +1,6 @@
 class Components::JournalAttachments < Components::Base
   include Phlex::Rails::Helpers::FormWith
+  include Phlex::Rails::Helpers::TurboFrameTag
   FIELD = Views::Base::FIELD
   BUTTON = Views::Base::BUTTON
   def initialize(data:, info:, upload:, token:, message: nil, check_url: nil, retry_url: nil)
@@ -21,14 +22,14 @@ class Components::JournalAttachments < Components::Base
         p(class: "mt-2 break-all text-xs text-stone-500") { "#{file['byte_size']} bytes · SHA-256 #{file['sha256']}" }
         details(class: "mt-3") do
           summary(class: "cursor-pointer text-sm font-medium text-teal-900") { "Preview document" }
-          document_preview(preview_attachment_tenant_book_journals_path(@tid, @bid, attachment_id: file["id"]), file["content_type"], file["filename"])
+          document_preview(preview_attachment_tenant_book_journals_path(@tid, @bid, attachment_id: file["id"]), file["content_type"], file["filename"], attachment_id: file["id"])
         end
       end
     end
     if !@check && @data.dig("permissions", "prepare") && @data["status"] == "ready"
       if @upload
         p(class: "mt-6 text-sm") { "Attach #{@upload['filename']} (#{@upload['byte_size']} bytes) to posting #{@info['posting_id']}?" }
-        document_preview(preview_attachment_tenant_book_journals_path(@tid, @bid, row_id: @info["row_id"], upload_id: @upload["upload_id"]), @upload["content_type"], @upload["filename"])
+        document_preview(preview_attachment_tenant_book_journals_path(@tid, @bid, row_id: @info["row_id"], upload_id: @upload["upload_id"]), @upload["content_type"], @upload["filename"], row_id: @info["row_id"], upload_id: @upload["upload_id"])
         form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "attach-enclosure") do |f|
           f.hidden_field(:form_token, value: @token.call("journal_attachment", @info["draft_id"], @info["row_id"], @upload))
           f.hidden_field(:draft_id, value: @info["draft_id"])
@@ -47,14 +48,19 @@ class Components::JournalAttachments < Components::Base
       end
     end
   end
-  def document_preview(url, type, filename)
-    div(class: "mt-3", data: { enclosure_preview: true }) do
-      if type == "application/pdf"
-        iframe(src: url, title: "Preview of #{filename}", loading: "lazy", class: "block h-[50vh] min-h-64 w-full rounded border border-stone-200")
-      elsif %w[image/png image/jpeg].include?(type)
-        img(src: url, alt: "Preview of #{filename}", loading: "lazy", class: "mx-auto block max-h-[50vh] max-w-full rounded object-contain")
+  def document_preview(url, type, filename, **query)
+    div(class: "mt-3 grid min-w-0 gap-4 md:grid-cols-2", data: { enclosure_preview: true }) do
+      div(class: "min-w-0") do
+        if type == "application/pdf"
+          iframe(src: url, title: "Preview of #{filename}", loading: "lazy", class: "block h-[50vh] min-h-64 w-full rounded border border-stone-200")
+        elsif %w[image/png image/jpeg].include?(type)
+          img(src: url, alt: "Preview of #{filename}", loading: "lazy", class: "mx-auto block max-h-[50vh] max-w-full rounded object-contain")
+        end
+        a(href: url, target: "_blank", rel: "noopener", data: { turbo: false }, class: "mt-2 inline-block text-sm text-teal-900 underline") { "Open document" }
       end
-      a(href: url, target: "_blank", rel: "noopener", data: { turbo: false }, class: "mt-2 inline-block text-sm text-teal-900 underline") { "Open document" }
+      turbo_frame_tag("enclosure-scan-#{query[:upload_id] || query[:attachment_id]}", src: scan_attachment_tenant_book_journals_path(@tid, @bid, **query), loading: "lazy", class: "block min-w-0") do
+        p(role: "status", class: "text-sm text-stone-500") { "Scanning document for suggested values…" }
+      end
     end
   end
 end
