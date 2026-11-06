@@ -16,7 +16,13 @@ class Components::BookList < Components::Base
         seen[book["book_id"]] = true
         article(class: "rounded-xl border border-stone-200 bg-white p-5") do
           p(class: "text-xs text-stone-500") { book["parent_book_id"] ? "Level #{depth} · Child of #{by_id.dig(book['parent_book_id'], 'name') || 'parent view unavailable'}" : "Root book" }
-          a(href: tenant_book_path(@tenant, book.fetch("book_id")), class: "mt-2 inline-block text-xl font-semibold text-teal-950 hover:underline") { "#{'↳ ' * [ depth, 4 ].min}#{book.fetch('name')}" }
+          header(class: "mt-2 flex items-center justify-between gap-4") do
+            a(href: tenant_book_path(@tenant, book.fetch("book_id")), class: "min-w-0 text-xl font-semibold text-teal-950 hover:underline") { "#{'↳ ' * [ depth, 4 ].min}#{book.fetch('name')}" }
+            render Components::ContextMenu.new(id: "book-actions-#{book.fetch('book_id')}", label: "Actions for #{book.fetch('name')}") do
+              a(href: tenant_book_chart_path(@tenant, book.fetch("book_id")), role: "menuitem", class: "vera-menu-item") { "Chart of accounts" }
+              a(href: tenant_book_journals_path(@tenant, book.fetch("book_id")), role: "menuitem", class: "vera-menu-item") { "Journals" }
+            end
+          end
           p(class: "mt-2 text-sm text-stone-600") { "#{book.fetch('code')} · #{book.fetch('base_currency')} · #{book['accounting_authority'] == 'ep' ? 'EP ledger' : 'External ledger'} · Draft" }
         end
         stack.concat(Array(children[book["book_id"]]).reverse.map { |child| [ child, depth+1 ] })
