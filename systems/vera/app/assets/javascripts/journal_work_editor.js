@@ -4,6 +4,7 @@ class JournalWorkEditor extends HTMLElement {
     const opts = { signal: this.abort.signal };
     if (this.dataset.pending === "true") this.refreshTimer = setTimeout(()=>{ if (this.isConnected && !this.dirty) window.Turbo.visit(window.location.href,{action:"replace"}); },1500);
     document.addEventListener("turbo:before-stream-render",event=>this.preserveAttachmentDraft(event),opts);
+    this.addEventListener("journal-vat:updated", event => this.applyVatUpdate(event), opts);
     this.addEventListener("input", event => this.input(event), opts);
     this.addEventListener("change", event => this.input(event), opts);
     this.addEventListener("click", event => this.click(event), opts);
@@ -160,7 +161,7 @@ class JournalWorkEditor extends HTMLElement {
     }
     const option = event.target.closest("[data-result-index]"); if (option) { event.preventDefault(); return this.choose(Number(option.dataset.resultIndex)); }
     const form = event.target.closest("[data-work-row]"); if (!form) return;
-    if (event.target.closest("[data-work-vat-operation]")) {event.preventDefault();return this.vatOperation(form);}
+    if (event.target.closest("[data-work-vat-operation]")) {event.preventDefault();if(this.dirty && this.dirty!==form)return this.status("Save or cancel your current row first.");return this.vatOperation(form);}
     if (event.target.closest("[data-credit-default]")) {
       if (this.dirty && this.dirty !== form) return this.status("Save or cancel your current row first.");
       form.querySelector("[data-credit-override]").value="false"; form.querySelector("[data-credit-default]").hidden=true;
@@ -193,7 +194,7 @@ class JournalWorkEditor extends HTMLElement {
       if (!incoming || incoming.dataset.pending === "true" || ![...incoming.querySelectorAll("[data-work-row]")].some(row=>row.id===this.dirty.id)) {
         this.status("Attachment accepted. Your edits are retained; saving will check the latest journal version.");return;
       }
-      const names=new Set(["reference","amount","credit_amount","debit_account_id","credit_account_id","debit_label","credit_label","amount_basis","basis_override","credit_override","void"]);
+      const names=new Set(["reference","amount","credit_amount","debit_account_id","credit_account_id","debit_label","credit_label","amount_basis","basis_override","credit_override","vat_enabled","vat_entry_id","vat_source_side","void"]);
       const fields=[...this.dirty.querySelectorAll("input")].filter(input=>names.has(input.name)).map(input=>({name:input.name,value:input.value,checked:input.checked,dataset:{...input.dataset}}));
       const originals=this.dirty.originalInputs.filter(({input})=>names.has(input.name) && !input.matches("[data-account-search]")).map(({input,value})=>({name:input.name,value}));
       const fences=[...this.dirty.querySelectorAll("input")].filter(input=>["expected_version","expected_draft_version"].includes(input.name) || input.name.startsWith("contexts[")).map(input=>({name:input.name,value:input.value}));
@@ -282,6 +283,20 @@ class JournalWorkEditor extends HTMLElement {
       } catch (error) { if (error.name !== "AbortError") { out.textContent="—"; this.vatHint(out,"VAT unavailable — save will revalidate"); } }
     },200);
   }
+  applyVatUpdate(event) {
+    const form=document.getElementById(`work-row-${event.detail.rowId}`);
+    if (!form || !this.contains(form) || (this.dirty && this.dirty!==form)) return;
+    const patch=event.detail.patch;
+    form.querySelector("[data-work-vat-entry]").value=patch.entry || "";
+    form.querySelector("[data-work-vat-source]").value=patch.source || "";
+    form.querySelector("[data-work-vat-enabled]").value=String(patch.enabled);
+    form.querySelector("[data-basis-override]").value="true";
+    this.editing(form,true);this.dirty=form;
+    form.querySelector("[data-work-credit]").value=patch.credit || "";
+    const out=form.querySelector("[data-work-vat]");out.textContent=patch.vat;this.vatHint(out,patch.hint);
+    this.previewAbort?.abort();clearTimeout(this.vatTimer);this.previewSequence=(this.previewSequence || 0)+1;
+    this.status("VAT selection updated. Save the row or press Enter to record it.");
+  }
   async vatOperation(form) {
     this.vatOperationAbort?.abort();this.vatOperationAbort=new AbortController();
     const body=new FormData(form);body.delete("_method");
@@ -296,7 +311,7 @@ class JournalWorkEditor extends HTMLElement {
   accountBasis(form) {
     if (form.querySelector("[data-basis-override]").value === "true") return this.paintBasis(form);
     const accounts=[...form.querySelectorAll("[data-account-lookup]")].filter(h=>h.querySelector("[data-account-id]").value).map(h=>h.querySelector("[data-account-search]"));
-    form.querySelector("[data-work-vat-enabled]").value=String(accounts.some(a=>a.dataset.accountVat));
+    form.querySelector("[data-work-vat-enabled]").value=String(!!form.querySelector("[data-work-vat-entry]").value || accounts.some(a=>a.dataset.accountVat));
     this.paintBasis(form);
   }
   paintBasis(form) {
@@ -310,3 +325,8 @@ class JournalWorkEditor extends HTMLElement {
   clearProtected() { const area = this.closest("#vera-book-content"), p = document.createElement("p"); p.textContent = "Journal access is no longer available. Sign in or refresh your access."; area.replaceChildren(p); }
 }
 customElements.define("journal-work-editor",JournalWorkEditor);
+
+class JournalVatUpdate extends HTMLElement {
+  connectedCallback() {this.dispatchEvent(new CustomEvent("journal-vat:updated",{bubbles:true,detail:{rowId:this.dataset.rowId,patch:JSON.parse(this.dataset.patch)}}));}
+}
+customElements.define("journal-vat-update",JournalVatUpdate);

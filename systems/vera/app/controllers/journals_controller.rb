@@ -40,8 +40,10 @@ class JournalsController < FinanceSetupController
   def vat_operation
     row = work_row_attributes
     result = ep.journal_row_preview(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id], expected_draft_version: Integer(params[:expected_draft_version], exception: false), contexts: work_contexts, row: row })
-    content = Components::JournalVatOperation.new(result: result, separator: decimal_separator)
-    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+    fields = params.permit(:row_id, :draft_id, :expected_draft_version, :expected_version, :reference, :amount, :credit_amount, :credit_override, :debit_account_id, :credit_account_id, :debit_label, :credit_label, :amount_basis, :basis_override, :vat_enabled, :vat_entry_id, :vat_source_side, :void, contexts: {}).to_h
+    content = Components::JournalVatOperation.new(result: result, separator: decimal_separator, fields: fields, url: vat_operation_tenant_book_journals_path(params[:tenant_id], params[:book_id]), applied: params[:intent] == "apply_vat")
+    updates = Components::JournalVatDraftStream.new(result: result, row_id: params[:row_id].presence || "new", separator: decimal_separator) if params[:intent] == "apply_vat"
+    render Components::SharedDialogStream.new(content: content, updates: updates), content_type: "text/vnd.turbo-stream.html"
   end
   def attachments
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], params[:row_id])
@@ -89,7 +91,7 @@ class JournalsController < FinanceSetupController
         @work_header = attrs[:data].stringify_keys
         raise Ep::Client::Error.new(422, code: "invalid_journal") unless @work_header["name"].length <= 120 && @work_header["reference"].length <= 120 && @work_header["posting_date"].length <= 10
       when "journal_row"
-        @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "vat_enabled", "void").merge("id"=>signed["row_id"])
+        @work_draft = params.to_unsafe_h.slice("reference", "amount", "credit_amount", "credit_override", "debit_account_id", "credit_account_id", "debit_label", "credit_label", "amount_basis", "basis_override", "vat_enabled", "vat_entry_id", "vat_source_side", "void").merge("id"=>signed["row_id"])
         attrs[:row] = work_row_attributes(signed["row_id"])
         attrs[:append_row] = true if params[:intent] == "next_row"
       when "journal_attachment"
@@ -174,6 +176,12 @@ class JournalsController < FinanceSetupController
     if params.key?(:vat_enabled)
       raise Ep::Client::Error.new(422, code: "invalid_journal") unless %w[true false].include?(params[:vat_enabled])
       attrs[:vat_enabled] = params[:vat_enabled] == "true"
+    end
+    if params.key?(:vat_entry_id)
+      entry = params[:vat_entry_id].presence
+      raise Ep::Client::Error.new(422, code: "invalid_vat_reference") if entry && (!entry.is_a?(String) || !entry.match?(/\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z/i) || !%w[debit credit].include?(params[:vat_source_side]))
+      attrs[:vat_entry_id] = entry
+      attrs[:vat_source_side] = entry && params[:vat_source_side]
     end
     attrs
   end

@@ -2,11 +2,30 @@ defmodule Ep.Finance.JournalRows do
   @moduledoc "Paired work rows with transactional, never-reused per-book enclosure numbers."
   import Ecto.Query
   alias Ep.Repo
-  alias Ep.Finance.{Account, JournalAttachment, JournalCounter, JournalRow, VatRule, VatRules}
+
+  alias Ep.Finance.{
+    Account,
+    JournalAttachment,
+    JournalCounter,
+    JournalRow,
+    VatRule,
+    VatRules,
+    CatalogueEntry
+  }
+
   @keys ~w(id reference debit_account_id credit_account_id amount_minor amount_basis void)
   def input(row) do
     row
-    |> Map.take(@keys ++ ["basis_override", "credit_amount_minor", "vat_enabled"])
+    |> Map.take(
+      @keys ++
+        [
+          "basis_override",
+          "credit_amount_minor",
+          "vat_enabled",
+          "vat_entry_id",
+          "vat_source_side"
+        ]
+    )
     |> Map.put_new("credit_amount_minor", if(row["posting_id"], do: row["amount_minor"]))
   end
 
@@ -19,7 +38,13 @@ defmodule Ep.Finance.JournalRows do
         unless is_map(row) &&
                  Enum.sort(
                    Map.keys(
-                     Map.drop(row, ["basis_override", "credit_amount_minor", "vat_enabled"])
+                     Map.drop(row, [
+                       "basis_override",
+                       "credit_amount_minor",
+                       "vat_enabled",
+                       "vat_entry_id",
+                       "vat_source_side"
+                     ])
                    )
                  ) ==
                    Enum.sort(@keys) &&
@@ -69,8 +94,39 @@ defmodule Ep.Finance.JournalRows do
           end)
           |> Enum.reject(&is_nil/1)
 
+        if row["vat_entry_id"] do
+          entry =
+            Repo.get_by(CatalogueEntry,
+              id: uuid!(row["vat_entry_id"]),
+              tenant_id: tid,
+              book_id: bid,
+              kind: "vat"
+            )
+
+          unless row["vat_source_side"] in ~w(debit credit) && entry,
+            do: Repo.rollback(:invalid_vat_reference)
+        else
+          if row["vat_source_side"], do: Repo.rollback(:invalid_vat_reference)
+        end
+
+        accounts =
+          if row["vat_entry_id"] do
+            Enum.map(accounts, fn account ->
+              %{
+                account
+                | vat_entry_id:
+                    if(account.id == row[row["vat_source_side"] <> "_account_id"],
+                      do: row["vat_entry_id"],
+                      else: nil
+                    )
+              }
+            end)
+          else
+            accounts
+          end
+
         override = Map.get(row, "basis_override", !is_nil(row["amount_basis"]))
-        explicit_vat = Map.has_key?(row, "vat_enabled")
+        explicit_vat = Map.has_key?(row, "vat_enabled") || not is_nil(row["vat_entry_id"])
 
         if !explicit_vat && override && is_nil(row["amount_basis"]),
           do: Repo.rollback(:invalid_journal)
@@ -126,7 +182,18 @@ defmodule Ep.Finance.JournalRows do
               do:
                 Repo.get_by(Account, tenant_id: tid, book_id: bid, id: row[side <> "_account_id"])
 
-          vat = if row["vat_enabled"] == false, do: nil, else: a && a.vat_entry_id
+          vat =
+            cond do
+              row["vat_enabled"] == false ->
+                nil
+
+              row["vat_entry_id"] ->
+                if side == row["vat_source_side"], do: row["vat_entry_id"], else: nil
+
+              true ->
+                a && a.vat_entry_id
+            end
+
           date = Date.from_iso8601!(data["posting_date"])
 
           rule =

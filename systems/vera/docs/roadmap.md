@@ -59,3 +59,5 @@ Completed: VAT row-only Turbo updates after projection catch-up, with automatic 
 Completed: side-aware VAT amount suggestions and posting previews for income, expenses and reversals; optional minus normalization; VAT-direction preservation and correct cost-side non-deductible VAT.
 
 Completed: explicit apply-VAT flag, net result-account amounts independent of legacy account inclusion defaults, VAT-off overrides and read-only VAT operation dialog.
+
+Completed: dated VAT rule picker and source-side selection in the VAT operation dialog, Turbo draft-row recalculation and persisted per-row VAT overrides.

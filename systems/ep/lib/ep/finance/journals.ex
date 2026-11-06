@@ -231,7 +231,35 @@ defmodule Ep.Finance.Journals do
         |> Map.put("rows", [p["row"]])
         |> then(&data!(tid, bid, &1))
 
-      %{validation: validate(tid, bid, data), row: hd(data["rows"])}
+      date = Date.from_iso8601!(data["posting_date"])
+
+      options =
+        Repo.all(
+          from r in VatRule,
+            join: entry in CatalogueEntry,
+            on: entry.id == r.vat_entry_id,
+            where:
+              r.tenant_id == ^tid and r.book_id == ^bid and r.active and entry.tenant_id == ^tid and
+                entry.book_id == ^bid and entry.active and entry.kind == "vat" and
+                r.valid_from <= ^date and (is_nil(r.valid_until) or r.valid_until >= ^date),
+            order_by: entry.code,
+            select: %{
+              vat_entry_id: entry.id,
+              code: entry.code,
+              name: entry.name,
+              rule_id: r.id,
+              rule_version: r.version,
+              rate_bps: r.rate_bps,
+              direction: r.direction
+            }
+        )
+
+      %{
+        validation: validate(tid, bid, data),
+        row: hd(data["rows"]),
+        vat_options: options,
+        posting_date: data["posting_date"]
+      }
     end)
   end
 
@@ -565,7 +593,7 @@ defmodule Ep.Finance.Journals do
 
         explicitly_disabled =
           Enum.any?(data["rows"] || [], fn row ->
-            row["vat_enabled"] == false &&
+            (row["vat_enabled"] == false || not is_nil(row["vat_entry_id"])) &&
               l["id"] in [row["debit_line_id"], row["credit_line_id"]]
           end)
 

@@ -231,4 +231,27 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_requested preview
     assert_not_requested :post, "#{api}/work/row"
   end
+  test "dialog VAT selection streams a row draft and survives normal row save" do
+    view
+    get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
+    rid=data[:selected][:data][:rows].first[:id]
+    t=token("#work-row-#{rid}")
+    result={ row: { id: rid, amount_minor: 50000, credit_total_minor: 55000, vat_enabled: true, vat_entry_id: QID, vat_source_side: "debit" }, vat_options: [ { vat_entry_id: QID, code: "I10", name: "Alternate", rate_bps: 1000 } ], validation: { lines: [ { vat: { code: "I10", rate_bps: 1000, posting_vat_minor: 5000, amounts: { net: 50000, vat: 5000 } } } ], posting_preview: { rows: [], errors: [] } } }
+    preview=stub_request(:post, "#{api}/row-preview").with { |r| JSON.parse(r.body).dig("row", "vat_entry_id")==QID && JSON.parse(r.body).dig("row", "vat_source_side")=="debit" }.to_return(status: 200, body: result.to_json)
+    params=row_form(nil).merge(row_id: rid, amount: "500,00", vat_enabled: "true", vat_entry_id: QID, vat_source_side: "debit", intent: "apply_vat")
+    post "#{path}/vat_operation", params: params, headers: { "Accept-Language"=>"da-DK", "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "select[name=vat_entry_id] option[value='#{QID}'][selected]"
+    assert_select "turbo-stream[target='vat-operation-row-#{rid}'] journal-vat-update", count: 1
+    patch=JSON.parse(css_select("journal-vat-update").first["data-patch"])
+    assert_equal "550,00", patch["credit"]
+    assert_equal "50,00", patch["vat"]
+    assert_equal QID, patch["entry"]
+    assert_requested preview
+    assert_not_requested :post, "#{api}/work/row"
+    command=stub_request(:post, "#{api}/work/row").with { |r| JSON.parse(r.body).dig("row", "vat_entry_id")==QID }.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    patch path, params: params.except(:intent).merge(form_token: t), headers: { "Accept-Language"=>"da-DK" }
+    assert_response :see_other
+    assert_requested command
+  end
 end

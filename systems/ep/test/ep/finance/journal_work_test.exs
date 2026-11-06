@@ -1190,4 +1190,97 @@ defmodule Ep.Finance.JournalWorkTest do
     quote = Enum.find(validation["lines"], & &1["vat"])["vat"]
     assert quote["posting_vat_minor"] == -25000
   end
+
+  test "row VAT override chooses dated settings without changing the account or shared rule", c do
+    {_accounts, original, attrs, expense, bank, command} = posting_setup(c)
+
+    alternate =
+      Repo.get_by!(Ep.Finance.CatalogueEntry, book_id: c.bid, kind: "vat", code: "output")
+
+    command.(
+      "vat_rule_create",
+      Map.merge(attrs, %{"vat_entry_id" => alternate.id, "rate_bps" => 1000}),
+      "alternate-rate"
+    )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    did = create(c)
+
+    p = %{
+      "id" => nil,
+      "reference" => "Override",
+      "debit_account_id" => expense.id,
+      "credit_account_id" => bank.id,
+      "amount_minor" => 50000,
+      "amount_basis" => nil,
+      "basis_override" => false,
+      "vat_enabled" => true,
+      "vat_entry_id" => alternate.id,
+      "vat_source_side" => "debit",
+      "credit_amount_minor" => nil,
+      "void" => false
+    }
+
+    request = body(c, did, p) |> Map.delete("expected_version")
+
+    assert {:ok, %{row: row, validation: validation, vat_options: options}} =
+             Journals.preview_row(c.actor, c.tid, c.bid, request)
+
+    assert row["credit_total_minor"] == 55000
+    assert row["amount_minor"] == 50000
+    assert validation["status"] == "prepared"
+    quote = Enum.find(validation["lines"], & &1["vat"])["vat"]
+    assert quote["posting_vat_minor"] == 5000
+    assert Enum.any?(options, &(&1.vat_entry_id == alternate.id && &1.rate_bps == 1000))
+    assert Repo.get!(Ep.Finance.VatRule, original.id).rate_bps == 2500
+    assert Repo.get!(Ep.Finance.Account, expense.id).vat_entry_id == original.vat_entry_id
+    save(c, did, p, "save-vat-override")
+    [saved] = Repo.get!(JournalDraft, did).data["rows"]
+    assert JournalRows.input(saved)["vat_entry_id"] == alternate.id
+    assert JournalRows.input(saved)["vat_source_side"] == "debit"
+    reverse = %{p | "amount_minor" => 55000, "vat_source_side" => "credit"}
+
+    assert {:ok, %{row: refund, validation: refund_validation}} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, reverse) |> Map.delete("expected_version")
+             )
+
+    assert refund["credit_total_minor"] == 50000
+    assert refund_validation["status"] == "prepared"
+    assert Enum.find(refund_validation["lines"], & &1["vat"])["vat"]["posting_vat_minor"] == -5000
+
+    reset = %{p | "vat_entry_id" => nil, "vat_source_side" => nil}
+
+    assert {:ok, %{row: restored, validation: restored_validation}} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, reset) |> Map.delete("expected_version")
+             )
+
+    assert restored["credit_total_minor"] == 62500
+    assert restored_validation["status"] == "prepared"
+
+    assert {:error, :invalid_vat_reference} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, %{p | "vat_entry_id" => Ecto.UUID.generate()})
+               |> Map.delete("expected_version")
+             )
+
+    assert {:error, :invalid_vat_reference} =
+             Journals.preview_row(
+               c.actor,
+               c.tid,
+               c.bid,
+               body(c, did, %{p | "vat_source_side" => "invalid"})
+               |> Map.delete("expected_version")
+             )
+  end
 end

@@ -122,6 +122,9 @@ class Components::JournalWork < Components::Base
       div do
         input(type: "hidden", name: "amount_basis", value: values["amount_basis"], data: { work_basis: true })
         input(type: "hidden", name: "basis_override", value: override.to_s, data: { basis_override: true })
+        span(id: "vat-operation-row-#{row['id'] || 'new'}")
+        input(type: "hidden", name: "vat_entry_id", value: values["vat_entry_id"], data: { work_vat_entry: true })
+        input(type: "hidden", name: "vat_source_side", value: values["vat_source_side"], data: { work_vat_source: true })
         input(type: "hidden", name: "vat_enabled", value: enabled.to_s, data: { work_vat_enabled: true })
         input(type: "checkbox", checked: enabled, disabled: !editing, aria_label: "Apply VAT #{label}", title: "Checked: apply VAT. Unchecked: no VAT. The result account amount stays net.", class: "mt-3 ml-auto block", data: { work_included: true })
       end
