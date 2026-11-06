@@ -97,3 +97,5 @@ Completed: setup section actions open shared dialogs for steward assignment, per
 2026-11-06: Book configuration has a shared context menu aligned to the right and vertically centered beside its title. Open chart of accounts, VAT and categories, and Accounting periods move into this menu; their standalone links are removed.
 
 2026-11-06: Accounting books has a title context menu containing Create book, Refresh books and Your workspaces. Each book card has its own menu beside the book name linking directly to its Chart of accounts and Journals, scoped by tenant and book ID. Hierarchy and book detail links remain visible.
+
+2026-11-06: Each book’s index context menu includes Setup, linking to that book’s setup view with the current tenant/book scope.

@@ -19,6 +19,7 @@ class Components::BookList < Components::Base
           header(class: "mt-2 flex items-center justify-between gap-4") do
             a(href: tenant_book_path(@tenant, book.fetch("book_id")), class: "min-w-0 text-xl font-semibold text-teal-950 hover:underline") { "#{'↳ ' * [ depth, 4 ].min}#{book.fetch('name')}" }
             render Components::ContextMenu.new(id: "book-actions-#{book.fetch('book_id')}", label: "Actions for #{book.fetch('name')}") do
+              a(href: tenant_book_setup_path(@tenant, book.fetch("book_id")), role: "menuitem", class: "vera-menu-item") { "Setup" }
               a(href: tenant_book_chart_path(@tenant, book.fetch("book_id")), role: "menuitem", class: "vera-menu-item") { "Chart of accounts" }
               a(href: tenant_book_journals_path(@tenant, book.fetch("book_id")), role: "menuitem", class: "vera-menu-item") { "Journals" }
             end
