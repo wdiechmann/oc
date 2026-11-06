@@ -169,3 +169,5 @@ On Book configuration, Configuration stewards has adjacent Steward assignment an
 2026-11-06: Each book’s index context menu includes Setup, linking to that book’s setup view with the current tenant/book scope.
 
 2026-11-06: The Book configuration header menu includes Back to books, returning to the current tenant’s books index.
+
+2026-11-06: The chart header menu includes Back to books, linking to the current tenant’s books index in both current and retired chart views.

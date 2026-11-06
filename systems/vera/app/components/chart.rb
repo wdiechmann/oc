@@ -61,6 +61,7 @@ class Components::Chart < Components::Base
   end
   def chart_menu
     render Components::ContextMenu.new(id: "chart-header-actions", label: "Chart actions") do
+      menu_link(tenant_books_path(@tid), "Back to books")
       menu_link(tenant_book_chart_path(@tid, @bid, focus_id: @focus, retired: @data["retired"] ? "1" : nil), "Refresh chart")
       menu_link(tenant_book_chart_path(@tid, @bid, retired: @data["retired"] ? nil : "1"), @data["retired"] ? "Current chart" : "Retired accounts")
       menu_link(tenant_book_setup_path(@tid, @bid), "Roles and occasions")
