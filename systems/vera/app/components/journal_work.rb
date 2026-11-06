@@ -54,7 +54,6 @@ class Components::JournalWork < Components::Base
         end
       end
     end
-    render Components::JournalPostingPreview.new(preview: selected.dig("validation", "posting_preview"), separator: @separator)
   end
   def new_line_form(selected)
     form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-new", data: { turbo: false }) do |f|

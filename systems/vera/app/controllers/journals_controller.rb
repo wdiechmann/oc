@@ -8,6 +8,22 @@ class JournalsController < FinanceSetupController
     content = Components::JournalHistory.new(data: data)
     render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
   end
+  def posting_preview
+    if params[:review_id].present?
+      review = ep.journal_review(params[:tenant_id], params[:book_id], params[:review_id])
+      preview, historical = review.dig("plan", "validation", "posting_preview"), true
+    else
+      data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence, version: params[:version].presence })
+      unless data["selected"]
+        raise Ep::Client::Error.new(404, code: "not_found") unless data["status"] == "pending"
+        content = Components::SharedDialogFeedback.new(message: "The saved journal view is updating. Refresh the journal to view its posting preview.")
+        return render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html", status: :conflict
+      end
+      preview, historical = data.dig("selected", "validation", "posting_preview"), !!data["historical"]
+    end
+    content = Components::JournalPostingPreview.new(preview: preview, separator: decimal_separator, historical: historical, dialog: true)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def delete_dialog
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence })
     raise Ep::Client::Error.new(404, code: "not_found") unless data["selected"] && data.dig("permissions", "prepare")

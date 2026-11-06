@@ -77,6 +77,11 @@ class Views::Journals::Show < Views::Base
       else
         button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Show history" }
       end
+      if draft || @review
+        a(href: posting_preview_tenant_book_journals_path(@tid, @bid, draft_id: @review ? nil : id, review_id: @review && @review["review_id"], version: @requested_version), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "Saved posting preview · Unposted" }
+      else
+        button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Saved posting preview · Unposted" }
+      end
       a(href: refresh, role: "menuitem", class: "vera-menu-item") { "Refresh journal" }
     end
   end
@@ -108,7 +113,6 @@ class Views::Journals::Show < Views::Base
       h3(class: "mt-4 font-semibold") { validation["vat_complete"] ? "VAT reporting preview" : "Partial VAT reporting preview — resolve VAT errors" }
       validation["reporting"].each { |box, value| p(class: "mt-2 text-sm") { "#{box}: #{value} minor units" } }
     end
-    render Components::JournalPostingPreview.new(preview: validation["posting_preview"], separator: @decimal_separator, historical: true) if validation["posting_preview"]
   end
   def reviewed
     plan = @review.fetch("plan")

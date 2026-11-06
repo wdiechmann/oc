@@ -67,3 +67,5 @@ Completed: separate journal index, creation page and full-width journal detail w
 Completed: journal header actions menu, shared history/delete dialogs and governed audited journal deletion with retained posting IDs.
 
 Completed: journal details editing from the header menu through a shared dialog, replacing the inline expander.
+
+Completed: saved posting preview as a journal header action and shared read-only dialog, replacing the inline expander.

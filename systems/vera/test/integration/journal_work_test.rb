@@ -156,7 +156,11 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     d[:selected][:validation][:posting_preview]={ status: "complete", errors: [], debit_minor: 112500, credit_minor: 112500, difference_minor: 0, rows: [ { posting_id: 1, errors: [], legs: [ { role: "debit", account: { number: "0010", name: "Bank" }, debit_minor: 112500, credit_minor: 0 }, { role: "credit", account: { number: "0020", name: "Sales" }, debit_minor: 0, credit_minor: 90000 }, { role: "vat_input", account: { number: "6900", name: "Incoming VAT" }, debit_minor: 0, credit_minor: 22500 } ] } ] }
     view(d)
     get path, params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK" }
-    assert_select "#journal-posting-preview summary", text: "Saved posting preview · Unposted"
+    assert_select "#journal-posting-preview", count: 0
+    assert_select "#journal-header-actions a", text: "Saved posting preview · Unposted"
+    get "#{path}/posting_preview", params: { draft_id: JID }, headers: { "Accept-Language"=>"da-DK", "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-dialog-title", text: "Saved posting preview · Unposted"
     assert_select "#journal-posting-preview tbody tr", count: 3
     assert_select "#journal-posting-preview td", text: "6900 · Incoming VAT"
     assert_select "#journal-posting-preview td", text: "225,00"
@@ -332,5 +336,16 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     view(data.merge(permissions: { prepare: false }))
     get "#{path}/details_dialog", params: { draft_id: JID }, as: :turbo_stream
     assert_response :not_found
+  end
+  test "posting preview dialog reads the requested historical revision without editing" do
+    d=data.merge(historical: true, permissions: { prepare: false })
+    stub=stub_request(:get, api).with(query: { draft_id: JID, version: "1" }).to_return(status: 200, body: d.to_json)
+    get "#{path}/posting_preview", params: { draft_id: JID, version: "1" }, as: :turbo_stream
+    assert_response :success
+    assert_select "#shared-dialog-title", text: "Saved posting preview · Unposted"
+    assert_includes response.body, "Saved evidence for this revision"
+    assert_select "#shared-content-dialog form", count: 0
+    assert_requested stub
+    assert_not_requested :post, "#{api}/reviews"
   end
 end

@@ -25,6 +25,7 @@ Rails.application.routes.draw do
         get :history
         get :delete_dialog
         get :details_dialog
+        get :posting_preview
         get :accounts
         post :row_preview
         post :vat_operation
