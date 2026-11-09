@@ -164,13 +164,13 @@ Rebuild into a separate MV generation, apply the current privacy registry, recon
 
 ## Implementation status
 
-The [EP application](systems/ep/README.md) implements the first local vertical slice: email magic-link verification and hashed bearer sessions, idempotent tenant creation with first-admin authority, transactional `event`/`event_details`/receipt/outbox state, an Oban-driven local tenant-directory projector and a current-authority-protected MV query. The first local publisher/consumer share one worker transaction; generic external fan-out remains planned.
+The [EP application](../systems/ep/README.md) implements the first local vertical slice: email magic-link verification and hashed bearer sessions, idempotent tenant creation with first-admin authority, transactional `event`/`event_details`/receipt/outbox state, an Oban-driven local tenant-directory projector and a current-authority-protected MV query. The first local publisher/consumer share one worker transaction; generic external fan-out remains planned.
 
 TOM owns authentication/invitation delivery through its provider or private development mailbox; EP returns material through the API. Occasion creation now adds parent-bound draft state, optional creator occasion-admin authority, scoped events, a separate Oban-driven occasion-directory MV and authorized list/detail endpoints. TOM provides the database-free Rails UI for tenant and occasion creation. Tenant-admin invitations add verified-email acceptance, expiry, revocation and API-returned notification material; grants remain transactional and distinct from participant membership. Occasion-admin invitations now grant only the specified occasion through the same verified-recipient lifecycle, with scoped events and no participant membership or tenant grant. Recruitment now adds explicit opening/closure, published MV-backed intake and pending-only verified-identity applications; current state, expiry and policy checks protect submission independently of MV lag. Workforce admission/safeguarding review, broader policy administration, expiry-review execution, erasure-aware replay and production load validation remain pending. The diagrams above continue to describe the intended broader architecture.
 
 ## Monitoring backend contract
 
-EP's initial monitoring contract is documented in [Monitoring API v1](systems/ep/docs/monitoring-api.md).
+EP's initial monitoring contract is documented in [Monitoring API v1](../systems/ep/docs/monitoring-api.md).
 Registered backend sources bind reporting to an accountable machine identity and immutable
 scope. Validated observations/delivery reports and issue actions persist in `event` and
 `event_details`; a separate monitoring publication table and Oban queue maintain query MVs
@@ -201,4 +201,4 @@ flowchart LR
   MV --> UI[TOM scoped list and drill-down]
 ```
 
-Control tables enforce current source/permission/rule state, claims, subject suppression and publication progress. Events remain authoritative; queues are temporary transport. Restricted diagnostics require an additional explicit grant; global operators are separate from tenant administrators. Monitoring-only restore cleanup keeps local sandboxes unpublished; original/offline backup retirement and broader domain cleanup remain pending. See [runbook](systems/monitor/README.md) and [deployment details](pending_details.md).
+Control tables enforce current source/permission/rule state, claims, subject suppression and publication progress. Events remain authoritative; queues are temporary transport. Restricted diagnostics require an additional explicit grant; global operators are separate from tenant administrators. Monitoring-only restore cleanup keeps local sandboxes unpublished; original/offline backup retirement and broader domain cleanup remain pending. See [runbook](../systems/monitor/README.md) and [deployment details](pending_details.md).

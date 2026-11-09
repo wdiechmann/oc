@@ -1,6 +1,6 @@
 # VERA — Financial Control, Accounting and Settlement
 
-VERA is a separate Rails client/backend for the finance domain in [system_2_plan.md](../../system_2_plan.md). It runs alongside TOM and talks to EP through HTTP APIs. It has no Active Record, local business database, Active Job, Action Cable, shared TOM sessions or direct PostgreSQL access.
+VERA is a separate Rails client/backend for the finance domain in [system_2_plan.md](../../docs/system_2_plan.md). It runs alongside TOM and talks to EP through HTTP APIs. It has no Active Record, local business database, Active Job, Action Cable, shared TOM sessions or direct PostgreSQL access.
 
 ## Run locally
 

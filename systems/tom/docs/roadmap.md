@@ -21,7 +21,7 @@
 ## Monitoring operations (local implementation)
 
 - Implemented locally: monitoring source/rule administration, named assignment, restricted diagnostics, explicit platform view, encrypted transport buffering and alert delivery worker.
-- Deployment pending: independent collector hosts/paging, provider callbacks, browser matrix, approved retention/holds and representative capacity evidence; see ../../../pending_details.md.
+- Deployment pending: independent collector hosts/paging, provider callbacks, browser matrix, approved retention/holds and representative capacity evidence; see ../../../docs/pending_details.md.
 
 Completed: development sign-in links in the flash notice; existing confirmation and production delivery preserved.
 

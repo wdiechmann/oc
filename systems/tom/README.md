@@ -71,4 +71,4 @@ retention automation and Playwright visual verification remain pending.
 
 ## Monitoring worker and collector
 
-After migrating EP, use Monitoring → Sources and alert rules for scope administration. Run `bin/monitoring-worker` separately for alert delivery and supervise its `/up/monitoring` heartbeat. The development delivery sink sends no external mail. Run an [independent collector](../monitor/README.md) with TOM's private spool/key for outage recovery; see [monitoring UI/API behavior](docs/monitoring.md) and [pending deployment decisions](../../pending_details.md).
+After migrating EP, use Monitoring → Sources and alert rules for scope administration. Run `bin/monitoring-worker` separately for alert delivery and supervise its `/up/monitoring` heartbeat. The development delivery sink sends no external mail. Run an [independent collector](../monitor/README.md) with TOM's private spool/key for outage recovery; see [monitoring UI/API behavior](docs/monitoring.md) and [pending deployment decisions](../../docs/pending_details.md).

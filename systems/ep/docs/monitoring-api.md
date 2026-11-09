@@ -2,7 +2,7 @@
 
 Machine-readable contract: [OpenAPI 3.1](monitoring-openapi.json).
 
-Implemented backend foundation for [the monitoring plan](../../../monitoring_plan.md). EP persists observations and lifecycle facts in `event`/`event_details`, with a dedicated transactional `monitoring_pending` publication table, Oban `monitoring` queue and incrementally maintained `monitoring_view`. TOM and other clients use JSON only; a client can translate these results into Turbo Streams, LiveView or another in-context presentation.
+Implemented backend foundation for [the monitoring plan](../../../docs/monitoring_plan.md). EP persists observations and lifecycle facts in `event`/`event_details`, with a dedicated transactional `monitoring_pending` publication table, Oban `monitoring` queue and incrementally maintained `monitoring_view`. TOM and other clients use JSON only; a client can translate these results into Turbo Streams, LiveView or another in-context presentation.
 
 ## Onboarding and credentials
 
@@ -136,6 +136,6 @@ The [independent collector and runbook](../../monitor/README.md) implement encry
 
 Monitoring erasure uses an HMAC subject index, durable suppression ledger, detail/metadata redaction and late-backlog filtering. Reads fail closed during pending monitoring cleanup; business requests remain independent. Opt-in maintenance enforces the implemented 30/90-day defaults; approved retention/hold policies remain pending. Snapshot-consistent encrypted backup manifests and signed erasure worklists are implemented for local rehearsals. Restore cleanup covers monitoring only, keeps the sandbox unpublished, and never retires original/offline media automatically.
 
-Production hosts, independent paging/provider callbacks, on-call ownership, domain-wide erasure adapters, legal holds, offline/immutable backup custody, real-browser verification and representative capacity testing remain in [pending_details.md](../../../pending_details.md). This API does not expose WebSocket/SSE subscriptions; clients stream their own authorized view updates. Local test evidence is in [local_rehearsal.md](../../monitor/local_rehearsal.md).
+Production hosts, independent paging/provider callbacks, on-call ownership, domain-wide erasure adapters, legal holds, offline/immutable backup custody, real-browser verification and representative capacity testing remain in [pending_details.md](../../../docs/pending_details.md). This API does not expose WebSocket/SSE subscriptions; clients stream their own authorized view updates. Local test evidence is in [local_rehearsal.md](../../monitor/local_rehearsal.md).
 
 Development may persist its non-secret global EP source UUID in ignored `config/monitoring_source_id`, so starting a fresh shell does not silently disable internal exception capture. `EP_MONITORING_SOURCE_ID` overrides that file; production still requires explicit provisioning. Restart EP after runtime configuration changes. Three-consecutive-failure probe thresholds remain unchanged.

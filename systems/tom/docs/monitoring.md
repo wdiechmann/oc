@@ -66,7 +66,7 @@ Run `bin/rails test`, `node --test test/javascript/monitoring_test.mjs`, `bundle
 
 An isolated PostgreSQL/EP smoke test verified real sign-in, a controlled TOM view exception, scoped observation persistence, MV list/detail/timeline, versioned acknowledgment and streamed list refresh. The planted sensitive exception message was absent from EP details. No real external email was sent. The Playwright connector was unavailable for this implementation, so desktop/mobile visual and real-browser Turbo behavior still need verification; automated request and client-logic tests do not replace that check.
 
-Local collection/probes, durable spooling, scoped source/rule administration, a current-admin assignee picker, restricted diagnostics, explicit platform monitoring and an alert delivery worker are implemented. Production rollout, provider callbacks, browser/device checks and representative load validation remain in [pending_details.md](../../../pending_details.md).
+Local collection/probes, durable spooling, scoped source/rule administration, a current-admin assignee picker, restricted diagnostics, explicit platform monitoring and an alert delivery worker are implemented. Production rollout, provider callbacks, browser/device checks and representative load validation remain in [pending_details.md](../../../docs/pending_details.md).
 
 ## Operational controls and worker
 
