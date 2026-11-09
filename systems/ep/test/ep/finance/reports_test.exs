@@ -179,9 +179,84 @@ defmodule Ep.Finance.ReportsTest do
     {:ok, _} = SetupProjector.deliver(c.tid)
     {:ok, after_save} = Reports.get(c.actor, c.tid, c.bid)
     assert length(Enum.filter(after_save.reports, &(&1["name"] == "YTD balances"))) == 1
-    refute Enum.any?(after_save.reports, & &1["builtin"])
+    refute Enum.any?(after_save.reports, &(&1["builtin"] && &1["name"] == "YTD balances"))
     {:ok, custom} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => hd(saved["event_ids"])})
     assert hd(custom.selected["definition"]["lines"])["name"] == "My customized account"
+  end
+
+  test "included profit and loss classifies catalogue codes, calculates signs and persists its period basis",
+       c do
+    category_id = Ecto.UUID.generate()
+
+    entries = [
+      %{"id" => category_id, "kind" => "category", "code" => "sales-custom", "name" => "Indtægt"}
+    ]
+
+    accounts =
+      for {number, category} <- [
+            {"1015", "income"},
+            {"2000", "omkostninger"},
+            {"53000", "assets"},
+            {"6900", "liabilities"},
+            {"9999", nil}
+          ],
+          do: %{
+            "id" => Ecto.UUID.generate(),
+            "number" => number,
+            "name" => number,
+            "category" => category,
+            "active" => true
+          }
+
+    [income, expense, bank, vat, unknown] = accounts
+    income = Map.put(income, "category_entry_id", category_id) |> Map.put("category", "assets")
+    preset = Ep.Finance.ReportPresets.profit_loss([income | tl(accounts)], entries, 1)
+    assert Enum.map(preset["classification_warnings"], & &1["id"]) == [unknown["id"]]
+    [income_line, expense_line, _] = preset["definition"]["lines"]
+    assert income_line["account_ids"] == [income["id"]]
+    assert expense_line["account_ids"] == [expense["id"]]
+
+    result =
+      Reports.evaluate(preset["definition"], %{
+        income["id"] => -100_000,
+        expense["id"] => 50_000,
+        bank["id"] => 125_000,
+        vat["id"] => -25_000,
+        unknown["id"] => 999
+      })
+
+    assert Enum.map(result, & &1["amount_minor"]) == [100_000, 50_000, 50_000]
+
+    reversal =
+      Reports.evaluate(preset["definition"], %{income["id"] => 10_000, expense["id"] => -5_000})
+
+    assert Enum.map(reversal, & &1["amount_minor"]) == [-10_000, -5_000, -5_000]
+    {:ok, index} = Reports.get(c.actor, c.tid, c.bid)
+    report = Enum.find(index.reports, &(&1["name"] == "Profit and loss"))
+    assert report["builtin"]
+    {:ok, selected} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => report["id"]})
+
+    lines =
+      Enum.map(
+        selected.selected["definition"]["lines"],
+        &Map.take(&1, ~w(id code name kind position account_ids sign formula))
+      )
+
+    params = %{
+      "name" => "Profit and loss",
+      "active" => true,
+      "report_id" => nil,
+      "expected_report_version" => nil,
+      "expected_version" => index.latest_version,
+      "report_type" => "profit_loss",
+      "lines" => lines
+    }
+
+    {:ok, review} = Reports.review(c.actor, c.tid, c.bid, params)
+    {:ok, saved} = accept(c, review)
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, custom} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => hd(saved["event_ids"])})
+    assert custom.selected["definition"]["report_type"] == "profit_loss"
   end
 
   test "included YTD covers charts larger than the former fifty-line limit", c do

@@ -246,6 +246,14 @@
                         }
                       }
                     }
+                  },
+                  "report_type": {
+                    "type": "string",
+                    "enum": [
+                      "balance",
+                      "profit_loss"
+                    ],
+                    "description": "Presentation basis, preserved with the definition; omitted values inherit existing type or default to balance."
                   }
                 }
               }

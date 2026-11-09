@@ -94,17 +94,21 @@ class Views::Reports::Show < Views::Base
     definition = report.fetch("definition")
     h2(class: "mt-8 text-xl font-semibold") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
     p(class: "mt-2 text-sm text-stone-600") { "Account labels and coverage below are pinned to chart revision #{definition['chart_version']}. Current-chart coverage is shown separately." }
-    p(class: "mt-2 text-sm text-stone-600") { "Included YTD definition: one line per posting account in chart order, debit positive and credit negative. Customize it to save your own book-specific mappings and formulas." } if report["builtin"]
+    p(class: "mt-2 text-sm text-stone-600") { "Included YTD definition: one line per posting account in chart order, debit positive and credit negative. Customize it to save your own book-specific mappings and formulas." } if report["builtin"] && definition["report_type"] != "profit_loss"
+    if definition["report_type"] == "profit_loss"
+      p(class: "mt-2 text-sm text-stone-600") { "Income less expenses for this fiscal year. The included mappings select income and expense categories; balance-sheet categories are excluded. Customize the definition to adjust its mappings." }
+      Array(report["classification_warnings"]).each { |account| p(class: "mt-2 text-sm text-amber-900") { "Unclassified account excluded: #{account_label(account)}. Assign an account category or customize this report’s mappings." } }
+    end
     year_to_date(report)
     if @data["ytd"]
       a(href: url(report_id: report["id"], version: report["version"]), class: "mt-4 inline-block text-sm text-teal-900 underline") { "View report definition" }
-      coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
+      coverage(@data["coverage"], definition["accounts"], "Saved revision coverage") unless definition["report_type"] == "profit_loss"
       return
     end
     line_summary(definition["lines"], definition["accounts"])
     coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
     coverage(@data["current_coverage"], @data["accounts"], "Current chart coverage")
-    a(href: tenant_book_edit_report_path(@tid, @bid, report["id"]), class: "mt-4 block text-sm text-teal-900 underline") { report["builtin"] ? "Customize YTD definition" : "Edit current report" } if @editable
+    a(href: tenant_book_edit_report_path(@tid, @bid, report["id"]), class: "mt-4 block text-sm text-teal-900 underline") { report["builtin"] ? "Customize #{report['name'] == 'YTD balances' ? 'YTD' : report['name']} definition" : "Edit current report" } if @editable
     if @data["status"] == "ready" && !@check
       h3(class: "mt-6 text-lg font-semibold") { "Test this report revision" }
       form_with(url: preview_tenant_book_reports_path(@tid, @bid), method: :post, id: "report-preview", data: { turbo: false }) do |f|
@@ -140,7 +144,8 @@ class Views::Reports::Show < Views::Base
     end
   end
   def year_to_date(report)
-    h3(class: "mt-6 text-xl font-semibold") { "Year-to-date account balances" }
+    profit_loss = report.dig("definition", "report_type") == "profit_loss"
+    h3(class: "mt-6 text-xl font-semibold") { profit_loss ? "Year-to-date profit / loss" : "Year-to-date account balances" }
     form_with(url: tenant_book_run_report_path(@tid, @bid, report["id"]), method: :get, data: { turbo: false }, class: "mt-3 flex items-end gap-3") do |f|
       f.hidden_field(:report_id, value: report["id"])
       f.hidden_field(:version, value: report["version"])
@@ -149,16 +154,16 @@ class Views::Reports::Show < Views::Base
       f.submit("Run YTD report", class: BUTTON)
     end
     return unless (data = @data["ytd"])
-    p(class: "mt-3 text-sm text-stone-600") { "#{data['start_date']} – #{data['as_of']} · #{data['currency']} · #{data['journal_count']} posted journals in period · Debit positive, credit negative; definition signs apply. Opening includes all earlier postings. Drafts are excluded." }
+    p(class: "mt-3 text-sm text-stone-600") { "#{data['start_date']} – #{data['as_of']} · #{data['currency']} · #{data['journal_count']} posted journals in period · #{profit_loss ? 'Income is credit-positive; expenses debit-positive. Only this fiscal year’s movement is included.' : 'Debit positive, credit negative; definition signs apply. Opening includes all earlier postings.'} Drafts are excluded." }
     div(class: "mt-4 overflow-x-auto") do
       table(class: "w-full text-sm") do
-        thead { tr { %w[Code Name Opening YTD Closing].each { |label| th(class: "p-2 text-right first:text-left") { label } } } }
+        thead { tr { (profit_loss ? %w[Code Name YTD] : %w[Code Name Opening YTD Closing]).each { |label| th(class: "p-2 text-right first:text-left") { label } } } }
         tbody do
           report.fetch("definition").fetch("lines").sort_by { |line| line["position"] }.each do |line|
             tr(class: "border-t border-stone-200") do
               td(class: "p-2") { line["code"] }
               td(class: "p-2") { line["name"] }
-              %w[opening movement closing].each do |column|
+              (profit_loss ? %w[movement] : %w[opening movement closing]).each do |column|
                 result = data.fetch(column).find { |r| r["account_id"] == line["id"] }
                 td(class: "p-2 text-right tabular-nums") do
                   if line["kind"] == "header"
@@ -176,9 +181,10 @@ class Views::Reports::Show < Views::Base
       end
     end
     details(class: "mt-4 text-sm") do
-      summary(class: "cursor-pointer text-teal-900") { "Underlying account closing balances" }
-      report.fetch("definition").fetch("accounts").each do |account|
-        amount = data.fetch("balances", {}).fetch(account["id"], 0)
+      summary(class: "cursor-pointer text-teal-900") { profit_loss ? "Underlying account YTD movements" : "Underlying account closing balances" }
+      mapped_ids = report.fetch("definition").fetch("lines").flat_map { |line| Array(line["account_ids"]) }
+      report.fetch("definition").fetch("accounts").select { |account| mapped_ids.include?(account["id"]) }.each do |account|
+        amount = data.fetch(profit_loss ? "movement_balances" : "balances", {}).fetch(account["id"], 0)
         p(class: "mt-2") { "#{account_label(account)}: #{number_with_precision(BigDecimal(amount.to_s) / 100, precision: 2, delimiter: '.', separator: ',')} #{data['currency']}" }
       end
     end

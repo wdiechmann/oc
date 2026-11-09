@@ -27,3 +27,10 @@ The response retains report metadata and adds `ytd`: `start_date`, `as_of`, `cur
 
 
 Included definition: `c06dd8cb-91a1-4a99-8541-ff8fdcfca8ad` is the shipped YTD balances definition (revision 1, builtin=true). It maps all current posting accounts in chart order and can be run immediately using the YTD query. It is versioned application configuration, resolved against the ready chart, rather than a hidden write on GET. Customize by reviewing/accepting its lines as a new report (report_id and expected_report_version null). An accepted definition named YTD balances replaces the shipped default in the list; its mappings remain pinned and future edits revise that saved definition.
+
+
+## Included profit and loss statement
+
+Preset `842cfbde-5b47-40ae-8cda-fb92470ca080` (revision 1) is available alongside the YTD preset without writes on GET. Its definition has `report_type: profit_loss` with INCOME (sign -1), EXPENSES (sign +1), and PROFIT = [INCOME] - [EXPENSES]. Membership uses current category catalogue IDs/code/name or legacy category strings, with explicit English/Danish aliases; it never guesses from account numbers or labels. Balance-sheet categories are excluded, unclassified accounts are returned as `classification_warnings`. An accepted custom definition with the same name replaces the shipped preset in the list.
+
+Review accepts optional `report_type` (`balance` or `profit_loss`), inherited from an existing definition when omitted, defaulting to balance for new definitions. It is preserved in accepted definition snapshots and historical revisions. YTD responses additionally include `movement_balances` (raw debit-positive minor-unit amounts by account in the fiscal interval). Profit/loss presentations must evaluate/display `movement`, never all-time closing balances; the existing balance presentation is unchanged.

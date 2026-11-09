@@ -15,6 +15,7 @@ class Components::ReportDefinitionEditor < Components::Base
       p(data: { report_editor_error: true }, role: "status", class: "mt-2 text-sm text-amber-900")
       form_with(url: review_tenant_book_reports_path(@data["tenant_id"], @data["book_id"]), method: :post, id: "report-editor", data: { turbo: false }) do |f|
         f.hidden_field(:expected_version, value: @values["expected_version"] || @data["latest_version"])
+        f.hidden_field(:report_type, value: @values["report_type"]) if @values["report_type"].present?
         f.hidden_field(:report_id, value: @values["report_id"])
         f.hidden_field(:expected_report_version, value: @values["expected_report_version"])
         div(class: "grid gap-4 sm:grid-cols-2") do

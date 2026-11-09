@@ -61,7 +61,9 @@ class ReportsController < FinanceSetupController
     lines = raw.each_pair.reject { |_, l| !keep_blank && l[:remove] == "1" }.map do |_, l|
       { id: l[:id].presence, code: l[:code].to_s, name: l[:name].to_s, kind: l[:kind].to_s, position: Integer(l[:position], exception: false), formula: l[:formula].to_s, account_ids: Array(l[:account_ids]).reject(&:blank?), sign: Integer(l[:sign], exception: false) }
     end.reject { |l| !keep_blank && l[:code].blank? && l[:name].blank? && l[:formula].blank? && l[:account_ids].empty? }
-    { report_id: params[:report_id].presence, expected_report_version: Integer(params[:expected_report_version], exception: false), expected_version: Integer(params[:expected_version], exception: false), name: params[:name].to_s, active: params[:active] == "true", lines: lines }.deep_stringify_keys
+    values = { report_id: params[:report_id].presence, expected_report_version: Integer(params[:expected_report_version], exception: false), expected_version: Integer(params[:expected_version], exception: false), name: params[:name].to_s, active: params[:active] == "true", lines: lines }.deep_stringify_keys
+    values["report_type"] = params[:report_type].to_s if params[:report_type].present?
+    values
   end
 
   def destination(_result = nil) = tenant_book_reports_path(params[:tenant_id], params[:book_id])
@@ -78,11 +80,12 @@ class ReportsController < FinanceSetupController
     review = ep.report_review(params[:tenant_id], params[:book_id], review_id) if review_id
     if review && params[:edit] == "1"
       plan = review.fetch("plan")
-      @editing = plan.slice("report_id", "expected_report_version", "name", "active").merge("expected_version"=>review.fetch("expected_version"), "lines"=>plan.fetch("definition").fetch("lines"), "saved_accounts"=>plan.fetch("definition").fetch("accounts"))
+      @editing = plan.slice("report_id", "expected_report_version", "name", "active").merge("expected_version"=>review.fetch("expected_version"), "lines"=>plan.fetch("definition").fetch("lines"), "saved_accounts"=>plan.fetch("definition").fetch("accounts"), "report_type"=>plan.dig("definition", "report_type"))
       review = nil
     end
     token = review_token(review) if review && !review["accepted_command_id"] && data.dig("permissions", "configure") && data["status"] == "ready" && !session[:finance_operation]
     editing = @editing || (params[:edit] == "1" && data["selected"] ? data["selected"].slice("id", "name", "active").merge("report_id"=>data["selected"]["id"], "expected_report_version"=>data["selected"]["version"], "expected_version"=>data["latest_version"], "lines"=>data["selected"].dig("definition", "lines")) : nil)
+    editing["report_type"] = data.dig("selected", "definition", "report_type") if editing && data["selected"] && !editing.key?("report_type")
     if editing && data.dig("selected", "builtin")
       editing = editing.except("id").merge("report_id" => nil, "expected_report_version" => nil)
     end

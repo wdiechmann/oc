@@ -147,3 +147,8 @@ The report edit/new view displays a compact Type, Code, Name, Position, Sign and
 
 
 Report row actions (2026-11-09): each definition line has a right context menu with Edit and Delete. Delete opens the Phlex/Turbo shared confirmation dialog with the current draft line label. Close/Escape leaves the draft unchanged; confirming hides the row and stages its removal while preserving other draft inputs. Only subsequent full-report review and acceptance persists deletion, with EP still validating formula references and versions. The edit dialog no longer has an unconfirmed Remove checkbox.
+
+
+## Included profit and loss statement — 2026-11-09
+
+Reports now includes Profit and loss alongside YTD balances, runnable immediately and customizable through the existing definition line editor, row menus and shared dialogs. The shipped definition maps English/Danish income categories with sign -1, expense/cost categories with sign +1, and calculates [INCOME] - [EXPENSES]. Catalogue entry IDs take precedence over legacy labels; account names/numbers do not classify results. Balance-sheet categories are excluded and unrecognised categories are listed as excluded for explicit review. Report type profit_loss is preserved through customization, review and saved revisions. The run view shows fiscal YTD movement only, including underlying mapped account movements, so prior-year balances do not enter this year’s result. Only posted journal facts count; refunds reverse naturally. Existing balance reports retain opening/YTD/closing columns.

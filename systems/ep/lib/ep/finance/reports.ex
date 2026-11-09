@@ -24,12 +24,19 @@ defmodule Ep.Finance.Reports do
       accounts =
         Setup.normalize_accounts(data.accounts) |> Enum.filter(&(&1["kind"] == "posting"))
 
-      preset = Ep.Finance.ReportPresets.ytd(accounts, data.source_version)
+      presets = [
+        Ep.Finance.ReportPresets.ytd(accounts, data.source_version),
+        Ep.Finance.ReportPresets.profit_loss(
+          accounts,
+          data.catalogue_entries,
+          data.source_version
+        )
+      ]
 
       reports =
-        if Enum.any?(data.reports, &(&1["name"] == preset["name"])),
-          do: data.reports,
-          else: [preset | data.reports]
+        Enum.reject(presets, fn preset ->
+          Enum.any?(data.reports, &(&1["name"] == preset["name"]))
+        end) ++ data.reports
 
       selected =
         if params["report_id"], do: Enum.find(reports, &(&1["id"] == params["report_id"]))
@@ -95,7 +102,7 @@ defmodule Ep.Finance.Reports do
       version = ready!(tid, bid)
 
       unless is_map(params) &&
-               Enum.sort(Map.keys(params)) ==
+               Enum.sort(Map.keys(Map.delete(params, "report_type"))) ==
                  ~w(active expected_report_version expected_version lines name report_id) &&
                is_integer(params["expected_version"]) && params["expected_version"] == version,
              do: Repo.rollback(:version_conflict)
@@ -120,6 +127,8 @@ defmodule Ep.Finance.Reports do
            Repo.aggregate(from(r in ReportDefinition, where: r.book_id == ^bid), :count) >= 20,
          do: Repo.rollback(:report_limit)
 
+      report_type = params["report_type"] || (old && old.definition["report_type"]) || "balance"
+      unless report_type in ~w(balance profit_loss), do: Repo.rollback(:invalid_report)
       name = name!(params["name"])
       unless is_boolean(params["active"]), do: Repo.rollback(:invalid_report)
 
@@ -140,7 +149,12 @@ defmodule Ep.Finance.Reports do
         "expected_report_version" => old && old.version,
         "name" => name,
         "active" => params["active"],
-        "definition" => %{"lines" => lines, "accounts" => accounts, "chart_version" => version},
+        "definition" => %{
+          "lines" => lines,
+          "accounts" => accounts,
+          "chart_version" => version,
+          "report_type" => report_type
+        },
         "reserved_codes" => reserved,
         "before" => if(old, do: old |> Map.take([:name, :active, :definition]) |> stringify()),
         "coverage" => coverage(lines, accounts)
@@ -318,6 +332,7 @@ defmodule Ep.Finance.Reports do
               opening: evaluate(definition, opening),
               movement: evaluate(definition, movement),
               closing: evaluate(definition, closing),
+              movement_balances: movement,
               balances: closing
             })
           end)

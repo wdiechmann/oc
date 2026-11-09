@@ -147,6 +147,24 @@ class ReportsTest < ActionDispatch::IntegrationTest
     assert_select "#report-line-dialog-form input[name=position][value='100']"
   end
 
+  test "profit and loss uses only fiscal movement and preserves report type when editing" do
+    profit = report.merge(name: "Profit and loss", builtin: true, definition: definition.merge(report_type: "profit_loss"))
+    result = ->(amount) { [ { account_id: LID, status: "ok", amount_minor: amount } ] }
+    ytd = { start_date: "2026-01-01", as_of: "2026-11-09", currency: "DKK", journal_count: 1, opening: result.call(90000), movement: result.call(50000), closing: result.call(140000), movement_balances: { PID => 50000 }, balances: { PID => 140000 } }
+    selected = data.merge(selected: profit, reports: [ profit ], coverage: coverage, current_coverage: coverage)
+    stub_request(:get, api).with(query: { report_id: RID, ytd: "1" }).to_return(status: 200, body: selected.merge(ytd: ytd).to_json)
+    get "#{path}/#{RID}/show"
+    assert_response :success
+    assert_select "table th", count: 3
+    assert_select "td", text: "500,00"
+    assert_select "td", text: "1.400,00", count: 0
+    assert_includes response.body, "Underlying account YTD movements"
+    stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.to_json)
+    get "#{path}/#{RID}/edit"
+    assert_select "#report-editor input[name=report_type][value=profit_loss]"
+    assert_select "#report-editor input[name=report_id][value]", count: 0
+  end
+
   test "report changes are reviewed before a signed small-pointer acceptance" do
     get "#{path}/new"
     assert_response :success
