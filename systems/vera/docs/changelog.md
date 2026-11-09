@@ -288,3 +288,8 @@ YTD discoverability (2026-11-09): the reports landing view always shows a YTD ba
 ## Included YTD definition — 2026-11-09
 
 EP now ships the reusable YTD balances definition, immediately listed and runnable in every accessible book without creating or accepting a definition first. It maps each current posting account exactly once, in chart order, with debit-positive/credit-negative balances. The shipped definition is versioned application configuration and follows the current chart; Customize YTD definition copies it into the normal review/accept flow. An accepted book-specific YTD balances definition is persisted with ordinary event history and replaces the shipped default in the list; subsequent edits use normal revisions. Definitions now support up to 2,000 lines so the complete chart can be represented without the former 50-line truncation.
+
+
+## Reports list and separate run/edit views — 2026-11-09
+
+The reports index is a list of all defined reports (including the shipped YTD definition) by name. A vertically centered right header context menu contains Back to chart of accounts and New report. Each row has a right context menu with Run and Edit. Run opens `/reports/:report_id/show` with posted fiscal YTD results and a through-date form; Edit opens `/reports/:report_id/edit` with the definition editor, including the normal built-in customization behavior. `/reports/new` opens creation separately. Mutation actions are disabled for read-only, updating or unresolved-operation views; direct new/edit routes recheck configuration permission. Existing review, acceptance, receipt reconciliation and query-based revision links remain compatible.

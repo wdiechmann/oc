@@ -42,6 +42,9 @@ Rails.application.routes.draw do
         get :completion
         post :retry
       end
+      get "reports/new", to: "reports#new", as: :new_report
+      get "reports/:report_id/show", to: "reports#run", as: :run_report
+      get "reports/:report_id/edit", to: "reports#edit", as: :edit_report
       resource :reports, only: %i[show update], controller: "reports" do
         post :review
         post :preview

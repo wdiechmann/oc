@@ -1,4 +1,19 @@
 class ReportsController < FinanceSetupController
+  def new
+    params[:new] = "1"
+    show_setup
+  end
+
+  def run
+    params[:ytd] = "1"
+    show_setup
+  end
+
+  def edit
+    params[:edit] = "1"
+    show_setup
+  end
+
   def review
     return pending_feedback if session[:finance_operation]
     raw = params[:lines]
@@ -36,6 +51,7 @@ class ReportsController < FinanceSetupController
   end
   def show_setup(status: 200, message: nil)
     data = @calculated || ep.reports(params[:tenant_id], params[:book_id], { report_id: params[:report_id].presence, version: @previewing ? params[:report_version].presence : params[:version].presence, ytd: params[:ytd].presence, as_of: params[:as_of].presence })
+    raise Ep::Client::Error.new(404, code: "not_found") if action_name.in?(%w[new edit]) && !data.dig("permissions", "configure")
     review_id = params[:review_id].presence || @attrs && @attrs[:review_id]
     review = ep.report_review(params[:tenant_id], params[:book_id], review_id) if review_id
     if review && params[:edit] == "1"
@@ -47,6 +63,9 @@ class ReportsController < FinanceSetupController
     editing = @editing || (params[:edit] == "1" && data["selected"] ? data["selected"].slice("id", "name", "active").merge("report_id"=>data["selected"]["id"], "expected_report_version"=>data["selected"]["version"], "expected_version"=>data["latest_version"], "lines"=>data["selected"].dig("definition", "lines")) : nil)
     if editing && data.dig("selected", "builtin")
       editing = editing.except("id").merge("report_id" => nil, "expected_report_version" => nil)
+    end
+    if !data["selected"] && !review && !editing && params[:new] != "1" && !@extra_line
+      return render Views::Reports::Index.new(data: data, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
     end
     render Views::Reports::Show.new(data: data, review: review, token: token, editing: editing, balances: @balances, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
   end

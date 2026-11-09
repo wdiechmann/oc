@@ -46,25 +46,49 @@ class ReportsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "2 posted journals"
   end
 
-  test "YTD is discoverable without first opening a definition and explains empty setup" do
+  test "reports index contains only names and header and row context menus" do
     get path
     assert_response :success
-    assert_select "section[aria-label='YTD balances']", text: /Create and accept a report definition below first/
+    assert_select "h1", text: "Reports"
+    assert_select "#report-editor", count: 0
+    assert_select "#reports-index-actions a", text: "Back to chart of accounts"
+    assert_select "#reports-index-actions a[href='#{path}/new']", text: "New report"
     stub_request(:get, api).to_return(status: 200, body: data.merge(reports: [ report ]).to_json)
     get path
-    assert_select "section[aria-label='YTD balances']" do
-      assert_select "form[method=get]"
-      assert_select "select[name=report_id] option[value='#{RID}']", text: "Balance"
-      assert_select "input[name=ytd][value='1']"
-      assert_select "input[type=submit][value='Run YTD report']"
+    assert_select "[data-report-id='#{RID}']" do
+      assert_select "a[href='#{path}/#{RID}/show']", text: "Balance"
+      assert_select "a[role=menuitem][href='#{path}/#{RID}/show']", text: "Run"
+      assert_select "a[role=menuitem][href='#{path}/#{RID}/edit']", text: "Edit"
     end
+    assert_select "form", count: 1 # The layout's sign-out form only.
+  end
+
+  test "dedicated run and edit routes keep report execution separate from definition editing" do
+    selected = data.merge(selected: report, reports: [ report ], coverage: coverage, current_coverage: coverage)
+    result = [ { account_id: LID, status: "ok", amount_minor: 0 } ]
+    ytd = { start_date: "2026-01-01", as_of: "2026-11-09", currency: "DKK", journal_count: 0, opening: result, movement: result, closing: result }
+    request = stub_request(:get, api).with(query: { report_id: RID, ytd: "1" }).to_return(status: 200, body: selected.merge(ytd: ytd).to_json)
+    get "#{path}/#{RID}/show"
+    assert_response :success
+    assert_requested request
+    assert_select "table tbody tr", count: 1
+    assert_select "form[action='#{path}/#{RID}/show']"
+    assert_select "#report-editor", count: 0
+    stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.to_json)
+    get "#{path}/#{RID}/edit"
+    assert_response :success
+    assert_select "#report-editor input[name=report_id][value='#{RID}']"
+    assert_select "table", count: 0
+    stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.merge(permissions: { configure: false }).to_json)
+    get "#{path}/#{RID}/edit"
+    assert_response :not_found
   end
 
   test "included YTD runs immediately and customizing saves a book-specific definition" do
     builtin = report.merge(name: "YTD balances", builtin: true)
     stub_request(:get, api).to_return(status: 200, body: data.merge(reports: [ builtin ]).to_json)
     get path
-    assert_select "a[href*='ytd=1']", text: "YTD balances"
+    assert_select "a[href='#{path}/#{RID}/show']", text: "YTD balances"
     stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: data.merge(reports: [ builtin ], selected: builtin, coverage: coverage, current_coverage: coverage).to_json)
     get path, params: { report_id: RID }
     assert_select "a", text: "Customize YTD definition"
@@ -76,7 +100,7 @@ class ReportsTest < ActionDispatch::IntegrationTest
   end
 
   test "report changes are reviewed before a signed small-pointer acceptance" do
-    get path
+    get "#{path}/new"
     assert_response :success
     assert_select "#report-editor"
     attrs = draft.except(:lines).merge(expected_version: 5, active: true, report_id: nil, expected_report_version: nil, lines: [ line.except(:formula_refs).merge(id: nil, formula: "") ])

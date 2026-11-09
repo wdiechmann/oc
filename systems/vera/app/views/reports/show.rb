@@ -9,9 +9,18 @@ class Views::Reports::Show < Views::Base
   def url(**query) = tenant_book_reports_path(@tid, @bid, **query)
   def view_template
     div(id: "vera-book-content", class: "min-w-0 break-words") do
-      a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
-      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review report definition" : (@data["ytd"] ? "YTD account balances" : "Report definitions") }
+      header(class: "mt-2 flex items-center justify-between gap-4") do
+        h1(class: "min-w-0 text-3xl font-semibold") { @review ? "Review report definition" : (@data["ytd"] ? @data.dig("selected", "name") : (@editing ? "Edit report definition" : "Report definition")) }
+        render Components::ContextMenu.new(id: "report-actions", label: "Report actions") do
+          a(href: url, role: "menuitem", class: "vera-menu-item") { "Back to reports" }
+          a(href: tenant_book_chart_path(@tid, @bid), role: "menuitem", class: "vera-menu-item") { "Back to chart of accounts" }
+          if @data["selected"]
+            a(href: tenant_book_run_report_path(@tid, @bid, @data["selected"]["id"]), role: "menuitem", class: "vera-menu-item") { "Run" }
+            a(href: tenant_book_edit_report_path(@tid, @bid, @data["selected"]["id"]), role: "menuitem", class: "vera-menu-item") { "Edit" } if @editable
+          end
+        end
+      end
       p(class: "mt-4 text-sm text-stone-600") { @data["ytd"] ? "Posted account balances using the selected report definition and the book’s fiscal year. Change the through date to rerun the report." : "Map posting accounts to named report lines. Totals reference line codes, for example [REVENUE] - [COSTS]. Each accepted revision preserves its account labels, mappings and formulas. Test balances use whole minor units and are not saved." }
       render Components::Toast.new(message: @message, kind: "alert") if @message
       p(class: "mt-3 text-xs text-stone-500") { "View revision #{@data['source_version']} · Latest accepted #{@data['latest_version']}" }
@@ -20,22 +29,6 @@ class Views::Reports::Show < Views::Base
       if @check
         a(href: @check, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry
-      end
-      ytd_launcher unless @data["selected"] || @review || @editing
-      @data.fetch("reports").each do |report|
-        div(class: "mt-4 rounded-lg border border-stone-200 bg-white p-4") do
-          a(href: url(report_id: report["id"]), class: "font-medium text-teal-900 underline") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
-          a(href: url(report_id: report["id"], version: report["version"], ytd: "1", as_of: Date.current.iso8601), class: "ml-4 text-sm text-teal-900 underline") { "YTD balances" }
-          details(class: "mt-2 text-sm") do
-            summary(class: "cursor-pointer text-teal-900") { "Revision history (#{report.fetch('history', []).length})" }
-            report.fetch("history", []).reverse_each do |h|
-              p(class: "mt-2") do
-                a(href: url(report_id: report["id"], version: h["version"]), class: "text-teal-900 underline") { "#{h['name']} · Revision #{h['version']}#{h['active'] ? '' : ' · Inactive'}" }
-                plain " · #{h['accepted_at']} · Actor #{h['actor_identity_id']} · Application #{h['application_id']}"
-              end
-            end
-          end
-        end
       end
       if @review
         reviewed
@@ -46,29 +39,8 @@ class Views::Reports::Show < Views::Base
       elsif @editable
         editor({ "name"=>"", "active"=>true, "expected_version"=>@data["latest_version"], "lines"=>[] })
       end
-      a(href: url(new: "1"), class: "mt-6 block text-sm text-teal-900 underline") { "New report" } if @data["selected"] && @editable
     end
   end
-  def ytd_launcher
-    section(class: "mt-6 rounded-xl border border-stone-200 bg-white p-4", aria: { label: "YTD balances" }) do
-      h2(class: "text-xl font-semibold") { "YTD balances" }
-      reports = @data.fetch("reports")
-      if reports.empty?
-        p(class: "mt-2 text-sm text-stone-600") { "Create and accept a report definition below first. YTD balances use its account mappings and formulas to show opening balances, year-to-date movement and closing balances from posted journals." }
-      else
-        form_with(url: url, method: :get, data: { turbo: false }, class: "mt-3 flex flex-wrap items-end gap-3") do |f|
-          f.hidden_field(:ytd, value: "1")
-          div do
-            f.label(:report_id, "Report definition")
-            f.select(:report_id, reports.map { |report| [ "#{report['name']}#{report['active'] ? '' : ' · Inactive'}", report["id"] ] }, {}, class: FIELD)
-          end
-          div { f.label(:as_of, "Through date"); f.date_field(:as_of, value: Date.current, required: true, class: FIELD) }
-          f.submit("Run YTD report", class: BUTTON, disabled: @data["status"] != "ready" || !!@check)
-        end
-      end
-    end
-  end
-
   def line_summary(lines, accounts)
     lookup = accounts.index_by { |a| a["id"] }
     lines.each do |line|
@@ -181,7 +153,7 @@ class Views::Reports::Show < Views::Base
     line_summary(definition["lines"], definition["accounts"])
     coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
     coverage(@data["current_coverage"], @data["accounts"], "Current chart coverage")
-    a(href: url(report_id: report["id"], edit: "1"), class: "mt-4 block text-sm text-teal-900 underline") { report["builtin"] ? "Customize YTD definition" : "Edit current report" } if @editable
+    a(href: tenant_book_edit_report_path(@tid, @bid, report["id"]), class: "mt-4 block text-sm text-teal-900 underline") { report["builtin"] ? "Customize YTD definition" : "Edit current report" } if @editable
     if @data["status"] == "ready" && !@check
       h3(class: "mt-6 text-lg font-semibold") { "Test this report revision" }
       form_with(url: preview_tenant_book_reports_path(@tid, @bid), method: :post, id: "report-preview", data: { turbo: false }) do |f|
@@ -218,7 +190,7 @@ class Views::Reports::Show < Views::Base
   end
   def year_to_date(report)
     h3(class: "mt-6 text-xl font-semibold") { "Year-to-date account balances" }
-    form_with(url: url, method: :get, data: { turbo: false }, class: "mt-3 flex items-end gap-3") do |f|
+    form_with(url: tenant_book_run_report_path(@tid, @bid, report["id"]), method: :get, data: { turbo: false }, class: "mt-3 flex items-end gap-3") do |f|
       f.hidden_field(:report_id, value: report["id"])
       f.hidden_field(:version, value: report["version"])
       f.hidden_field(:ytd, value: "1")
