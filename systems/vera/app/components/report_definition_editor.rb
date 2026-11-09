@@ -23,7 +23,7 @@ class Components::ReportDefinitionEditor < Components::Base
         end
         div(class: "mt-4 overflow-x-auto rounded-lg border border-stone-200") do
           table(class: "w-full text-left text-sm") do
-            thead(class: "bg-stone-100") { tr { [ "Type", "Code", "Name", "Position", "Sign", "Accounts / Formula" ].each { |label| th(scope: "col", class: "px-3 py-2") { label } } } }
+            thead(class: "bg-stone-100") { tr { [ "Type", "Code", "Name", "Position", "Sign", "Accounts / Formula", "" ].each { |label| th(scope: "col", class: "px-3 py-2") { label } } } }
             tbody do
               lines.first(2000).each_with_index do |line, index|
                 tr(class: "border-t border-stone-200 hover:bg-teal-50", data: { report_line: index }) do
@@ -39,6 +39,12 @@ class Components::ReportDefinitionEditor < Components::Base
                   td(class: "px-3 py-2", data: { line_summary: "position" }) { line["position"] }
                   td(class: "px-3 py-2", data: { line_summary: "sign" }) { line["kind"] == "mapping" ? (line["sign"] == -1 ? "−" : "+") : "" }
                   td(class: "px-3 py-2", data: { line_summary: "detail" }) { line["kind"] == "total" ? line["formula"] : Array(line["account_ids"]).map { |id| accounts[id] ? "#{accounts[id]['number']} · #{accounts[id]['name']}" : id }.join("; ") }
+                  td(class: "sticky right-0 bg-white px-3 py-2 text-right") do
+                    render Components::ContextMenu.new(id: "report-line-actions-#{index}", label: "Actions for report line #{index + 1}") do
+                      button(type: "button", role: "menuitem", class: "vera-menu-item", data: { edit_report_line: index }) { "Edit" }
+                      button(type: "button", role: "menuitem", class: "vera-menu-item", data: { delete_report_line: index }) { "Delete" }
+                    end
+                  end
                 end
               end
             end

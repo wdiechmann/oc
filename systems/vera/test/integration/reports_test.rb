@@ -105,6 +105,8 @@ class ReportsTest < ActionDispatch::IntegrationTest
     get "#{path}/#{RID}/edit"
     assert_select "#report-editor table tbody tr", count: 1
     assert_select "#report-editor fieldset", count: 0
+    assert_select "#report-line-actions-0 button[role=menuitem]", text: "Edit"
+    assert_select "#report-line-actions-0 button[role=menuitem]", text: "Delete"
     assert_select "button[data-edit-report-line='0']", text: "Bank line"
     assert_select "select[name='lines[0][kind]']", count: 0
     post "#{path}/line_dialog", params: draft.merge(line_index: "0"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
@@ -120,6 +122,23 @@ class ReportsTest < ActionDispatch::IntegrationTest
     post "#{path}/line_dialog", params: draft.merge(line_index: "0"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
     assert_response :not_found
     assert_select "#report-line-dialog-form", count: 0
+  end
+
+  test "delete opens a shared confirmation and stages removal until report acceptance" do
+    post "#{path}/line_dialog", params: draft.merge(line_index: "0", dialog_action: "delete"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target='shared-dialog-host']"
+    assert_select "h2", text: "Delete report line?"
+    assert_select "report-line-delete-dialog[data-index='0']"
+    assert_select "input[type=submit][value='Delete line']"
+    assert_includes response.body, "Review and accept the complete report to save the deletion"
+    assert_not_requested :post, "#{api}/reviews"
+    second = line.except(:formula_refs).merge(id: "", code: "SECOND", name: "Second", position: "200", formula: "", account_ids: [ PID ])
+    values = draft.merge(lines: { "0" => draft[:lines]["0"].merge(remove: "1"), "1" => second })
+    command = stub_request(:post, "#{api}/reviews").with { |request| JSON.parse(request.body)["lines"].map { |row| row["code"] } == [ "SECOND" ] }.to_return(status: 200, body: review.to_json)
+    post "#{path}/review", params: values
+    assert_response :see_other
+    assert_requested command
   end
 
   test "a blank new row can open its dialog" do

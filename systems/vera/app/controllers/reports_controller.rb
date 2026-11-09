@@ -32,7 +32,13 @@ class ReportsController < FinanceSetupController
     index = Integer(params[:line_index], exception: false)
     raise Ep::Client::Error.new(422, code: "invalid_report") unless index && index >= 0 && index < values["lines"].length
     values["lines"][index]["remove"] = params.dig(:lines, index.to_s, :remove)
-    content = Components::ReportLineDialog.new(line: values["lines"][index], index: index, accounts: data.fetch("accounts"))
+    mode = params[:dialog_action].presence || "edit"
+    raise Ep::Client::Error.new(422, code: "invalid_report") unless %w[edit delete].include?(mode)
+    content = if mode == "delete"
+      Components::ReportLineDeleteDialog.new(line: values["lines"][index], index: index)
+    else
+      Components::ReportLineDialog.new(line: values["lines"][index], index: index, accounts: data.fetch("accounts"))
+    end
     render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
   end
 

@@ -32,7 +32,6 @@ class Components::ReportLineDialog < Components::Base
           f.text_area(:formula, value: @line["formula"], maxlength: 2000, class: FIELD)
           p(class: "mt-2 text-xs text-stone-500") { "Reference report line codes in brackets, for example [REVENUE] - [COSTS]." }
         end
-        label(class: "mt-4 flex items-center gap-2 text-sm") { input(type: "checkbox", name: "remove", value: "1", checked: @line["remove"] == "1"); plain "Remove this line from the draft" }
         f.submit("Apply to draft", class: BUTTON)
         p(class: "mt-2 text-xs text-stone-500") { "Review and accept the complete report to save these changes." }
       end
