@@ -10,6 +10,12 @@ A separate Ruby standard-library process probes fixed loopback targets, keeps a 
 4. Run `ruby systems/monitor/bin/monitor --once` to check configuration, then `ruby systems/monitor/bin/monitor` as a supervised service. Restart with the same key and volume. Do not run two collector processes against the same probe-state directory.
 5. Run TOM's `bin/monitoring-worker` as a separate supervised process for alert delivery. Its default development sink creates private files, not external email. `/up/monitoring` reports its heartbeat. Configure a collector probe for it if required.
 
+eg.
+
+```bash
+EP_BACKEND_TOKEN=LKKvg34DDfugL1HVdNf1A6YBQvYR7VvQSBlw4qRFbppW2rV3PC9Dulw7ITQmsFM9 EP_MONITOR_SPOOL_KEY=DhIRnxke8330VzUySQlIOgfe7Jnq+IzkMxpg89MaUaQ= EP_MONITOR_CONFIG=config/local.json ruby bin/monitor --once
+```
+
 Collector endpoints bind only to `127.0.0.1:9910`: `/health/live`, `/health/ready`, `/status`, `/metrics`. Readiness distinguishes unhealthy dependencies, stalled delivery, quarantine and missing recent ticks. The process records an independent private `.notices` log and stderr notice even while EP is unreachable. A production fallback recipient/channel adapter is **pending**; local visibility alone does not page a person.
 
 Three failed probes open a condition; three successful probes recover it. An open failure is reminded at most once per five minutes. Delivery drains ten records per tick, with exponential backoff (maximum five minutes), stable observation UUIDs and EP deduplication. Permanent rejection is quarantined instead of retried indefinitely. Follow loss/expiry/quarantine counters; do not erase quarantined evidence until its cause and disposition are recorded. Default limits: 10,000 records, 64 MiB, 24-hour queue age. Expiry is transport loss, not successful persistence. Inflight claims become reclaimable after 60 seconds. Do not modify queued ciphertext by hand.

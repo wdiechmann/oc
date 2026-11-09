@@ -1,0 +1,6 @@
+# ignore presentation builds
+.presentation-build/
+output/
+graphify-out/
+.playwright-mcp/
+systems/monitor/spool
