@@ -271,3 +271,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-09: Separated signed-in workspace navigation into Tenant and Occasion columns, linked occasions directly to their accessible books, and kept steward book details readable without granting metadata edits.
 
 2026-11-09: Added persisted enclosure interpretation and best-guess row building on Attach enclosure. Empty rows receive editable suggestions without renumbering or replacing entered values. Added traceable actual-choice support and book-scoped, batched Oban recalculation, plus a latest-suggestion panel for saved enclosures.
+
+2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.

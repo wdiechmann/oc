@@ -95,9 +95,13 @@ defmodule Ep.Finance.EnclosureLearning do
     Events.lock!("enclosure-learning:" <> upload.book_id)
     guess = EnclosureGuess.calculate(record)
 
+    existing = original_row.data
+
     seeded =
-      Ep.Finance.JournalPostingPreview.blank_row?(Map.put(original_row.data, "attachments", [])) &&
-        !original_row.data["void"]
+      !existing["void"] && is_nil(existing["debit_account_id"]) &&
+        is_nil(existing["credit_account_id"]) &&
+        existing["amount_minor"] in [nil, 0] && existing["credit_amount_minor"] in [nil, 0] &&
+        existing["credit_total_minor"] in [nil, 0]
 
     Repo.update!(
       Ecto.Changeset.change(record,
@@ -116,7 +120,16 @@ defmodule Ep.Finance.EnclosureLearning do
 
         Map.update!(data, "rows", fn rows ->
           Enum.map(rows, fn row ->
-            if row["id"] == original_row.id, do: Map.merge(row, patch), else: row
+            if row["id"] == original_row.id do
+              patch =
+                if String.trim(row["reference"] || "") != "",
+                  do: Map.put(patch, "reference", row["reference"]),
+                  else: patch
+
+              Map.merge(row, patch)
+            else
+              row
+            end
           end)
         end)
       else

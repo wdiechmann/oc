@@ -197,6 +197,9 @@ class JournalWorkEditor extends HTMLElement {
       }
       const names=new Set(["reference","amount","credit_amount","debit_account_id","credit_account_id","debit_label","credit_label","amount_basis","basis_override","credit_override","vat_enabled","vat_entry_id","vat_source_side","void"]);
       const fields=[...this.dirty.querySelectorAll("input")].filter(input=>names.has(input.name)).map(input=>({name:input.name,value:input.value,checked:input.checked,dataset:{...input.dataset}}));
+      const financialNames=new Set(["amount","credit_amount","debit_account_id","credit_account_id","debit_label","credit_label"]);
+      const financiallyEmpty=values=>values.filter(field=>financialNames.has(field.name)).every(field=>["amount","credit_amount"].includes(field.name) ? !field.value.trim() || /^0+(?:[.,]0+)?$/.test(field.value.trim()) : !field.value.trim());
+      const baseline=this.dirty.originalInputs.filter(({input})=>names.has(input.name)).map(({input,value})=>({name:input.name,value}));
       const originals=this.dirty.originalInputs.filter(({input})=>names.has(input.name) && !input.matches("[data-account-search]")).map(({input,value})=>({name:input.name,value}));
       const fences=[...this.dirty.querySelectorAll("input")].filter(input=>["expected_version","expected_draft_version"].includes(input.name) || input.name.startsWith("contexts[")).map(input=>({name:input.name,value:input.value}));
       const id=this.dirty.id;
@@ -205,11 +208,14 @@ class JournalWorkEditor extends HTMLElement {
       if (!editor) return;
       const inputs=[...form.querySelectorAll("input")],find=name=>inputs.find(input=>input.name===name);
       const changed=originals.some(field=>find(field.name)?.value !== field.value) || fences.filter(field=>field.name.startsWith("contexts[")).some(field=>find(field.name)?.value !== field.value);
-      fields.forEach(field=>{const input=find(field.name);if(input){input.value=field.value;input.checked=field.checked;Object.assign(input.dataset,field.dataset);}});
-      if(changed) fences.forEach(field=>{const input=find(field.name);if(input)input.value=field.value;});
+      const seeded=form.dataset.workSuggestion === "true" && financiallyEmpty(fields) && financiallyEmpty(baseline);
+      const restore=seeded ? fields.filter(field=>!financialNames.has(field.name) && (field.name === "reference" || field.value !== baseline.find(original=>original.name===field.name)?.value)) : fields;
+      restore.forEach(field=>{const input=find(field.name);if(input){input.value=field.value;input.checked=field.checked;Object.assign(input.dataset,field.dataset);}});
+      if(changed && !seeded) fences.forEach(field=>{const input=find(field.name);if(input)input.value=field.value;});
       editor.querySelectorAll("[data-work-row]").forEach(row=>editor.editing(row,false));
       editor.editing(form,true);editor.dirty=form;
-      if(changed) editor.status("The saved row or accounting context changed while attaching. Your edits are retained; compare with the saved row before saving.");
+      if(seeded) editor.status("Suggested accounts and amounts filled. Your line reference is retained; review and save the row.");
+      else if(changed) editor.status("The saved row or accounting context changed while attaching. Your edits are retained; compare with the saved row before saving.");
       else editor.preview(form);
     };
   }

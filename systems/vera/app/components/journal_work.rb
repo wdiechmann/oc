@@ -70,7 +70,7 @@ class Components::JournalWork < Components::Base
     override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
     enabled = values.key?("vat_enabled") ? [ true, "true" ].include?(values["vat_enabled"]) : @data["accounts"].any? { |a| [ values["debit_account_id"], values["credit_account_id"] ].include?(a["id"]) && a["vat_entry_id"].present? }
     label = row["posting_id"] ? row["posting_id"].to_s : row["id"] ? "On next save" : "On save"
-    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "journal-columns grid items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, draft: is_draft.to_s, editing: editing.to_s }) do |f|
+    form_with(url: tenant_book_journals_path(@tid, @bid), method: :patch, id: "work-row-#{row['id'] || 'new'}", class: "journal-columns grid items-start gap-2 border-b border-stone-200 p-3 #{row['void'] ? 'bg-stone-100' : ''}", data: { turbo: false, work_row: true, work_suggestion: (row["id"] == @data["suggested_row_id"]).to_s, draft: is_draft.to_s, editing: editing.to_s }) do |f|
       f.hidden_field(:form_token, value: @token.call("journal_row", selected["id"], row["id"]))
       f.hidden_field(:draft_id, value: selected["id"])
       f.hidden_field(:row_id, value: row["id"])

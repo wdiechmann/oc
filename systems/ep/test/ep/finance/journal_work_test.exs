@@ -791,7 +791,7 @@ defmodule Ep.Finance.JournalWorkTest do
       "void" => false
     }
 
-    first = save(c, did, empty, "learning-empty")
+    first = save(c, did, %{empty | "reference" => "Reference already entered"}, "learning-empty")
     {_tax, _rule, _attrs, expense, bank, command} = posting_setup(c)
     category = Repo.get_by!(CatalogueEntry, book_id: c.bid, kind: "category", code: "expenses")
 
@@ -904,6 +904,7 @@ defmodule Ep.Finance.JournalWorkTest do
 
     {:ok, _} = JournalProjector.deliver(c.tid)
     seeded = Repo.get!(JournalRow, original.id).data
+    assert seeded["reference"] == "Reference already entered"
     assert seeded["debit_account_id"] == expense.id
     assert seeded["credit_account_id"] == bank.id
     assert seeded["amount_minor"] == 50000

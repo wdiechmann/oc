@@ -117,3 +117,5 @@ Completed: portable local PDF-text extraction and image/scanned-PDF OCR in enclo
 Completed: labelled Tenant/Occasion workspace columns and direct linked-book navigation. Current book stewards can read their book detail without tenant-wide list/edit authority.
 
 Completed: attachment-driven draft suggestions with persistent EP learning support, traceable actual choices, event-triggered recalculation and a 15-minute Oban sweep. Predictions use current chart candidates or confirmed supplier examples from the same book. Existing lines and posted accounting remain unchanged by inference jobs.
+
+2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.
