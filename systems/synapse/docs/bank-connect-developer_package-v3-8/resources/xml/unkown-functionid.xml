@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CorporateException>
+	<errorCode>701</errorCode>
+	<formatCode/>
+	<sender>BEC</sender>
+	<endToEndMessageId>16ae06f0-399d-11e4-916c-0800200c9a66</endToEndMessageId>
+	<correlationId>0d389c20-399d-11e4-916c-0800200c9a66</correlationId>
+	<message>The Functionidentification is unkown</message>
+	<suggestion>
+	1. Find the bankagreement and locate the correct functionidentification
+	2. Contact Bank Connect for support – email this message to support@bankconnect.dk
+	</suggestion>
+</CorporateException>

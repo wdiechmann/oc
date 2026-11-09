@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Payment to Danish account (Normal) example -->
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+  <CstmrCdtTrfInitn>
+        <GrpHdr>
+            <MsgId>28</MsgId>
+            <CreDtTm>2026-10-04T10:00:45+01:00</CreDtTm>
+            <NbOfTxs>1</NbOfTxs>
+            <InitgPty>
+                <Id>
+                    <OrgId>
+                        <Othr>
+                            <Id>001</Id> 
+							<SchmeNm>
+								<Cd>CUST</Cd>
+							</SchmeNm>
+                        </Othr>
+                    </OrgId>
+                </Id>
+            </InitgPty>
+        </GrpHdr>
+        <PmtInf>
+            <PmtInfId>TestExampleDan</PmtInfId>
+            <PmtMtd>TRF</PmtMtd>
+            <PmtTpInf>
+                <SvcLvl>
+                    <Cd>NURG</Cd>
+                </SvcLvl>
+                <LclInstrm>
+                    <Cd>ONCL</Cd>
+                </LclInstrm>
+				<CtgyPurp>
+					<Cd>SUPP</Cd>
+				</CtgyPurp>
+            </PmtTpInf>
+            <ReqdExctnDt>2026-10-04</ReqdExctnDt>
+            <Dbtr>
+                <Nm>TestCostumerNm</Nm>
+			</Dbtr>
+            <DbtrAcct>
+                <Id>
+                   <Othr>
+                        <Id>8079831087</Id>
+                        <SchmeNm>
+                            <Cd>BBAN</Cd>
+                        </SchmeNm>
+                    </Othr>
+                </Id>
+                <Ccy>DKK</Ccy>
+            </DbtrAcct>
+            <DbtrAgt>
+                <FinInstnId>
+					<BIC>SYBKDK22</BIC>
+				</FinInstnId>                    
+            </DbtrAgt>
+            <CdtTrfTxInf>
+                <PmtId>
+                    <InstrId>Instruct ID</InstrId>
+                    <EndToEndId>EndToEndId</EndToEndId>
+                </PmtId>
+                <Amt>
+					<InstdAmt Ccy="DKK">3000.00</InstdAmt>
+                </Amt>
+                <Cdtr>
+                    <Nm>Creditor name</Nm>
+					<PstlAdr>
+						<TwnNm>Town name</TwnNm>
+						<Ctry>DK</Ctry>
+					</PstlAdr>
+                </Cdtr>
+				<CdtrAcct>
+                    <Id>
+                        <Othr>
+                            <Id>8079831095</Id>
+                            <SchmeNm>
+                                <Cd>BBAN</Cd>
+                            </SchmeNm>
+                        </Othr>
+                    </Id>
+                </CdtrAcct>
+                <Purp>
+                    <Prtry>Test payment</Prtry>
+                </Purp>
+                <RmtInf>
+					<Ustrd>Text</Ustrd>
+				</RmtInf>
+             </CdtTrfTxInf>
+        </PmtInf>
+    </CstmrCdtTrfInitn>
+</Document>

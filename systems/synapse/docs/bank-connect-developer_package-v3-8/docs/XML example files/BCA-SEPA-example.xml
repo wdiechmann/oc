@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+    <CstmrCdtTrfInitn>
+        <GrpHdr>
+            <MsgId>UNIQUE_TRANSACTIONS_ID</MsgId>
+            <CreDtTm>2026-10-04T15:10:48+02:00</CreDtTm>
+            <NbOfTxs>1</NbOfTxs>
+            <InitgPty>
+                <Id>
+                    <OrgId>
+                        <Othr>
+                            <Id>UNIQUE_CUSTOMER_ID</Id>
+                        </Othr>
+                    </OrgId>
+                </Id>
+            </InitgPty>
+        </GrpHdr>
+        <PmtInf>
+            <PmtInfId>UNIQUE_PAYMENT_ID_WILL_BE_IGNORED</PmtInfId>
+            <PmtMtd>TRF</PmtMtd>
+            <ReqdExctnDt>2026-10-04</ReqdExctnDt>
+            <Dbtr>
+                <Nm>AfsKundeBBAN</Nm>
+                <PstlAdr>
+					<TwnNm>Town name</TwnNm>
+                    <Ctry>DK</Ctry>
+                </PstlAdr>
+            </Dbtr>
+            <DbtrAcct>
+                <Id>
+                    <Othr>
+                        <Id>Account No</Id>
+                        <SchmeNm>
+                            <Cd>BBAN</Cd>
+                        </SchmeNm>
+                    </Othr>
+                </Id>
+                <Ccy>EUR</Ccy>
+            </DbtrAcct>
+            <DbtrAgt>
+                <FinInstnId>
+                    <PstlAdr>
+                        <Ctry>DK</Ctry>
+                    </PstlAdr>
+                </FinInstnId>
+            </DbtrAgt>
+            <CdtTrfTxInf>
+                <PmtId>
+                    <InstrId>InstructionIdentification</InstrId>
+                    <EndToEndId>EndToEndIdentification</EndToEndId>
+                </PmtId>
+                <PmtTpInf>
+					<SvcLvl>
+						<Cd>SEPA</Cd>
+					</SvcLvl>
+					<LclInstrm>
+						<Cd>IN</Cd>
+					</LclInstrm>
+                </PmtTpInf>				
+                <Amt>
+                    <InstdAmt Ccy="EUR">1.20</InstdAmt>
+                </Amt>
+                <ChrgBr>SLEV</ChrgBr>
+                <CdtrAgt>
+                    <FinInstnId>
+                        <BIC>COBADEFF</BIC>
+                        <Nm>Commerzbank AG</Nm>
+                        <PstlAdr>
+                            <Ctry>DE</Ctry>
+                        </PstlAdr>
+                    </FinInstnId>
+                </CdtrAgt>
+                <Cdtr>
+                    <Nm>Creditor name</Nm>
+                    <PstlAdr/>
+                </Cdtr>
+                <CdtrAcct>
+                    <Id>
+                        <IBAN>DE89370400440532013000</IBAN>
+                    </Id>
+                    <Ccy>EUR</Ccy>
+                </CdtrAcct>
+                <InstrForDbtrAgt>97</InstrForDbtrAgt>
+                <RmtInf>
+                    <Ustrd>Faktura nr. 120</Ustrd>
+                    <Strd>
+                        <RfrdDocInf>
+                            <Tp>
+                                <CdOrPrtry>
+                                    <Prtry>CRED</Prtry>
+                                </CdOrPrtry>
+                            </Tp>
+                            <Nb>Kreditors debitor Id</Nb>
+                        </RfrdDocInf>
+                        <RfrdDocInf>
+                            <Tp>
+                                <CdOrPrtry>
+                                    <Prtry>DEBI</Prtry>
+                                </CdOrPrtry>
+                            </Tp>
+                            <Nb>Debitors betalings Id</Nb>
+                        </RfrdDocInf>
+                    </Strd>
+                </RmtInf>
+            </CdtTrfTxInf>
+        </PmtInf>
+    </CstmrCdtTrfInitn>
+</Document>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="C:\Udvikler\rational\rad855ws\nbp\BankConnect\resources\xsl\camt54XsltViewer.xsl"?>
+<Document>
+	<BkToCstmrDbtCdtNtfctn>
+		<GrpHdr>
+			<MsgId>2014-12-03-10.31.52.218143</MsgId>
+			<CreDtTm>2014-12-03T10:31:52</CreDtTm>
+		</GrpHdr>
+		<Ntfctn>
+			<Id>0141414111111</Id>
+			<ElctrncSeqNb>33700000000000195</ElctrncSeqNb>
+			<CreDtTm>2014-12-03T10:31:52</CreDtTm>
+			<FrToDt>
+				<FrDtTm>2014-12-03T00:00:01</FrDtTm>
+				<ToDtTm>2014-12-03T10:31:52</ToDtTm>
+			</FrToDt>
+			<Acct>
+				<Id>
+					<Othr>
+						<Id>80790002010094</Id>
+					</Othr>
+				</Id>
+				<Ccy>DKK</Ccy>
+				<Nm>Erhvervskonto</Nm>
+				<Svcr>
+					<FinInstnId>
+						<BIC>SYBKDK22</BIC>
+					</FinInstnId>
+				</Svcr>
+			</Acct>
+			<TxsSummry>
+				<TtlNtries>
+					<NbOfNtries>0000000001</NbOfNtries>
+					<Sum>173.00</Sum>
+					<CdtDbtInd>CRDT</CdtDbtInd>
+				</TtlNtries>
+				<TtlCdtNtries>
+					<NbOfNtries>0000000001</NbOfNtries>
+					<Sum>173.00</Sum>
+				</TtlCdtNtries>
+				<TtlDbtNtries/>
+			</TxsSummry>
+			<Ntry>
+				<NtryRef>000000001</NtryRef>
+				<Amt Ccy="DKK">173.00</Amt>
+				<CdtDbtInd>CRDT</CdtDbtInd>
+				<Sts>BOOK</Sts>
+				<BookgDt>
+					<Dt>2014-12-03</Dt>
+				</BookgDt>
+				<ValDt>
+					<Dt>2014-12-03</Dt>
+				</ValDt>
+				<AcctSvcrRef>2014-12-02-22.24.48.639726</AcctSvcrRef>
+				<BkTxCd>
+					<Domn>
+						<Fmly/>
+					</Domn>
+					<Prtry/>
+				</BkTxCd>
+				<AddtlInfInd>
+					<MsgNmId/>
+				</AddtlInfInd>
+				<NtryDtls>
+					<TxDtls>
+						<Refs>
+							<MsgId>NOT PROVIDED</MsgId>
+							<AcctSvcrRef>2014-12-02-22.24.48.639726</AcctSvcrRef>
+						</Refs>
+						<AmtDtls>
+							<InstdAmt>
+								<Amt Ccy="DKK">173.00</Amt>
+							</InstdAmt>
+						</AmtDtls>
+						<Chrgs>
+							<Amt Ccy="DKK"/>
+						</Chrgs>
+						<RltdPties/>
+						<RmtInf>
+							<Ustrd>Til betaling af FI 73</Ustrd>
+							<Strd>
+								<RfrdDocInf>
+									<Tp>
+										<CdOrPrtry/>
+									</Tp>
+								</RfrdDocInf>
+								<CdtrRefInf/>
+							</Strd>
+						</RmtInf>
+					</TxDtls>
+				</NtryDtls>
+			</Ntry>
+		</Ntfctn>
+	</BkToCstmrDbtCdtNtfctn>
+</Document>

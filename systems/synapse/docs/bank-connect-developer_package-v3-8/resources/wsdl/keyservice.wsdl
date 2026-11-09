@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+	xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://service.bankconnect.dk"
+	xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http"
+	name="KeyService" targetNamespace="http://service.bankconnect.dk">
+	<wsdl:types>	
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+			xmlns:tns="http://service.bankconnect.dk" attributeFormDefault="unqualified"
+			elementFormDefault="unqualified" targetNamespace="http://service.bankconnect.dk">
+			<xs:element name="getKeypair" type="tns:getKeypair" />
+			<xs:element name="getKeypairResponse" type="tns:getKeypairResponse" />
+			<xs:complexType name="getKeypair">
+				<xs:sequence />
+			</xs:complexType>
+			<xs:complexType name="getKeypairResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="tns:bcKeyPair" />
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="bcKeyPair">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="publicKey" type="xs:base64Binary" />
+					<xs:element minOccurs="0" name="privateKey" type="xs:base64Binary" />
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="SecurityException" type="tns:SecurityException" />
+			<xs:complexType name="SecurityException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="errorcode" type="xs:string" />
+					<xs:element minOccurs="0" name="message" type="xs:string" />
+					<xs:element minOccurs="0" name="message" type="xs:string" />
+				</xs:sequence>
+			</xs:complexType>
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="getKeypair">
+		<wsdl:part element="tns:getKeypair" name="parameters">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="SecurityException">
+		<wsdl:part element="tns:SecurityException" name="SecurityException">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getKeypairResponse">
+		<wsdl:part element="tns:getKeypairResponse" name="parameters">
+		</wsdl:part>
+	</wsdl:message>
+	<wsdl:portType name="KeyService">
+		<wsdl:operation name="getKeypair">
+			<wsdl:input message="tns:getKeypair" name="getKeypair">
+			</wsdl:input>
+			<wsdl:output message="tns:getKeypairResponse" name="getKeypairResponse">
+			</wsdl:output>
+			<wsdl:fault message="tns:SecurityException" name="SecurityException">
+			</wsdl:fault>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="KeyServiceSoapBinding" type="tns:KeyService">
+		<soap:binding style="document"
+			transport="http://schemas.xmlsoap.org/soap/http" />
+		<wsdl:operation name="getKeypair">
+			<soap:operation soapAction="" style="document" />
+			<wsdl:input name="getKeypair">
+				<soap:body use="literal" />
+			</wsdl:input>
+			<wsdl:output name="getKeypairResponse">
+				<soap:body use="literal" />
+			</wsdl:output>
+			<wsdl:fault name="SecurityException">
+				<soap:fault name="SecurityException" use="literal" />
+			</wsdl:fault>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="KeyService">
+		<wsdl:port binding="tns:KeyServiceSoapBinding" name="KeyServicePort">
+			<soap:address location="http://localhost:8080/bankconnect/services/KeyService" />
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

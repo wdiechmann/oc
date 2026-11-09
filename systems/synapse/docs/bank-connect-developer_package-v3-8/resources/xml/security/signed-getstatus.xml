@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<soapenv:Envelope xmlns:ns="http://schemas.bankconnect.dk/2014" xmlns:ser="http://service.bankconnect.dk" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
+	<soapenv:Header>
+		<wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+			<ds:Signature Id="SIG-B43214D79826C879D5141415040608694" xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+				<ds:SignedInfo>
+					<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#">
+						<ec:InclusiveNamespaces PrefixList="ns ser soapenv" xmlns:ec="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+					</ds:CanonicalizationMethod>
+					<ds:SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/>
+					<ds:Reference URI="#id-B43214D79826C879D5141415040608693">
+						<ds:Transforms>
+							<ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#">
+								<ec:InclusiveNamespaces PrefixList="ser soapenv" xmlns:ec="http://www.w3.org/2001/10/xml-exc-c14n#"/>
+							</ds:Transform>
+						</ds:Transforms>
+						<ds:DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/>
+						<ds:DigestValue>KpewL3hw+orRDlffHBMpDDdU1J9rLJiyr9suwUmn4Gc=</ds:DigestValue>
+					</ds:Reference>
+				</ds:SignedInfo>
+				<ds:SignatureValue>Qc7hvTbzIB+Qv6WRMr994TDdEejeDNPvv9FBb2yJHf7Nqy8JPFFwwtAK3XyjP9LqeN35f0dztDza
+					7oheADPCyjal2nG6me2dC4EczJSjx/W8dt+cKx9n/95f/RT5ieCABP8ph+ly2Udu9xO+nInGqebg
+					hNC+rJdi3PUmtE04mlPwVYAgquRwuWNAM4MQMf9c6xLUEXX3MhltTCBh/2jCdWUxZcv5AbM7kE0K
+					Ums8Dap6rdZvZHWwLbdi2k0+RF1vd1lf4RCQ581yIIGTnGXcbHsiwL5lYGbKuOEnw1L1wBBDTY9c
+					pv5R6KVDmFabZzf9a/Rlvi94ow5Ws5pTd5sssg==</ds:SignatureValue>
+				<ds:KeyInfo Id="KI-B43214D79826C879D5141415040608691">
+					<wsse:SecurityTokenReference wsu:Id="STR-B43214D79826C879D5141415040608692">
+						<wsse:KeyIdentifier EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary" ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3">MIIDtjCCAp6gAwIBAgIEUxnD8jANBgkqhkiG9w0BAQsFADCBnDEhMB8GCSqGSIb3DQEJARYSYmR5YWFnQGJhbmtkYXRhLmRrMQswCQYDVQQGEwJESzETMBEGA1UECAwKRnJlZGVyaWNpYTETMBEGA1UEBwwKRnJlZGVyaWNpYTEUMBIGA1UECgwLQmFua0Nvbm5lY3QxFDASBgNVBAsMC0JhbmtDb25uZWN0MRQwEgYDVQQDDAtCYW5rQ29ubmVjdDAeFw0xNDAzMDcxMzA1NTJaFw0xNTAzMDcxMzA1NTJaMIGcMSEwHwYJKoZIhvcNAQkBFhJiZHlhYWdAYmFua2RhdGEuZGsxCzAJBgNVBAYTAkRLMRMwEQYDVQQIDApGcmVkZXJpY2lhMRMwEQYDVQQHDApGcmVkZXJpY2lhMRQwEgYDVQQKDAtCYW5rQ29ubmVjdDEUMBIGA1UECwwLQmFua0Nvbm5lY3QxFDASBgNVBAMMC0JhbmtDb25uZWN0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmnPx7BVCSbI3rjJupNH0Orzgau2ZOeHIfBGsG8cUOT8gCpPdT/pv5cV+f9azC8KWxYMZ7gqbuR6UhpTPJO53O/xSo5yeG9w4ni1KD/Gvlt9XkrLZutbdQCwTeG8dxS28wADuDEl/z0Io0Tif2fjzFHpkwfKzS5OuQgJO024c1Qvd8CuMDMFn0zSfAt5F4o4nr5OXcrghqX3323fUOoUVaq1Bc2GrIxVvMR5I8fsmB5ABKwB0N11jzq+QAvM3uXPG+2AQWq77lZs471JZwEBkY+vQObwyw7Tgl0e92R/9d2LKmBlEBAyp20dPshRbhw1bU3HdaUpvu5sFbJk56ZgxnwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCTmBH0OK3dISy2KBKMAazcAN4faxkRWp5Ywdlj0AEhigj9dqDL56/fvmwx1fKZa7McDv91Ss4rFu65UulX6pllPceRGosYbHDOdTDH/3hklp9hTgyImD3nQnZ2GmdnAjEV1Z8hm2ed3JjAgzngh8Dg64xasTcAXDwnG+P1hL0P7MPRz9WVmL233CT28Ja/VEYfa7/VtRnckq1+Mo7u0/3HvVG6I5vxDWhwXAMRLLhYnrv3T6X6X3LgBBZLvLE0eSUEoM9ZjfQbn+hHN2kAclYuRt411ifo/pVg1ufxP9kXptTsVBNUqT7LwTMkgZhMtzWiaZroHge/GrPR+BI1P62P
+						</wsse:KeyIdentifier>
+					</wsse:SecurityTokenReference>
+				</ds:KeyInfo>
+			</ds:Signature>
+		</wsse:Security>
+		<ns:serviceHeader wsu:Id="id-B43214D79826C879D5141415040608693" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd">
+			<organisationIdentification>
+				<mainRegistrationNumber>10</mainRegistrationNumber>
+				<isoCountryCode>DK</isoCountryCode>
+			</organisationIdentification>
+			<functionIdentification>9876543210</functionIdentification>
+			<erpInformation>
+				<erpsystem>Soapui</erpsystem>
+				<erpversion>5.x</erpversion>
+			</erpInformation>
+			<format>ISO20022</format>
+			<endToEndMessageId>123456789</endToEndMessageId>
+			<createDateTime>2014-09-29T00:00:00.000+02:00</createDateTime>
+		</ns:serviceHeader>
+		<ns:technicalAddress/>
+	</soapenv:Header>
+	<soapenv:Body>
+		<ns:getStatus/>
+	</soapenv:Body>
+</soapenv:Envelope>

@@ -1,0 +1,211 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:tns="http://bankconnect.dk/schema/2014" xmlns:ns2="http://schemas.xmlsoap.org/soap/encoding/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" targetNamespace="http://bankconnect.dk/schema/2014" elementFormDefault="qualified" attributeFormDefault="unqualified">
+  
+  <xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xmldsig-core-schema.xsd"/>
+  <xs:element name="activateServiceAgreement" type="tns:activateServiceAgreement"/>
+  <xs:element name="activateServiceAgreementResponse" type="tns:activateServiceAgreementResponse"/>
+  <xs:element name="getAlternate" type="tns:getAlternate"/>
+  <xs:element name="getAlternateResponse" type="tns:getAlternateResponse"/>
+  <xs:element name="getBankCertificate" type="tns:getBankCertificate"/>
+  <xs:element name="getBankCertificateResponse" type="tns:getBankCertificateResponse"/>
+  <xs:element name="getCustomerStatement" type="tns:getCustomerStatement"/>
+  <xs:element name="getCustomerStatementResponse" type="tns:getCustomerStatementResponse"/>
+  <xs:element name="getDebitCreditNotification" type="tns:getDebitCreditNotification"/>
+  <xs:element name="getDebitCreditNotificationResponse" type="tns:getDebitCreditNotificationResponse"/>
+  <xs:element name="getCustomerAccountReport" type="tns:getCustomerAccountReport"/>
+  <xs:element name="getCustomerAccountReportResponse" type="tns:getCustomerAccountReportResponse"/>
+  <xs:element name="getStatus" type="tns:getStatus"/>
+  <xs:element name="getStatusResponse" type="tns:getStatusResponse"/>
+  <xs:element name="renewCustomerCertificate" type="tns:renewCustomerCertificate"/>
+  <xs:element name="renewCustomerCertificateResponse" type="tns:renewCustomerCertificateResponse"/>
+  <xs:element name="transferPayment" type="tns:transferPayment"/>
+  <xs:element name="transferPaymentResponse" type="tns:transferPaymentResponse"/>
+  <xs:complexType name="getBankCertificate">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getBankCertificateResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="activateServiceAgreement">
+    <xs:sequence>
+      <xs:element name="activationAgreement" type="tns:activationAgreement"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="activationAgreement">
+    <xs:sequence>
+      <xs:element name="activationCode" type="xs:base64Binary"/>
+      <xs:element name="certificateRequest" type="xs:base64Binary"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="activateServiceAgreementResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="renewCustomerCertificate">
+    <xs:sequence>
+      <xs:element name="certificateRequestMessage" type="tns:certificateRequestMessage"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="certificateRequestMessage">
+    <xs:sequence>
+      <xs:element name="certificateRequest" type="xs:base64Binary"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="renewCustomerCertificateResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="transferPayment">
+    <xs:sequence>
+      <xs:element name="paymentMessage" type="tns:paymentMessage"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="paymentMessage">
+    <xs:sequence>
+      <xs:element name="format" type="xs:string"/>
+      <xs:element name="mimeType" type="xs:string"/>
+      <xs:element name="compressed" type="xs:integer"/>
+      <xs:element name="content" type="xs:base64Binary"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="transferPaymentResponse">
+    <xs:sequence>
+      <xs:element name="paymentResponse" type="tns:paymentResponse"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="paymentResponse">
+    <xs:sequence>
+      <xs:element name="responseCode" type="xs:string"/>
+      <xs:element name="sender" type="xs:string"/>
+      <xs:element name="endToEndMessageId" type="xs:string"/>
+      <xs:element name="correlationId" type="xs:string"/>
+      <xs:element name="message" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getStatus">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getStatusResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getCustomerStatement">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getCustomerStatementResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getDebitCreditNotification">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getDebitCreditNotificationResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getCustomerAccountReport">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getCustomerAccountReportResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="getAlternate">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="getAlternateResponse">
+    <xs:sequence>
+      <xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+      <xs:element ref="ds:Signature" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ActivationHeader">
+    <xs:sequence>
+      <xs:element name="organisationIdentification" type="tns:organisationIdentification"/>
+      <xs:element name="functionIdentification" type="xs:string"/>
+      <xs:element name="erpInformation" type="tns:erpInformation"/>
+      <xs:element name="endToEndMessageId" type="xs:string"/>
+      <xs:element name="createDateTime" type="xs:dateTime"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="ServiceHeader">
+    <xs:sequence>
+      <xs:element name="organisationIdentification" type="tns:organisationIdentification"/>
+      <xs:element name="functionIdentification" type="xs:string"/>
+      <xs:element name="erpInformation" type="tns:erpInformation"/>
+      <xs:element name="format" type="xs:string"/>
+      <xs:element name="endToEndMessageId" type="xs:string"/>
+      <xs:element name="createDateTime" type="xs:dateTime"/>
+    </xs:sequence>
+    <xs:anyAttribute namespace="##other" processContents="lax"/>
+  </xs:complexType>
+  <xs:complexType name="technicalAddress">
+    <xs:sequence>
+      <xs:element name="ipAddress" type="xs:string" minOccurs="0"/>
+      <xs:element name="ipPort" type="xs:string" minOccurs="0"/>
+      <xs:element name="appliedTime" type="xs:dateTime" minOccurs="0"/>
+      <xs:element name="duration" type="tns:duration" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="organisationIdentification">
+    <xs:sequence>
+      <xs:element name="mainRegistrationNumber" type="xs:string"/>
+      <xs:element name="isoCountryCode" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="duration">
+    <xs:sequence>
+      <xs:element name="time" type="xs:long" minOccurs="0"/>
+      <xs:element name="point" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="erpInformation">
+    <xs:sequence>
+      <xs:element name="erpsystem" type="xs:string" minOccurs="0"/>
+      <xs:element name="erpversion" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="corporateMessage">
+    <xs:sequence>
+      <xs:element name="format" type="xs:string"/>
+      <xs:element name="mimeType" type="xs:string"/>
+      <xs:element name="severalMessages" type="xs:boolean"/>
+      <xs:element name="sender" type="xs:string" minOccurs="0"/>
+      <xs:element name="version" type="xs:string" minOccurs="0"/>
+      <xs:element name="messageDate" type="xs:dateTime" minOccurs="0"/>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="endToEndMessageId" type="xs:string"/>
+      <xs:element name="compressed" type="xs:integer"/>
+      <xs:element name="content" type="xs:base64Binary" minOccurs="0"/>
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="optional"/>
+  </xs:complexType>
+  <xs:complexType name="corporateDuration">
+    <xs:sequence>
+      <xs:element name="description" type="xs:string" minOccurs="0"/>
+      <xs:element name="time" type="xs:long" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="technicalAddress" type="tns:technicalAddress"/>
+  <xs:element name="activationHeader" type="tns:ActivationHeader"/>
+  <xs:element name="serviceHeader" type="tns:ServiceHeader"/>
+</xs:schema>

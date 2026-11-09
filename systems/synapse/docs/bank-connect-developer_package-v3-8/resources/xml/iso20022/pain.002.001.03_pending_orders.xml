@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.03">
+  <CstmrPmtStsRpt>
+    <GrpHdr>
+      <MsgId>Besked Id</MsgId>
+      <CreDtTm>1970-01-01T00:00:00</CreDtTm>
+      <InitgPty>
+        <Id>
+          <OrgId>
+            <BICOrBEI>SYBKD22</BICOrBEI>
+            <Othr>
+              <Id>Afsender Id</Id>
+            </Othr>
+          </OrgId>
+        </Id>
+      </InitgPty>
+    </GrpHdr>
+    <OrgnlGrpInfAndSts>
+      <OrgnlMsgId>CLU-02149140025</OrgnlMsgId>
+      <OrgnlMsgNmId>Pain.001.001.003</OrgnlMsgNmId>
+    </OrgnlGrpInfAndSts>
+    <OrgnlPmtInfAndSts>
+      <OrgnlPmtInfId>CLU-02149140025</OrgnlPmtInfId>
+      <PmtInfSts>ACSP</PmtInfSts>
+      <StsRsnInf>AM14</StsRsnInf>
+    </OrgnlPmtInfAndSts>
+  </CstmrPmtStsRpt>
+</Document>

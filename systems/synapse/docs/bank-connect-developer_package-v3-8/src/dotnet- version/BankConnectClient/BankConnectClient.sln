@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.40629.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecuredClient", "SecuredClient\SecuredClient.csproj", "{BA3CCC57-F9FF-48E2-B184-28704F28C52A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SecuredClientTest", "SecuredClientTest\SecuredClientTest.csproj", "{AEB10D52-458C-41BF-95AB-EF50A23289E2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA3CCC57-F9FF-48E2-B184-28704F28C52A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA3CCC57-F9FF-48E2-B184-28704F28C52A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA3CCC57-F9FF-48E2-B184-28704F28C52A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA3CCC57-F9FF-48E2-B184-28704F28C52A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEB10D52-458C-41BF-95AB-EF50A23289E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEB10D52-458C-41BF-95AB-EF50A23289E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEB10D52-458C-41BF-95AB-EF50A23289E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEB10D52-458C-41BF-95AB-EF50A23289E2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="C:\Udvikler\rational\rad855ws\nbp\BankConnect\resources\xsl\pain002XsltViewer.xsl"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.002.001.03">
+    <CstmrPmtStsRpt>
+        <GrpHdr>
+            <MsgId>1</MsgId>
+            <CreDtTm>2014-12-07T09:29:31+01:00</CreDtTm>
+            <InitgPty>
+                <Id>
+                    <OrgId>
+                        <BICOrBEI>SYBKDK22</BICOrBEI>
+                        <Othr>
+                            <Id>XXX</Id>
+                        </Othr>
+                    </OrgId>
+                </Id>
+            </InitgPty>
+        </GrpHdr>
+        <OrgnlGrpInfAndSts>
+            <OrgnlMsgId>117</OrgnlMsgId>
+            <OrgnlMsgNmId>pain.001.001.03</OrgnlMsgNmId>
+            <GrpSts>ACTC</GrpSts>
+            <StsRsnInf>
+                <Rsn>
+                    <Cd>RJCT</Cd>
+                </Rsn>
+                <AddtlInf>Line 1</AddtlInf>
+                <AddtlInf>Line 2</AddtlInf>
+                <AddtlInf>Line 3</AddtlInf>
+            </StsRsnInf>
+        </OrgnlGrpInfAndSts>
+        <OrgnlPmtInfAndSts>
+            <OrgnlPmtInfId>X</OrgnlPmtInfId>
+            <PmtInfSts>RJCT</PmtInfSts>
+            <StsRsnInf>
+                <Rsn>
+                    <Cd>RJCT</Cd>
+                </Rsn>
+                <AddtlInf>Line 1</AddtlInf>
+                <AddtlInf>Line 2</AddtlInf>
+                <AddtlInf>Line 3</AddtlInf>
+            </StsRsnInf>
+            <TxInfAndSts>
+                <OrgnlEndToEndId>X</OrgnlEndToEndId>
+                <TxSts>PDNG</TxSts>
+                <StsRsnInf>
+                    <Rsn>
+                        <Cd>RJCT</Cd>
+                    </Rsn>
+                    <AddtlInf>Line 1</AddtlInf>
+                    <AddtlInf>Line 2</AddtlInf>
+                    <AddtlInf>Line 3</AddtlInf>
+                </StsRsnInf>
+            </TxInfAndSts>
+            <TxInfAndSts>
+                <OrgnlEndToEndId>X</OrgnlEndToEndId>
+                <TxSts>PDNG</TxSts>
+                <StsRsnInf>
+                    <Rsn>
+                        <Cd>RJCT</Cd>
+                    </Rsn>
+                    <AddtlInf>Line 1</AddtlInf>
+                    <AddtlInf>Line 2</AddtlInf>
+                    <AddtlInf>Line 3</AddtlInf>
+                </StsRsnInf>
+            </TxInfAndSts>
+        </OrgnlPmtInfAndSts>
+        <OrgnlPmtInfAndSts>
+            <OrgnlPmtInfId>X</OrgnlPmtInfId>
+            <PmtInfSts>RJCT</PmtInfSts>
+            <StsRsnInf>
+                <Rsn>
+                    <Cd>RJCT</Cd>
+                </Rsn>
+                <AddtlInf>Line 1</AddtlInf>
+                <AddtlInf>Line 2</AddtlInf>
+                <AddtlInf>Line 3</AddtlInf>
+            </StsRsnInf>
+        </OrgnlPmtInfAndSts>
+    </CstmrPmtStsRpt>
+</Document>

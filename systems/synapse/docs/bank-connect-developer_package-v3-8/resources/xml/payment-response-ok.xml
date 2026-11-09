@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PaymentResponse>
+	<responseCode>202</responseCode>
+	<sender>BEC</sender>
+	<endToEndMessageId>16ae06f0-399d-11e4-916c-0800200c9a66</endToEndMessageId>
+	<correlationId>0d389c20-399d-11e4-916c-0800200c9a66</correlationId>
+	<message>Payments received</message>
+</PaymentResponse>

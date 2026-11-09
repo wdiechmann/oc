@@ -1,0 +1,334 @@
+<wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://service.bankconnect.dk" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="CertificateService" targetNamespace="http://service.bankconnect.dk">
+	<wsdl:types>
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://service.bankconnect.dk" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://service.bankconnect.dk">
+			<xs:element name="createPKCS10Request" type="tns:createPKCS10Request"/>
+			<xs:element name="createPKCS10RequestResponse" type="tns:createPKCS10RequestResponse"/>
+			<xs:element name="generateCertficate" type="tns:generateCertficate"/>
+			<xs:element name="generateCertficateResponse" type="tns:generateCertficateResponse"/>
+			<xs:element name="getCACertificate" type="tns:getCACertificate"/>
+			<xs:element name="getCACertificateResponse" type="tns:getCACertificateResponse"/>
+			<xs:element name="getCertificate" type="tns:getCertificate"/>
+			<xs:element name="getCertificateAdvanced" type="tns:getCertificateAdvanced"/>
+			<xs:element name="getCertificateAdvancedResponse" type="tns:getCertificateAdvancedResponse"/>
+			<xs:element name="getCertificateRequestAsPEM" type="tns:getCertificateRequestAsPEM"/>
+			<xs:element name="getCertificateRequestAsPEMResponse" type="tns:getCertificateRequestAsPEMResponse"/>
+			<xs:element name="getCertificateResponse" type="tns:getCertificateResponse"/>
+			<xs:complexType name="getCertificateRequestAsPEM">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="arg0" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCertificateRequestAsPEMResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCertificate">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="arg0" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCertificateResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCertificateAdvanced">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="alias" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="certificateHeader">
+				<xs:sequence>
+					<xs:element name="customernumber" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCertificateAdvancedResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCACertificate">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="alias" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCACertificateResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="generateCertficate">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="publicKey" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="generateCertficateResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="createPKCS10Request">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="functionIdentification" type="xs:string"/>
+					<xs:element minOccurs="0" name="activationCode" type="xs:string"/>
+					<xs:element minOccurs="0" name="publickey" type="xs:string"/>
+					<xs:element minOccurs="0" name="privatekey" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="createPKCS10RequestResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="InvalidKeySpecException" type="tns:InvalidKeySpecException"/>
+			<xs:complexType name="InvalidKeySpecException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="NoSuchAlgorithmException" type="tns:NoSuchAlgorithmException"/>
+			<xs:complexType name="NoSuchAlgorithmException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="IOException" type="tns:IOException"/>
+			<xs:complexType name="IOException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="CRMFException" type="tns:CRMFException"/>
+			<xs:complexType name="CRMFException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="CertificateException" type="tns:CertificateException"/>
+			<xs:complexType name="CertificateException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="KeyStoreException" type="tns:KeyStoreException"/>
+			<xs:complexType name="KeyStoreException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="Exception" type="tns:Exception"/>
+			<xs:complexType name="Exception">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="SecurityException" >
+				<xs:sequence>
+					<xs:element minOccurs="0" name="errorcode" type="xs:string"/>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+            <xs:element name="SecurityException" type="tns:SecurityException"/>
+			<xs:element name="certificateHeader" nillable="true" type="tns:certificateHeader"/>
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="createPKCS10Request">
+		<wsdl:part element="tns:createPKCS10Request" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificate">
+		<wsdl:part element="tns:getCertificate" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificateAdvanced">
+		<wsdl:part element="tns:getCertificateAdvanced" name="parameters"></wsdl:part>
+		<wsdl:part element="tns:certificateHeader" name="certificateHeader"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificateRequestAsPEM">
+		<wsdl:part element="tns:getCertificateRequestAsPEM" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="CertificateException">
+		<wsdl:part element="tns:CertificateException" name="CertificateException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="CRMFException">
+		<wsdl:part element="tns:CRMFException" name="CRMFException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificateResponse">
+		<wsdl:part element="tns:getCertificateResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificateAdvancedResponse">
+		<wsdl:part element="tns:getCertificateAdvancedResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="generateCertficate">
+		<wsdl:part element="tns:generateCertficate" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="KeyStoreException">
+		<wsdl:part element="tns:KeyStoreException" name="KeyStoreException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="InvalidKeySpecException">
+		<wsdl:part element="tns:InvalidKeySpecException" name="InvalidKeySpecException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="NoSuchAlgorithmException">
+		<wsdl:part element="tns:NoSuchAlgorithmException" name="NoSuchAlgorithmException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCACertificateResponse">
+		<wsdl:part element="tns:getCACertificateResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="SecurityException">
+		<wsdl:part element="tns:SecurityException" name="SecurityException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="IOException">
+		<wsdl:part element="tns:IOException" name="IOException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCertificateRequestAsPEMResponse">
+		<wsdl:part element="tns:getCertificateRequestAsPEMResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="createPKCS10RequestResponse">
+		<wsdl:part element="tns:createPKCS10RequestResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="generateCertficateResponse">
+		<wsdl:part element="tns:generateCertficateResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="getCACertificate">
+		<wsdl:part element="tns:getCACertificate" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="Exception">
+		<wsdl:part element="tns:Exception" name="Exception"></wsdl:part>
+	</wsdl:message>
+	<wsdl:portType name="CertificateService">
+		<wsdl:operation name="getCertificateRequestAsPEM">
+			<wsdl:input message="tns:getCertificateRequestAsPEM" name="getCertificateRequestAsPEM"></wsdl:input>
+			<wsdl:output message="tns:getCertificateRequestAsPEMResponse" name="getCertificateRequestAsPEMResponse"></wsdl:output>
+			<wsdl:fault message="tns:IOException" name="IOException"></wsdl:fault>
+			<wsdl:fault message="tns:NoSuchAlgorithmException" name="NoSuchAlgorithmException"></wsdl:fault>
+			<wsdl:fault message="tns:InvalidKeySpecException" name="InvalidKeySpecException"></wsdl:fault>
+			<wsdl:fault message="tns:CRMFException" name="CRMFException"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCertificate">
+			<wsdl:input message="tns:getCertificate" name="getCertificate"></wsdl:input>
+			<wsdl:output message="tns:getCertificateResponse" name="getCertificateResponse"></wsdl:output>
+			<wsdl:fault message="tns:IOException" name="IOException"></wsdl:fault>
+			<wsdl:fault message="tns:NoSuchAlgorithmException" name="NoSuchAlgorithmException"></wsdl:fault>
+			<wsdl:fault message="tns:KeyStoreException" name="KeyStoreException"></wsdl:fault>
+			<wsdl:fault message="tns:CertificateException" name="CertificateException"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCertificateAdvanced">
+			<wsdl:input message="tns:getCertificateAdvanced" name="getCertificateAdvanced"></wsdl:input>
+			<wsdl:output message="tns:getCertificateAdvancedResponse" name="getCertificateAdvancedResponse"></wsdl:output>
+			<wsdl:fault message="tns:Exception" name="Exception"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCACertificate">
+			<wsdl:input message="tns:getCACertificate" name="getCACertificate"></wsdl:input>
+			<wsdl:output message="tns:getCACertificateResponse" name="getCACertificateResponse"></wsdl:output>
+			<wsdl:fault message="tns:Exception" name="Exception"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="generateCertficate">
+			<wsdl:input message="tns:generateCertficate" name="generateCertficate"></wsdl:input>
+			<wsdl:output message="tns:generateCertficateResponse" name="generateCertficateResponse"></wsdl:output>
+			<wsdl:fault message="tns:Exception" name="Exception"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="createPKCS10Request">
+			<wsdl:input message="tns:createPKCS10Request" name="createPKCS10Request"></wsdl:input>
+			<wsdl:output message="tns:createPKCS10RequestResponse" name="createPKCS10RequestResponse"></wsdl:output>
+			<wsdl:fault message="tns:SecurityException" name="SecurityException"></wsdl:fault>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="CertificateServiceSoapBinding" type="tns:CertificateService">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="getCertificate">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="getCertificate">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCertificateResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="IOException">
+				<soap:fault name="IOException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="NoSuchAlgorithmException">
+				<soap:fault name="NoSuchAlgorithmException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="KeyStoreException">
+				<soap:fault name="KeyStoreException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="CertificateException">
+				<soap:fault name="CertificateException" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCertificateRequestAsPEM">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="getCertificateRequestAsPEM">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCertificateRequestAsPEMResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="IOException">
+				<soap:fault name="IOException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="NoSuchAlgorithmException">
+				<soap:fault name="NoSuchAlgorithmException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="InvalidKeySpecException">
+				<soap:fault name="InvalidKeySpecException" use="literal"/>
+			</wsdl:fault>
+			<wsdl:fault name="CRMFException">
+				<soap:fault name="CRMFException" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCertificateAdvanced">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="getCertificateAdvanced">
+				<soap:header message="tns:getCertificateAdvanced" part="certificateHeader" use="literal"></soap:header>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCertificateAdvancedResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="Exception">
+				<soap:fault name="Exception" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="getCACertificate">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="getCACertificate">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCACertificateResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="Exception">
+				<soap:fault name="Exception" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="generateCertficate">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="generateCertficate">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="generateCertficateResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="Exception">
+				<soap:fault name="Exception" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="createPKCS10Request">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="createPKCS10Request">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="createPKCS10RequestResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="SecurityException">
+				<soap:fault name="SecurityException" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="CertificateService">
+		<wsdl:port binding="tns:CertificateServiceSoapBinding" name="CertificateServicePort">
+			<soap:address location="http://localhost:8080/bankconnect/services/CertificateService"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

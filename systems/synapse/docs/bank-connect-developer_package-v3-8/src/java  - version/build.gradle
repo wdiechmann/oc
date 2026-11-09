@@ -1,0 +1,415 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'jetty'
+apply plugin: "jacoco"
+apply plugin: 'base'
+apply plugin: 'war'
+
+repositories {
+		maven {
+		  url "http://b5217s01.d101p.bdpnet.dk:9081/artifactory/BD-repository-T"
+		}
+}
+
+sourceCompatibility = 1.6
+targetCompatibility = 1.6
+jettyRunWar.httpPort=8080
+jettyRunWar.contextPath="bankconnect"
+
+// Version configuration
+def majorversion=System.properties['majorversion']
+def minorversion=System.properties['minorversion']
+version = majorversion + '.' + minorversion
+def endpoint=System.properties['endpoint']
+
+def generatedWs ="$buildDir/generated"
+// To run SoapUI test from java - fix the path to your local installation
+def soapuiDirectory="/udvikler/sooapui-5.1.1"  
+
+def defaultEncoding = 'UTF-8'
+
+compileJava {
+    options.encoding = defaultEncoding
+}
+
+compileTestJava {
+    options.encoding = defaultEncoding
+}
+
+// New configuration for CXF dependencies.
+configurations { cxf }
+
+/*ext {
+    // CXF version.
+    cxfVersion = '3.0.2'
+    cxfArtifacts = [
+        'cxf-tools-wsdlto-core',
+        'cxf-tools-wsdlto-frontend-jaxws', 
+        'cxf-tools-wsdlto-databinding-jaxb' 
+    ] 
+}
+*/
+dependencies {
+    // Assign CXF dependencies to configuration.
+    /*cxfArtifacts.each { artifact ->
+       cxf "org.apache.cxf:$artifact:$cxfVersion"
+    }*/
+	cxf fileTree(dir:'lib', include:'*.jar')
+}
+
+clean {
+    delete "dist"
+	delete fileTree('lib') {
+        include 'common-library*.jar'
+    }
+}
+
+war {
+	println 'TAA******************************* Running the task WAR'
+	archiveName='bankconnect.war'
+  	destinationDir=file("dist/target")
+  	rootSpec.exclude("**/geronimo-servlet*.jar")
+  	rootSpec.exclude("**/jetty*.jar")
+  	rootSpec.exclude("soapui/**/*")
+  	from ('WebContent')
+	{
+		filter(ReplaceTokens, tokens: ['version': version])
+	}
+  	from ('docs')  {
+	  	include '**'
+	  	exclude '**jazz*'
+	  	exclude '**/*pdfdocs'
+	  	exclude 'Test-Guide for testers.docx'
+	  	into 'docs'
+   }
+   from ('resources')  {
+	  	include '**'
+	  	into 'resources'
+   }
+   from ('test')  {
+	  	include '**'
+	  	exclude("**/*.jks")
+	  	into '/WEB-INF/classes'
+	  	
+   }
+   from ('build/docs/javadoc')  {
+	  	include '**'
+	  	into 'javadoc'
+   }
+   from ('build/reports/tests')  {
+	  	include '**'
+	  	into 'docs/test'
+   }
+//   from ('Content Generator/build/docs/javadoc')  {
+//	  	include '**'
+//  	into 'javadoc/cg'
+// }
+//   from ('Content Generator/build/reports/tests')  {
+//  	include '**'
+//		into 'docs/cg/test'
+// }
+//   from ('Content Generator/build/distributions')  {
+//  	include 'cg-' + version + '.zip'
+//		into 'cg/'
+//}
+   from ('Windows Client example/BankConnectClient')  {
+	  	include '**'
+	  	into 'Windows Client example'
+   }
+}
+    
+// Custom task to generate Java classes from WSDL.
+task wsdl2java(type: JavaExec) {	
+	println 'TAA******************************* Running the task WSDL2JAVA'
+	outputs.upToDateWhen { false }
+    ext {
+        wsdlFile = "resources/wsdl/bankconnect.wsdl"
+        outputDir = file(generatedWs)
+    }
+	
+    inputs.file file(wsdlFile)
+    outputs.dir outputDir
+    // Main Java class to invoke.
+    main = 'org.apache.cxf.tools.wsdlto.WSDLToJava'
+    // Set classpath to dependencies assigned
+    // to the cxf configuration.
+    classpath = configurations.cxf
+    // Arguments to be passed to WSDLToJava.
+    args '-d', outputDir
+    args '-client'
+//    args '-wsdlLocation', 'resources/wsdl/banconnect.wsdl'
+    args '-verbose'
+//    args '-xjc-npa'
+    args '-validate'
+    //args '-xjc-Xlocator'
+    //args '-dex, 'false'
+    args '-exsh','true'
+	args '-frontend', 'jaxws21'
+    args wsdlFile
+}
+
+jacoco {
+    //http://www.gradle.org/docs/current/userguide/jacoco_plugin.html
+    reportsDir = file("$buildDir/customJacocoReportDir")
+}
+
+jacocoTestReport {
+    reports {
+        xml.enabled false
+        csv.enabled false
+        html.destination "${buildDir}/jacocoHtml"
+    }
+}
+
+jar {
+    manifest {
+        attributes 'Implementation-Title': 'BankConnect Quickstart', 'Implementation-Version': version 
+    }
+
+    archiveName='bankconnect.jar'
+    destinationDir=file('dist/target')
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir 'src'
+ 			srcDir generatedWs          
+ 		}
+        resources {
+            srcDir 'src'
+            srcDir 'src/resources'
+        }
+       }
+    test {
+    	java {
+            srcDir 'test'
+        }    
+        resources {
+            srcDir 'test'
+            srcDir 'test/resources'
+        }
+    }
+    
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+    compile fileTree(dir: 'lib', include: '*.jar')  
+    compile project('Common Library')
+}
+
+test {
+    systemProperties 'property': 'value'
+}
+
+task runMockClient (type: JavaExec) {
+	main='dk.bankconnect.client.BankConnectClient'
+	classpath = sourceSets.main.runtimeClasspath
+}
+
+task integrationTest(type: Exec) {
+	executable soapuiDirectory+"/bin/mockservicerunner.bat"
+	// Run soapui integrationtests
+	args "/udvikler/rational/rad85ws/nbp/BankConnect/test/soapui/BankConnect-Service.xml"  
+}
+
+task docs(type: GradleBuild) {
+	tasks = ['test','javadoc']
+}
+
+task docsToPDF(type: GradleBuild) {
+	buildFile='Document converter/build.gradle'
+	tasks = ['docsToPDF']
+}
+
+//task contentGeneratorRelease(type: GradleBuild) {
+//  buildFile='Content Generator/build.gradle'
+//	tasks = ['clean', 'test','javadoc', 'jar','distZip']
+//}
+
+//task contentGenerator(type: GradleBuild) {
+//  buildFile='Content Generator/build.gradle'
+//	tasks = ['jar']
+//}
+
+task commonLibrary(type: GradleBuild) {
+	println 'TAA******************************* Building commonLibrary'
+    buildFile='Common Library/build.gradle'
+    tasks = ['clean', 'build']
+    
+    copy {
+        from ('Common Library/build/libs/')  
+        include 'common-library*.jar/'
+        into 'lib'
+    }    
+}
+
+task release(type: Zip) {
+	println 'TAA******************************* Running the task RELEASE'
+    archiveName='BankConnect-' + version + '.zip'
+    from ('Common Library')  {
+        include '**'
+        exclude 'build.gradle'
+    	exclude '**/.gradle'
+        exclude '**/*.jazz*'
+        exclude '**/build/'
+        exclude '**/bin'               
+        into 'Common Library'
+        rename('build-provided.gradle', 'build.gradle')
+    }
+    from ('Common Library/build/libs/')  {
+        include 'common-library*.jar/'
+        into 'lib'
+    }
+
+//	from ('SoapUI Test') {
+     // include '**'
+     // exclude 'build.gradle'
+     // exclude '**/*.jazz*'
+     // exclude '**/build'
+     // exclude '**/bin'
+     // exclude '**/lib/SoapUI Pro 5.1.2/**'
+     // exclude '**/.gradle'
+     // into 'SoapUI Test'
+     // rename('build-provided.gradle', 'build.gradle')
+// }
+    from ('resources')  {
+        include '**'
+        exclude '**/*.jazz*'
+        exclude '**/BankConnect bankcertificate udloeb 20200506.pem'
+        exclude '**/BankConnect Issuer CA udloeb 20250506.pem'
+        exclude '**/BECService-prod.pem'
+        exclude '**/BECIssuerService-prod.pem'
+        exclude '**/BECIssuerCustomer-prod.pem'
+        into 'resources'
+    }
+    from ('dist')  {
+        include '**'
+        exclude '**/*.jazz*'
+        into 'dist'
+    }
+    from ('src')  {
+        include '**'
+        exclude '**/*.jazz*'
+        into 'src'
+    }
+    from ('test')  {
+        include '**'
+        exclude '**/*.jazz*'
+		filter(ReplaceTokens, tokens: ['version': version])
+        into 'test'
+    }
+    from ('docs')  {
+        include '**'
+        exclude 'Test-Guide for testers.docx'
+        exclude 'Paytypes XML.zip'
+		exclude 'Rules for Pain 001 & 002.Zip'
+        exclude '**/*.jazz*'
+        exclude '**/*pdfdocs'
+        into 'docs'
+    }
+    from ('.')  {
+		include 'ContentDeveloperPackage.docx'
+        into '/'
+	}
+    from ('lib')  {
+        include '**'
+		exclude 'common-library*.jar/'
+        exclude '**/*.jazz*'
+        into 'lib'
+    }
+    from ('WebContent')  {
+        include '**'
+        exclude '**/*.jazz*'
+		filter(ReplaceTokens, tokens: ['version': version])
+        into 'WebContent'
+    }
+    from ('.')  {
+//      include 'verify.sh'
+//      include 'jetty-runner.jar'
+        include 'build-provided.gradle'
+        include 'settings.gradle'
+        include 'gradle-provided.properties'
+        include 'endpoints.txt'        
+        into '/'
+		filter(ReplaceTokens, tokens: ['version': version])
+		filter(ReplaceTokens, tokens: ['endpoint': endpoint])
+        rename('build-provided.gradle', 'build.gradle')                
+		rename('gradle-provided.properties', 'gradle.properties')
+    }    
+    from ('scripts')  {
+        include '*.bat'
+        into 'bin'
+    }
+    from ('.')  {
+        include 'bc.*'
+        include 'jetty-runner.jar'
+        into 'bin'
+    }    
+    from ('dotnet')  {
+    	include '**'
+    	into 'dotnetdemo'
+    }	
+}	
+
+task pack_test_CA(type: Zip) {
+    archiveName='BankConnect_test_CA.zip'
+    
+	from ('resources/security')  {
+		include 'bd-prod-ca-ssl.pem'
+	}
+	
+	from ('resources/security/BD')  {
+		include 'BD BankConnect CA-test .pem'
+	}
+	
+	from ('resources/security/BEC')  {
+		include 'BEC BankConnect CA-test.pem'
+	}
+	
+	from ('resources/security/SDC')  {
+		include 'SDC BankConnect CA-test.pem'
+	}
+}
+
+task pack_prod_CA(type: Zip) {
+    archiveName='BankConnect_prod_CA.zip'
+    
+	from ('resources/security')  {
+		include 'bd-prod-ca-ssl.pem'
+	}
+	
+	from ('resources/security/BD')  {
+		include 'BD Primary CA.pem'
+	}
+	
+	from ('resources/security/BEC')  {
+		include 'BEC Root CA.pem'
+	}
+	
+	from ('resources/security/SDC')  {
+		include 'SDC Bank Connect Primary CA.pem'
+	}
+}
+
+task pack_CA(type: GradleBuild) {
+    tasks = ['pack_test_CA','pack_prod_CA']
+}
+
+tasks.withType(Javadoc) {
+    options.memberLevel = JavadocMemberLevel.PRIVATE
+}
+
+if (JavaVersion.current().isJava8Compatible()) {
+    tasks.withType(Javadoc) {
+        // disable the super-strict doclint tool in Java 8
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
+}
+
+compileJava.dependsOn(wsdl2java)
+war.dependsOn(compileJava, jar, commonLibrary, docs)
+release.dependsOn(clean, war)
+//release.dependsOn(clean, docsToPDF, war)

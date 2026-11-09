@@ -1,0 +1,102 @@
+<wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://security.bankconnect.dk" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="SecurityService" targetNamespace="http://security.bankconnect.dk">
+	<wsdl:types>
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://security.bankconnect.dk" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://security.bankconnect.dk">
+			<xs:element name="unwrapSOAPMessage" type="tns:unwrapSOAPMessage"/>
+			<xs:element name="unwrapSOAPMessageResponse" type="tns:unwrapSOAPMessageResponse"/>
+			<xs:element name="wrapSoapMessage" type="tns:wrapSoapMessage"/>
+			<xs:element name="wrapSoapMessageResponse" type="tns:wrapSoapMessageResponse"/>
+			<xs:complexType name="unwrapSOAPMessage">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="arg0" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="unwrapSOAPMessageResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="bcKeyPair">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="publicKey" type="xs:base64Binary"/>
+					<xs:element minOccurs="0" name="privateKey" type="xs:base64Binary"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="wrapSoapMessage">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="arg0" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="wrapSoapMessageResponse">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="return" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="SecurityException" type="tns:SecurityException"/>
+			<xs:complexType name="SecurityException">
+				<xs:sequence>
+					<xs:element minOccurs="0" name="errorcode" type="xs:string"/>
+					<xs:element minOccurs="0" name="message" type="xs:string"/>
+				</xs:sequence>
+			</xs:complexType>
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="unwrapSOAPMessage">
+		<wsdl:part element="tns:unwrapSOAPMessage" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="unwrapSOAPMessageResponse">
+		<wsdl:part element="tns:unwrapSOAPMessageResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="wrapSoapMessage">
+		<wsdl:part element="tns:wrapSoapMessage" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="SecurityException">
+		<wsdl:part element="tns:SecurityException" name="SecurityException"></wsdl:part>
+	</wsdl:message>
+	<wsdl:message name="wrapSoapMessageResponse">
+		<wsdl:part element="tns:wrapSoapMessageResponse" name="parameters"></wsdl:part>
+	</wsdl:message>
+	<wsdl:portType name="SecurityService">
+		<wsdl:operation name="unwrapSOAPMessage">
+			<wsdl:input message="tns:unwrapSOAPMessage" name="unwrapSOAPMessage"></wsdl:input>
+			<wsdl:output message="tns:unwrapSOAPMessageResponse" name="unwrapSOAPMessageResponse"></wsdl:output>
+			<wsdl:fault message="tns:SecurityException" name="SecurityException"></wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="wrapSoapMessage">
+			<wsdl:input message="tns:wrapSoapMessage" name="wrapSoapMessage"></wsdl:input>
+			<wsdl:output message="tns:wrapSoapMessageResponse" name="wrapSoapMessageResponse"></wsdl:output>
+			<wsdl:fault message="tns:SecurityException" name="SecurityException"></wsdl:fault>
+		</wsdl:operation>
+	</wsdl:portType>
+	<wsdl:binding name="SecurityServiceSoapBinding" type="tns:SecurityService">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+		<wsdl:operation name="unwrapSOAPMessage">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="unwrapSOAPMessage">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="unwrapSOAPMessageResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="SecurityException">
+				<soap:fault name="SecurityException" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+		<wsdl:operation name="wrapSoapMessage">
+			<soap:operation soapAction="" style="document"/>
+			<wsdl:input name="wrapSoapMessage">
+				<soap:body use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="wrapSoapMessageResponse">
+				<soap:body use="literal"/>
+			</wsdl:output>
+			<wsdl:fault name="SecurityException">
+				<soap:fault name="SecurityException" use="literal"/>
+			</wsdl:fault>
+		</wsdl:operation>
+	</wsdl:binding>
+	<wsdl:service name="SecurityService">
+		<wsdl:port binding="tns:SecurityServiceSoapBinding" name="BankConnect">
+			<soap:address location="http://localhost:8080/bankconnect/services/SecurityService"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>

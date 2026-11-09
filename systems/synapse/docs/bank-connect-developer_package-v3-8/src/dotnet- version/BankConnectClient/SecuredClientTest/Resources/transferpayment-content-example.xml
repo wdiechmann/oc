@@ -1,0 +1,54 @@
+﻿<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<Document xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03 pain.001.001.03.xsd"
+	xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.03">
+	<CstmrCdtTrfInitn>
+		<GrpHdr>
+			<MsgId>7c1d5d06-66ae-446f-8e3d-ceb9748489c7</MsgId>
+			<CreDtTm>2016-10-18T08:44:14.0500376Z</CreDtTm>
+			<NbOfTxs>1</NbOfTxs>
+			<InitgPty>
+				<Id>
+					<OrgId>
+						<Othr>
+							<Id>0010444426001</Id>
+							<SchmeNm>
+								<Cd>CUST</Cd>
+							</SchmeNm>
+						</Othr>
+					</OrgId>
+				</Id>
+			</InitgPty>
+		</GrpHdr>
+		<PmtInf>
+			<PmtInfId>3ff38d05-697a-49a5-80da-b80a667d6054</PmtInfId>
+			<PmtMtd>TRF</PmtMtd>
+			<ReqdExctnDt>2016-10-18</ReqdExctnDt>
+			<Dbtr />
+			<DbtrAcct>
+				<Id>
+					<IBAN>DK2080790000826681</IBAN>
+				</Id>
+				<Ccy>DKK</Ccy>
+			</DbtrAcct>
+			<DbtrAgt>
+				<FinInstnId>
+					<BIC>SYBADK22</BIC>
+				</FinInstnId>
+			</DbtrAgt>
+			<CdtTrfTxInf>
+				<PmtId>
+					<EndToEndId>45a30b4a-d589-4b8f-8cbc-e18af4d83843</EndToEndId>
+				</PmtId>
+				<Amt>
+					<InstdAmt Ccy="DKK">846.96</InstdAmt>
+				</Amt>
+				<CdtrAcct>
+					<Id>
+						<IBAN>DK1880790000826814</IBAN>
+					</Id>
+				</CdtrAcct>
+			</CdtTrfTxInf>
+		</PmtInf>
+	</CstmrCdtTrfInitn>
+</Document>

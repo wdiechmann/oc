@@ -1,0 +1,23 @@
+Dette er kode der har kunnet køre under Java 1.6 samt en C# version.
+
+Det har været for omkostelig at holde denne kode vedlige, men vi har bibeholdt den i udvikler pakken, 
+så man kan se nogle eksempler på hvordan dette kan laves.
+
+Af erfaring ved vi at de største udfordringer er omkring certifikater, AktivateServiceAgreement og 
+RenewCustomerCertificate, vi vil prøve i nærmeste fremtid at lave noget kode, der ikke bruger frameworks så man 
+kan se kode, der evt. kan bruges til andre programmerings sprog end Java og C#
+
+
+
+--------------------------------------------------------------------------------------------------------------
+
+
+
+This is code that has been able to run under Java 1.6 as well as a C # version.
+
+It has been too expensive to keep this code secure, but we have maintained it in developing the package,
+so you can see some examples of how this can be done.
+
+From experience we know that the biggest challenges are about certificates, AktivateServiceAgreement and
+RenewCustomerCertificate, we will try in the near future to make some code that does not use frameworks so you
+can see code that may can be used for programming languages other than Java and C #

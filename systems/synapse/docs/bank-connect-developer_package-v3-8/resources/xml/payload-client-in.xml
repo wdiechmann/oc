@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+	<SOAP-ENV:Header xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+		<wsse:Security xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
+			soap:mustUnderstand="1">
+			<xenc:EncryptedKey xmlns:xenc="http://www.w3.org/2001/04/xmlenc#" Id="EK-F32DA1BBFC2B3D814813948023696726">
+				<xenc:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#rsa-oaep-mgf1p" />
+				<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+					<wsse:SecurityTokenReference>
+						<ds:X509Data>
+							<ds:X509IssuerSerial>
+								<ds:X509IssuerName>CN=BankConnect,OU=BankConnect,O=BankConnect,L=Fredericia,ST=Fredericia,C=DK,1.2.840.113549.1.9.1=#16126264796161674062616e6b646174612e646b
+								</ds:X509IssuerName>
+								<ds:X509SerialNumber>1394197490</ds:X509SerialNumber>
+							</ds:X509IssuerSerial>
+						</ds:X509Data>
+					</wsse:SecurityTokenReference>
+				</ds:KeyInfo>
+				<xenc:CipherData>
+					<xenc:CipherValue>d1eqmgg9kRxDTDmREh+EVskHHl5oqMjNnP8EP57WT4iU2tOt0Xq+YWfdw9ho7ItvCdYVu+Ki8WWBlaysnK8RwDPyfXmHZrGeHbistPlValMoFSscbuLzfF4Atk5MP1IOtf1QDMFQ+dImYFlfPT78sDSaU7EIt/k5VHF6NVpC1HHEIXpRAysO5xO/lJRT297ut2Iq7MqmVOYoTI8AgG/4m2//ztGvWaADnP1WVHMFDSopQ2Aw9z4/fJHlkFGrs6pe9xf/Tm9BI0/LnfAYHX+h3MTD0GBiZfVXosIPtLm1j0RxZl2Ba+53qmzSZpFTdP7K/xvsuz1PCqbx7eHl6R7asg==
+					</xenc:CipherValue>
+				</xenc:CipherData>
+				<xenc:ReferenceList>
+					<xenc:DataReference URI="#ED-F32DA1BBFC2B3D814813948023696737" />
+				</xenc:ReferenceList>
+			</xenc:EncryptedKey>
+			<wsse:BinarySecurityToken EncodingType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"
+				ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3" wsu:Id="X509-F32DA1BBFC2B3D814813948023696541">MIIDtjCCAp6gAwIBAgIEUxnD8jANBgkqhkiG9w0BAQsFADCBnDEhMB8GCSqGSIb3DQEJARYSYmR5YWFnQGJhbmtkYXRhLmRrMQswCQYDVQQGEwJESzETMBEGA1UECAwKRnJlZGVyaWNpYTETMBEGA1UEBwwKRnJlZGVyaWNpYTEUMBIGA1UECgwLQmFua0Nvbm5lY3QxFDASBgNVBAsMC0JhbmtDb25uZWN0MRQwEgYDVQQDDAtCYW5rQ29ubmVjdDAeFw0xNDAzMDcxMzA1NTJaFw0xNTAzMDcxMzA1NTJaMIGcMSEwHwYJKoZIhvcNAQkBFhJiZHlhYWdAYmFua2RhdGEuZGsxCzAJBgNVBAYTAkRLMRMwEQYDVQQIDApGcmVkZXJpY2lhMRMwEQYDVQQHDApGcmVkZXJpY2lhMRQwEgYDVQQKDAtCYW5rQ29ubmVjdDEUMBIGA1UECwwLQmFua0Nvbm5lY3QxFDASBgNVBAMMC0JhbmtDb25uZWN0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmnPx7BVCSbI3rjJupNH0Orzgau2ZOeHIfBGsG8cUOT8gCpPdT/pv5cV+f9azC8KWxYMZ7gqbuR6UhpTPJO53O/xSo5yeG9w4ni1KD/Gvlt9XkrLZutbdQCwTeG8dxS28wADuDEl/z0Io0Tif2fjzFHpkwfKzS5OuQgJO024c1Qvd8CuMDMFn0zSfAt5F4o4nr5OXcrghqX3323fUOoUVaq1Bc2GrIxVvMR5I8fsmB5ABKwB0N11jzq+QAvM3uXPG+2AQWq77lZs471JZwEBkY+vQObwyw7Tgl0e92R/9d2LKmBlEBAyp20dPshRbhw1bU3HdaUpvu5sFbJk56ZgxnwIDAQABMA0GCSqGSIb3DQEBCwUAA4IBAQCTmBH0OK3dISy2KBKMAazcAN4faxkRWp5Ywdlj0AEhigj9dqDL56/fvmwx1fKZa7McDv91Ss4rFu65UulX6pllPceRGosYbHDOdTDH/3hklp9hTgyImD3nQnZ2GmdnAjEV1Z8hm2ed3JjAgzngh8Dg64xasTcAXDwnG+P1hL0P7MPRz9WVmL233CT28Ja/VEYfa7/VtRnckq1+Mo7u0/3HvVG6I5vxDWhwXAMRLLhYnrv3T6X6X3LgBBZLvLE0eSUEoM9ZjfQbn+hHN2kAclYuRt411ifo/pVg1ufxP9kXptTsVBNUqT7LwTMkgZhMtzWiaZroHge/GrPR+BI1P62P
+			</wsse:BinarySecurityToken>
+			<ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#" Id="SIG-F32DA1BBFC2B3D814813948023696565">
+				<ds:SignedInfo>
+					<ds:CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#">
+						<ec:InclusiveNamespaces xmlns:ec="http://www.w3.org/2001/10/xml-exc-c14n#" PrefixList="soap" />
+					</ds:CanonicalizationMethod>
+					<ds:SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1" />
+					<ds:Reference URI="#id-F32DA1BBFC2B3D814813948023696544">
+						<ds:Transforms>
+							<ds:Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#">
+								<ec:InclusiveNamespaces xmlns:ec="http://www.w3.org/2001/10/xml-exc-c14n#" PrefixList="" />
+							</ds:Transform>
+						</ds:Transforms>
+						<ds:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1" />
+						<ds:DigestValue>uZbUSemqwZYwU0mcjntNhIB24Qo=</ds:DigestValue>
+					</ds:Reference>
+				</ds:SignedInfo>
+				<ds:SignatureValue>eg2j78752oNnwABloLI52ERm08XR0e3ad55m8BhSuH+Jj9LuJGfuiQjorEplxpQneSJHPwcG/94cNfrWkaRPFo0HT97qBLq36dhXIxX30oSv3hOECYMr3rsJjGgPPOlwF593dxyhtf1goqRHEkGeXNFQwP6303wDyHz5iHWQpH9L8bt4o/cWXvXdMPhcC7d/c0S+Vfp9LWiK5uCfGvbdi0TGSJtexifChah2H9/xhd0WWiYbZ7pQjNmphXCVds0xeKmYmbsm1foLLlTPtk59SMayXjl+eg80vcov686ByEl4179zd1nuiBmN+iIV43XshArXLOe70OY7i6t7coY+8A==
+				</ds:SignatureValue>
+				<ds:KeyInfo Id="KI-F32DA1BBFC2B3D814813948023696542">
+					<wsse:SecurityTokenReference wsu:Id="STR-F32DA1BBFC2B3D814813948023696543">
+						<wsse:Reference URI="#X509-F32DA1BBFC2B3D814813948023696541" ValueType="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-x509-token-profile-1.0#X509v3" />
+					</wsse:SecurityTokenReference>
+				</ds:KeyInfo>
+			</ds:Signature>
+		</wsse:Security>
+	</SOAP-ENV:Header>
+	<soap:Body xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" wsu:Id="id-F32DA1BBFC2B3D814813948023696544">
+		<xenc:EncryptedData xmlns:xenc="http://www.w3.org/2001/04/xmlenc#" Id="ED-F32DA1BBFC2B3D814813948023696737" Type="http://www.w3.org/2001/04/xmlenc#Content">
+			<xenc:EncryptionMethod Algorithm="http://www.w3.org/2001/04/xmlenc#aes128-cbc" />
+			<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+				<wsse:SecurityTokenReference xmlns:wsse="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
+					xmlns:wsse11="http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd" wsse11:TokenType="http://docs.oasis-open.org/wss/oasis-wss-soap-message-security-1.1#EncryptedKey">
+					<wsse:Reference URI="#EK-F32DA1BBFC2B3D814813948023696726" />
+				</wsse:SecurityTokenReference>
+			</ds:KeyInfo>
+			<xenc:CipherData>
+				<xenc:CipherValue>o7we6O61Zyoh7KAiyXWzsAZ9LPDMiAYVDhPJ5wjtigi+rgDbWxtRWVjc32l2mDmtvvi0hrgHtPJBAivJWoDoSUhKBFO869CCsW7g//To7ikKgQmTGXbWple8FD3XeyxOFhsULD66eiqp4sc0qOzzrVpXQ9oWAKVAl7JCUZmLov0sJiQY2QVukaBgz7dfXj9V5eyF9JTbYT3sfyeM3B7JdHJcWpLuTj3vBh64fy6yPUfjIpnkLIsbXyw0+FKVBBoo1VpTyWPq29jzs7hUI6bM7Ukc3G0piVqaJ5f8JnVnO3/Y4xcPR4gNsDc3+SSpJtLmoKFOYh+xPHfzl5wJK9eRTnnMYvgDGFqynIqFYepLMmyuAHJJ954KwRZ1+G3+j4pV8hkc2lCRAPuW3ZsROqjXFYwkXUpd3V2CEnUvtlWhUYFDEIsMvr5WiNOC7mstYYiRi+iTchR5lTv6W7XlisV4mOvb4/MRKJ9o/rPTRkM3PJxEB4pFJbMUzle0mM9TtOCtGWy91NuAvGXrhBh6N8MjZrE96xsoCbhgJwJJGXiMhXD7ACz1nPvb3OZ/21lr9F0dEZ6xRnUV1PkWgqrc3W7sfEeXGcB5kX56ZBTm/2v018XXH6rMw/zXkVT0ufZxlzkmO7EoTCheCP64ypPKtJi8EKODRNwZOjkOR2xpvNZ/orHH9I3jZxXgj5BCggFDXw3qG9rO4s+UmX9C9sDZp8oVrhAlA8UM0SqUgmFo+x+VZbK0HnQo5/GgGEshAYbC3fKXvc7awr1IjYtM2m5TBMXVvKDzfNhJSFp0j7RqjjyV2NfM+JXSBnnMECWlMVkDYI+F2WE3aoHNWO424EtyqJ1FIYbuyHqunL0Z8o3CPfrqTiErV6pHKAIzlMesct6/+v9k2lXSMp2/n/gkS3SoP9rz23jnn7m4dIkAQFaqLU8ZCj31ekQetNEMo/VdMVJHXedvZfnCTVOGAOTEFdcE1rYQW9gfpn3+lAPraQOceyUff/HlMndSJf8ktCiYaXsUPBYAp9sWcNDf4Y+Kx9l0wBLNk+15VVe5mvmkVHpXpA9OxyoEmVHeYhmvP36sL2UA5ZDOSbtv42NSYRzAG5cMkOP+Acjas7xtvk/giHyF3QUjL0QL0C1gBX4MYtJiVR1oJDO3BEKvQeGPXCPtOd7EcyzbG9Nelt1VK0JDuZUm7jNaZm3vx9fAaBC+ZkGH6+QbZd5ARmTLOLTWz0VfRaMR2TRYOew4g8CWWAgo4KA1LSJNHYTNi+VW+y6yvwqNAlk6YSqrQSKEWyIc2phIFfFQ/Rq3AugvD4My1yzo4abffecb4+vYZaBzzm1OBOjF/fqT0UN5s9wdXnMKhds6eqdGeCfwaIY8y6yrSsfEP3uL40FRxkJZwUMs2KwmkZdBTCB6ORvSQMQ6EmxaBkoOcnld4HNxakMqjT3Q0A3mauqAlEpsVjlJbsIXzkQsbe6K59SvB5GUVsKwzU5TLFO7apbb96avRiLHVRxD2vYqI00hqzLjVDEyb7jwMyePaR9F2uYS6J4JrmU++zVx2sCSX2P4/0lKwhaFTtnE1H/r3d/ai/7jhFZdGLzlmKHjc8lz5oElb0pFD1ZKAM8EUDNECqIaZ0uQ9l0k9A4WTjtSTNFIUZGrcc333bL3TmCbZ51dK3XWfxcH+EWANE1TU/YyE8M3cJole8EZBTii5yCDGP95dahmdL1ITHQxFdPae6cjox0k1VpTXyhvPydDwHVNDFuNikUC75sAt1GScMCPfwVxvDcmzCXC4qPDQbbWoiUChYFk9oadj1HZRF1K05y6aHvBrhYga31Xdn0BMGU1Mum+wBGPCD+c49PhE0k/xKL80GBcJ8qITGxZNB8wKQhV1vPO+KW+vA==
+				</xenc:CipherValue>
+			</xenc:CipherData>
+		</xenc:EncryptedData>
+	</soap:Body>
+</soap:Envelope>

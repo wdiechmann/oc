@@ -1,0 +1,495 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://bankconnect.dk/schema/2014" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="BankConnect" targetNamespace="http://bankconnect.dk/schema/2014">
+	<wsdl:documentation>
+		Please visit our website at www.bankconnect.dk
+	</wsdl:documentation>
+	<wsdl:types>
+		<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:tns="http://bankconnect.dk/schema/2014" xmlns:ns2="http://schemas.xmlsoap.org/soap/encoding/" targetNamespace="http://bankconnect.dk/schema/2014" elementFormDefault="qualified" attributeFormDefault="unqualified">
+			<xs:import namespace="http://www.w3.org/2000/09/xmldsig#" schemaLocation="xsd/xmldsig-core-schema.xsd"/>
+			<xs:element name="activateServiceAgreement" type="tns:activateServiceAgreement"/>
+			<xs:element name="activateServiceAgreementResponse" type="tns:activateServiceAgreementResponse"/>
+			<xs:element name="getAlternate" type="tns:getAlternate"/>
+			<xs:element name="getAlternateResponse" type="tns:getAlternateResponse"/>
+			<xs:element name="getBankCertificate" type="tns:getBankCertificate"/>
+			<xs:element name="getBankCertificateResponse" type="tns:getBankCertificateResponse"/>
+			<xs:element name="getCustomerStatement" type="tns:getCustomerStatement"/>
+			<xs:element name="getCustomerStatementResponse" type="tns:getCustomerStatementResponse"/>
+			<xs:element name="getDebitCreditNotification" type="tns:getDebitCreditNotification"/>
+			<xs:element name="getDebitCreditNotificationResponse" type="tns:getDebitCreditNotificationResponse"/>
+			<xs:element name="getCustomerAccountReport" type="tns:getCustomerAccountReport"/>
+			<xs:element name="getCustomerAccountReportResponse" type="tns:getCustomerAccountReportResponse"/>
+			<xs:element name="getStatus" type="tns:getStatus"/>
+			<xs:element name="getStatusResponse" type="tns:getStatusResponse"/>
+			<xs:element name="renewCustomerCertificate" type="tns:renewCustomerCertificate"/>
+			<xs:element name="renewCustomerCertificateResponse" type="tns:renewCustomerCertificateResponse"/>
+			<xs:element name="transferPayment" type="tns:transferPayment"/>
+			<xs:element name="transferPaymentResponse" type="tns:transferPaymentResponse"/>
+
+			<xs:complexType name="getBankCertificate">
+				<xs:sequence/>
+			</xs:complexType>
+			<xs:complexType name="getBankCertificateResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="1"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="activateServiceAgreement">
+				<xs:sequence>
+					<xs:element name="activationAgreement" type="tns:activationAgreement" minOccurs="1"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="activationAgreement">
+				<xs:sequence>
+					<xs:element name="activationCode" type="xs:base64Binary" minOccurs="1"/>
+					<xs:element name="certificateRequest" type="xs:base64Binary" minOccurs="1"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="activateServiceAgreementResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="1"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="renewCustomerCertificate">
+				<xs:sequence>
+					<xs:element name="certificateRequestMessage" type="tns:certificateRequestMessage" minOccurs="1"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="certificateRequestMessage">
+				<xs:sequence>
+					<xs:element name="certificateRequest" type="xs:base64Binary" minOccurs="1"/>
+				</xs:sequence>
+				<xs:attribute name="id" type="xs:ID" use="optional"/>
+			</xs:complexType>
+
+			<xs:complexType name="renewCustomerCertificateResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="1"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="transferPayment">
+				<xs:sequence>
+					<xs:element name="paymentMessage" type="tns:paymentMessage"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="paymentMessage">
+				<xs:sequence>
+					<xs:element name="format" type="xs:string" minOccurs="1"/>
+					<xs:element name="mimeType" type="xs:string" minOccurs="1"/>
+					<xs:element name="compressed" type="xs:integer" minOccurs="1"/>
+					<xs:element name="content" type="xs:base64Binary" minOccurs="1"/>
+				</xs:sequence>
+				<xs:attribute name="id" type="xs:ID" use="optional"/>
+			</xs:complexType>
+			<xs:complexType name="transferPaymentResponse">
+				<xs:sequence>
+					<xs:element name="paymentResponse" type="tns:paymentResponse" minOccurs="1"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="paymentResponse">
+				<xs:sequence>
+					<xs:element name="responseCode" type="xs:string" minOccurs="1"/>
+					<xs:element name="sender" type="xs:string" minOccurs="1"/>
+					<xs:element name="endToEndMessageId" type="xs:string" minOccurs="1"/>
+					<xs:element name="correlationId" type="xs:string" minOccurs="1"/>
+					<xs:element name="message" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+
+			<xs:complexType name="getStatus">
+				<xs:sequence>
+					<xs:element name="reorderEndToEndMessageId" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getStatusResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+
+			<xs:complexType name="getCustomerStatement">
+				<xs:sequence>
+					<xs:element name="reorderEndToEndMessageId" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCustomerStatementResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getDebitCreditNotification">
+				<xs:sequence>
+					<xs:element name="reorderEndToEndMessageId" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getDebitCreditNotificationResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCustomerAccountReport">
+				<xs:sequence>
+					<xs:element name="reorderEndToEndMessageId" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getCustomerAccountReportResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="getAlternate">
+				<xs:sequence/>
+			</xs:complexType>
+			<xs:complexType name="getAlternateResponse">
+				<xs:sequence>
+					<xs:element name="corporateMessage" type="tns:corporateMessage" minOccurs="0"/>
+					<xs:element minOccurs="0" ref="ds:Signature"/>
+				</xs:sequence>
+			</xs:complexType>
+
+			<xs:complexType name="ActivationHeader">
+				<xs:sequence>
+					<xs:element name="organisationIdentification" type="tns:organisationIdentification"/>
+					<xs:element name="functionIdentification" type="xs:string" minOccurs="1"/>
+					<xs:element name="erpInformation" type="tns:erpInformation"/>
+					<xs:element name="endToEndMessageId" type="xs:string" minOccurs="1"/>
+					<xs:element name="createDateTime" type="xs:dateTime" minOccurs="1"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="ServiceHeader">
+				<xs:sequence>
+					<xs:element name="organisationIdentification" type="tns:organisationIdentification" minOccurs="1"/>
+					<xs:element name="functionIdentification" type="xs:string" minOccurs="1"/>
+					<xs:element name="erpInformation" type="tns:erpInformation"/>
+					<xs:element name="format" type="xs:string" minOccurs="1"/>
+					<xs:element name="endToEndMessageId" type="xs:string" minOccurs="1"/>
+					<xs:element name="createDateTime" type="xs:dateTime" minOccurs="1"/>
+				</xs:sequence>
+				<xs:anyAttribute processContents="lax" namespace="##other"/>
+			</xs:complexType>
+
+			<xs:complexType name="technicalAddress">
+				<xs:sequence>
+					<xs:element name="ipAddress" type="xs:string" minOccurs="0"/>
+					<xs:element name="ipPort" type="xs:string" minOccurs="0"/>
+					<xs:element name="appliedTime" type="xs:dateTime" minOccurs="0"/>
+					<xs:element name="duration" type="tns:duration" minOccurs="0" maxOccurs="unbounded"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="organisationIdentification">
+				<xs:sequence>
+					<xs:element name="mainRegistrationNumber" type="xs:string" minOccurs="1"/>
+					<xs:element name="isoCountryCode" type="xs:string" minOccurs="1"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="duration">
+				<xs:sequence>
+					<xs:element name="time" type="xs:long" minOccurs="0"/>
+					<xs:element name="point" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:complexType name="erpInformation">
+				<xs:sequence>
+					<xs:element name="erpsystem" type="xs:string" minOccurs="0"/>
+					<xs:element name="erpversion" type="xs:string" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+
+			<xs:complexType name="corporateMessage">
+				<xs:sequence>
+					<xs:element name="format" type="xs:string" minOccurs="1"/>
+					<xs:element name="mimeType" type="xs:string" minOccurs="1"/>
+					<xs:element name="severalMessages" type="xs:boolean" minOccurs="1"/>
+					<xs:element name="sender" type="xs:string" minOccurs="0"/>
+					<xs:element name="version" type="xs:string" minOccurs="0"/>
+					<xs:element name="messageDate" type="xs:dateTime" minOccurs="0"/>
+					<xs:element name="description" type="xs:string" minOccurs="0"/>
+					<xs:element name="endToEndMessageId" type="xs:string" minOccurs="1"/>
+					<xs:element name="compressed" type="xs:integer" minOccurs="1"/>
+					<xs:element name="content" type="xs:base64Binary" minOccurs="0"/>
+				</xs:sequence>
+				<xs:attribute name="id" type="xs:ID" use="optional"/>
+			</xs:complexType>
+
+			<xs:complexType name="corporateDuration">
+				<xs:sequence>
+					<xs:element name="description" type="xs:string" minOccurs="0"/>
+					<xs:element name="time" type="xs:long" minOccurs="0"/>
+				</xs:sequence>
+			</xs:complexType>
+			<xs:element name="technicalAddress" type="tns:technicalAddress"/>
+			<xs:element name="activationHeader" type="tns:ActivationHeader"/>
+			<xs:element name="serviceHeader" type="tns:ServiceHeader"/>
+		</xs:schema>
+	</wsdl:types>
+	<wsdl:message name="getBankCertificate">
+		<wsdl:part name="parameters" element="tns:getBankCertificate"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="activationHeader" element="tns:activationHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getBankCertificateResponse">
+		<wsdl:part name="parameters" element="tns:getBankCertificateResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="activationHeader" element="tns:activationHeader"/>
+	</wsdl:message>
+	<wsdl:message name="activateServiceAgreement">
+		<wsdl:part name="parameters" element="tns:activateServiceAgreement"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="activationHeader" element="tns:activationHeader"/>
+	</wsdl:message>
+	<wsdl:message name="activateServiceAgreementResponse">
+		<wsdl:part name="parameters" element="tns:activateServiceAgreementResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="activationHeader" element="tns:activationHeader"/>
+	</wsdl:message>
+	<wsdl:message name="renewCustomerCertificate">
+		<wsdl:part name="parameters" element="tns:renewCustomerCertificate"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="renewCustomerCertificateResponse">
+		<wsdl:part name="parameters" element="tns:renewCustomerCertificateResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="transferPayment">
+		<wsdl:part name="parameters" element="tns:transferPayment"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="transferPaymentResponse">
+		<wsdl:part name="parameters" element="tns:transferPaymentResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getStatus">
+		<wsdl:part name="parameters" element="tns:getStatus"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getStatusResponse">
+		<wsdl:part name="parameters" element="tns:getStatusResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getCustomerStatement">
+		<wsdl:part name="parameters" element="tns:getCustomerStatement"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getCustomerStatementResponse">
+		<wsdl:part name="parameters" element="tns:getCustomerStatementResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getDebitCreditNotification">
+		<wsdl:part name="parameters" element="tns:getDebitCreditNotification"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getDebitCreditNotificationResponse">
+		<wsdl:part name="parameters" element="tns:getDebitCreditNotificationResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getCustomerAccountReport">
+		<wsdl:part name="parameters" element="tns:getCustomerAccountReport"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getCustomerAccountReportResponse">
+		<wsdl:part name="parameters" element="tns:getCustomerAccountReportResponse"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+	</wsdl:message>
+	<wsdl:message name="getAlternate">
+		<wsdl:part name="parameters" element="tns:getAlternate"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:message name="getAlternateResponse">
+		<wsdl:part name="parameters" element="tns:getAlternateResponse"/>
+		<wsdl:part name="technicalAddress" element="tns:technicalAddress"/>
+		<wsdl:part name="serviceHeader" element="tns:serviceHeader"/>
+	</wsdl:message>
+	<wsdl:portType name="CorporateService">
+		<wsdl:operation name="getBankCertificate">
+			<wsdl:input name="getBankCertificate" message="tns:getBankCertificate"/>
+			<wsdl:output name="getBankCertificateResponse" message="tns:getBankCertificateResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="activateServiceAgreement">
+			<wsdl:input name="activateServiceAgreement" message="tns:activateServiceAgreement"/>
+			<wsdl:output name="activateServiceAgreementResponse" message="tns:activateServiceAgreementResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="renewCustomerCertificate">
+			<wsdl:input name="renewCustomerCertificate" message="tns:renewCustomerCertificate"/>
+			<wsdl:output name="renewCustomerCertificateResponse" message="tns:renewCustomerCertificateResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="transferPayments">
+			<wsdl:input name="transferPayment" message="tns:transferPayment"/>
+			<wsdl:output name="transferPaymentsResponse" message="tns:transferPaymentResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getStatus">
+			<wsdl:input name="getStatus" message="tns:getStatus"/>
+			<wsdl:output name="getStatusResponse" message="tns:getStatusResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getCustomerStatement">
+			<wsdl:input name="getCustomerStatement" message="tns:getCustomerStatement"/>
+			<wsdl:output name="getCustomerStatementResponse" message="tns:getCustomerStatementResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getDebitCreditNotification">
+			<wsdl:input name="getDebitCreditNotification" message="tns:getDebitCreditNotification"/>
+			<wsdl:output name="getDebitCreditNotificationResponse" message="tns:getDebitCreditNotificationResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getCustomerAccountReport">
+			<wsdl:input name="getCustomerAccountReport" message="tns:getCustomerAccountReport"/>
+			<wsdl:output name="getCustomerAccountReportResponse" message="tns:getCustomerAccountReportResponse"/>
+		</wsdl:operation>
+		<wsdl:operation name="getAlternate">
+			<wsdl:input name="getAlternate" message="tns:getAlternate"/>
+			<wsdl:output name="getAlternateResponse" message="tns:getAlternateResponse"/>
+		</wsdl:operation>
+	</wsdl:portType>
+
+	<wsdl:binding name="BankConnectSoapBinding" type="tns:CorporateService">
+		<soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+
+		<wsdl:operation name="getBankCertificate">
+			<soap:operation soapAction="urn:CorporateService:getBankCertificate" style="document"/>
+			<wsdl:input name="getBankCertificate">
+				<soap:header message="tns:getBankCertificate" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getBankCertificate" part="activationHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getBankCertificateResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header use="literal" part="technicalAddress" message="tns:getBankCertificateResponse"/>
+				<soap:header use="literal" part="activationHeader" message="tns:getBankCertificateResponse"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="activateServiceAgreement">
+			<soap:operation soapAction="urn:CorporateService:activateServiceAgreement" style="document"/>
+			<wsdl:input name="activateServiceAgreement">
+				<soap:header message="tns:activateServiceAgreement" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:activateServiceAgreement" part="activationHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="activateServiceAgreementResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:activateServiceAgreementResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:activateServiceAgreementResponse" part="activationHeader" use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+
+		<wsdl:operation name="renewCustomerCertificate">
+			<soap:operation soapAction="urn:CorporateService:renewCustomerCertificate" style="document"/>
+			<wsdl:input name="renewCustomerCertificate">
+				<soap:header message="tns:renewCustomerCertificate" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:renewCustomerCertificate" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="renewCustomerCertificateResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:renewCustomerCertificateResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:renewCustomerCertificateResponse" part="serviceHeader" use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="transferPayments">
+			<soap:operation soapAction="urn:CorporateService:transferPayment" style="document"/>
+			<wsdl:input name="transferPayment">
+				<soap:header message="tns:transferPayment" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:transferPayment" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="transferPaymentsResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:transferPaymentResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:transferPaymentResponse" part="serviceHeader" use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+
+		<wsdl:operation name="getCustomerStatement">
+			<soap:operation soapAction="urn:CorporateService:getCustomerStatement" style="document"/>
+			<wsdl:input name="getCustomerStatement">
+				<soap:header message="tns:getCustomerStatement" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getCustomerStatement" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCustomerStatementResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:getCustomerStatementResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getCustomerStatementResponse" part="serviceHeader" use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getDebitCreditNotification">
+			<soap:operation soapAction="urn:CorporateService:getDebitCreditNotification" style="document"/>
+			<wsdl:input name="getDebitCreditNotification">
+				<soap:header message="tns:getDebitCreditNotification" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getDebitCreditNotification" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getDebitCreditNotificationResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:getDebitCreditNotificationResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getDebitCreditNotificationResponse" part="serviceHeader" use="literal"/>
+			</wsdl:output>
+
+		</wsdl:operation>
+		<wsdl:operation name="getStatus">
+			<soap:operation soapAction="urn:CorporateService:getStatus" style="document"/>
+			<wsdl:input name="getStatus">
+				<soap:header message="tns:getStatus" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getStatus" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getStatusResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header use="literal" part="technicalAddress" message="tns:getStatusResponse"/>
+				<soap:header use="literal" part="serviceHeader" message="tns:getStatusResponse"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getCustomerAccountReport">
+			<soap:operation soapAction="urn:CorporateService:getCustomerAccountReport" style="document"/>
+			<wsdl:input name="getCustomerAccountReport">
+				<soap:header message="tns:getCustomerAccountReport" part="technicalAddress" use="literal"/>
+
+				<soap:header message="tns:getCustomerAccountReport" part="serviceHeader" use="literal"/>
+
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getCustomerAccountReportResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header use="literal" part="technicalAddress" message="tns:getCustomerAccountReportResponse"/>
+				<soap:header use="literal" part="serviceHeader" message="tns:getCustomerAccountReportResponse"/>
+			</wsdl:output>
+		</wsdl:operation>
+		<wsdl:operation name="getAlternate">
+			<soap:operation soapAction="urn:CorporateService:getAlternate" style="document"/>
+			<wsdl:input name="getAlternate">
+				<soap:header message="tns:getAlternate" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getAlternate" part="serviceHeader" use="literal"/>
+				<soap:body parts="parameters" use="literal"/>
+			</wsdl:input>
+			<wsdl:output name="getAlternateResponse">
+				<soap:body use="literal" parts="parameters"/>
+				<soap:header message="tns:getAlternateResponse" part="technicalAddress" use="literal"/>
+				<soap:header message="tns:getAlternateResponse" part="serviceHeader" use="literal"/>
+			</wsdl:output>
+		</wsdl:operation>
+	</wsdl:binding>
+
+	<wsdl:service name="BankConnectService">
+		<wsdl:port name="CorporateServicePort" binding="tns:BankConnectSoapBinding">
+			<soap:address location="http://localhost:8080/bankconnect/services/CorporateService"/>
+		</wsdl:port>
+	</wsdl:service>
+</wsdl:definitions>
