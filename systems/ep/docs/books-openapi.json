@@ -150,7 +150,7 @@
             }
           }
         ],
-        "description": "Current tenant-admin authority for draft metadata only. See books-api.md for exact response fields, pending views, immutable setup fields and revision semantics.",
+        "description": "Current tenant administrators and explicitly assigned book stewards may read this book detail. permissions.revise is true only for tenant administrators; listing and metadata mutations remain tenant-admin only. See books-api.md for pending projections and exact fields.",
         "responses": {
           "200": {
             "description": "Authorized result or explicit pending query status; Cache-Control: no-store",

@@ -56,6 +56,19 @@ class SignInTest < ActionDispatch::IntegrationTest
     assert_equal "no-store", response.headers["Cache-Control"]
   end
 
+  test "workspace has separate Tenant and Occasion columns with direct book links" do
+    sign_in
+    tid, bid, oid = SecureRandom.uuid, SecureRandom.uuid, SecureRandom.uuid
+    payload = { tenants: [ { tenant_id: tid, name: "My tenant" } ], occasions: [ { tenant_id: tid, occasion_id: oid, tenant_name: "My tenant", name: "Summer camp", book_id: bid, book_name: "Camp book" } ], finance_books: [ { tenant_id: tid, tenant_name: "My tenant", book_id: bid, name: "Camp book" } ] }
+    stub_request(:get, "#{EP}/me/workspaces").to_return(status: 200, body: payload.to_json)
+    get "/"
+    assert_select "#workspace-tenants-title", text: "Tenant"
+    assert_select "#workspace-occasions-title", text: "Occasion"
+    assert_select "section[aria-labelledby=workspace-occasions-title] a[href='/tenants/#{tid}/books/#{bid}']", text: "Open book · Camp book"
+    assert_select "a[href$='/setup']", count: 0
+    assert_select "section[aria-labelledby=workspace-tenants-title] article", count: 1
+  end
+
   test "logout revokes this EP session and removes local access" do
     sign_in
     revoked = stub_request(:delete, "#{EP}/auth/session").with(headers: { "Authorization"=>"Bearer private-session" }).to_return(status: 200, body: { status: "signed_out" }.to_json)

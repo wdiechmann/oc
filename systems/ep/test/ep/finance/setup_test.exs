@@ -177,6 +177,40 @@ defmodule Ep.Finance.SetupTest do
 
     p = %{"occasion_id" => occasion["occasion_id"], "active" => true, "expected_version" => 1}
     assert {:ok, _} = cmd(c, c.steward, "binding", p, "bind")
+    {:ok, _} = Ep.Finance.BookProjector.deliver(c.tid)
+    {:ok, _} = Ep.Projections.OccasionDirectoryProjector.deliver(c.tid)
+    {:ok, _} = Ep.Projections.TenantDirectoryProjector.deliver(c.tid)
+    oid = occasion["occasion_id"]
+    bid = c.bid
+
+    assert {:ok, %{occasions: [%{occasion_id: ^oid, book_id: ^bid}]}} =
+             Ep.Workspaces.list(c.steward)
+
+    assert {:ok, %{occasions: [%{occasion_id: ^oid, book_id: ^bid}]}} =
+             Ep.Workspaces.list(c.owner)
+
+    assert {:ok, %{permissions: %{revise: false}}} = Books.get(c.steward, c.tid, c.bid)
+
+    assert {:error, :not_found} =
+             Books.revise(
+               c.steward,
+               c.tid,
+               c.bid,
+               %{"name" => "Not allowed", "expected_version" => 1},
+               "no-metadata-grant"
+             )
+
+    viewer = sign_in().principal
+
+    Repo.insert!(%Ep.Occasions.Admin{
+      tenant_id: c.tid,
+      occasion_id: oid,
+      identity_id: viewer.identity_id
+    })
+
+    assert {:ok, %{occasions: [unprivileged]}} = Ep.Workspaces.list(viewer)
+    refute Map.has_key?(unprivileged, :book_id)
+    assert {:error, :not_found} = Books.get(viewer, c.tid, c.bid)
 
     assert {:error, :binding_taken} =
              Setup.command(c.steward, c.tid, c.other, "binding", p, "taken")

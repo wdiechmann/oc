@@ -167,3 +167,5 @@ The enclosure shared dialog must preview PDF, PNG and JPEG documents during stag
 Visible enclosure previews should scan locally for supplier, invoice/date/due-date, CVR/VAT number, currency, net, VAT and total suggestions. Show source evidence and ambiguity without changing journal values. Scanning must run on production Linux using packaged tools, preserve current document authority and remain bounded and optional to attachment completion.
 
 2026-11-06: Enclosure preview spans the full width above suggested document values. A bounded single-column grid allocates vertical space in a 3:1 preview/values ratio; suggestions scroll within their own panel, including while scanning. The layout applies to staged and saved documents on desktop and mobile.
+
+The signed-in root view must group tenant and occasion cards in separate columns headed Tenant and Occasion. Occasion links open their current accessible bound book detail, not configuration. Keep unlinked/inaccessible occasions clearly labelled, and retain access to steward books grouped under their tenant.

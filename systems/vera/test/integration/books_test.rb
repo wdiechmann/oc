@@ -16,7 +16,7 @@ class BooksTest < ActionDispatch::IntegrationTest
   end
   def views
     stub_request(:get, "#{EP}/tenants/#{TID}/finance/books").to_return(status: 200, body: { tenant_id: TID, tenant_name: "Spejdernes Lejr", status: "ready", books: [ book ], source_version: 1, latest_version: 1 }.to_json)
-    stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, status: "ready", book: book, expected_version: 1 }.to_json)
+    stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, status: "ready", book: book, expected_version: 1, permissions: { revise: true } }.to_json)
   end
   test "list and create a book through EP with an idempotency key" do
     views
@@ -74,6 +74,18 @@ class BooksTest < ActionDispatch::IntegrationTest
     assert_response :not_found
     assert_select "turbo-stream[target=vera-book-content]"
     assert_not_includes response.body, "Private draft"
+  end
+
+  test "a book steward can open a read-only book without tenant-wide book listing" do
+    views
+    stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, book_id: BID, status: "ready", book: book, permissions: { revise: false } }.to_json)
+    get "/tenants/#{TID}/books/#{BID}"
+    assert_response :success
+    assert_select "h1", text: "SL2030"
+    assert_select "#book-header-actions button[disabled]", text: "Edit name and hierarchy"
+    assert_not_requested :get, "#{EP}/tenants/#{TID}/finance/books"
+    get "/tenants/#{TID}/books/#{BID}/edit_dialog", headers: STREAM
+    assert_response :not_found
   end
 
   test "a pending projection shows its state and does not enable stale editing" do

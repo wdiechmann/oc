@@ -73,6 +73,60 @@ defmodule Ep.Workspaces do
             }
         )
 
+      tenant_ids = Enum.map(tenants, & &1.tenant_id)
+      book_ids = Enum.map(finance_books, & &1.book_id)
+
+      linked =
+        Repo.all(
+          from b in Ep.Finance.Binding,
+            join: o in Ep.Occasions.Occasion,
+            on: o.id == b.occasion_id and o.tenant_id == b.tenant_id,
+            join: d in Ep.Occasions.Directory,
+            on: d.occasion_id == o.id and d.tenant_id == b.tenant_id,
+            join: t in Ep.Tenancy.Tenant,
+            on: t.id == b.tenant_id,
+            join: v in Ep.Finance.BookView,
+            on: v.book_id == b.book_id and v.tenant_id == b.tenant_id,
+            join: bc in Ep.Projections.Control,
+            on: bc.tenant_id == b.tenant_id and bc.name == "finance_books",
+            join: sc in Ep.Projections.Control,
+            on: sc.tenant_id == b.tenant_id and sc.name == "finance_setup",
+            join: oc in Ep.Projections.Control,
+            on: oc.tenant_id == b.tenant_id and oc.name == "occasion_directory",
+            where:
+              (b.tenant_id in ^tenant_ids or b.book_id in ^book_ids) and t.status == "active" and
+                o.status in ["draft", "active"] and bc.state == "running" and
+                sc.state == "running" and oc.state == "running",
+            select: %{
+              tenant_id: b.tenant_id,
+              occasion_id: o.id,
+              name: d.name,
+              tenant_name: t.name,
+              book_id: b.book_id,
+              book_name: fragment("?->>'name'", v.data)
+            }
+        )
+
+      by_occasion = Map.new(linked, &{&1.occasion_id, &1})
+
+      occasions =
+        Enum.map(occasions, fn occasion ->
+          Map.merge(
+            occasion,
+            Map.take(by_occasion[occasion.occasion_id] || %{}, [:book_id, :book_name])
+          )
+        end)
+
+      known = MapSet.new(occasions, & &1.occasion_id)
+
+      occasions =
+        (occasions ++
+           Enum.map(
+             Enum.reject(linked, &MapSet.member?(known, &1.occasion_id)),
+             &Map.put(&1, :role, "linked_occasion")
+           ))
+        |> Enum.sort_by(&{&1.name, &1.occasion_id})
+
       %{tenants: tenants, occasions: occasions, finance_books: finance_books}
     end)
   end

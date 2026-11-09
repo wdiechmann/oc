@@ -113,3 +113,5 @@ Completed: PDF/image enclosure previews in attachment review and saved document 
 Completed: portable local PDF-text extraction and image/scanned-PDF OCR in enclosure preview, with read-only labelled suggestions and source text. Added a production Linux image with Danish/English Tesseract, Poppler, nonroot runtime and Linux gem platforms. Applying verified suggestions to a journal remains a later explicit action.
 
 2026-11-06: Enclosure preview spans the full width above suggested document values. A bounded single-column grid allocates vertical space in a 3:1 preview/values ratio; suggestions scroll within their own panel, including while scanning. The layout applies to staged and saved documents on desktop and mobile.
+
+Completed: labelled Tenant/Occasion workspace columns and direct linked-book navigation. Current book stewards can read their book detail without tenant-wide list/edit authority.

@@ -11,12 +11,13 @@ class BooksController < ApplicationController
   end
   def show
     detail = ep.book(params[:tenant_id], params[:id])
-    data = ep.books(params[:tenant_id])
+    data = { "tenant_id"=>detail.fetch("tenant_id") }
     prepare_key
     page Views::Books::Show, data: data, detail: detail, key: session[:book_form_key]
   end
   def edit_dialog
     detail = ep.book(params[:tenant_id], params[:id])
+    raise Ep::Client::Error.new(404, code: "not_found") unless detail.dig("permissions", "revise")
     data = ep.books(params[:tenant_id])
     if detail["status"] != "ready" || !detail["book"] || session[:book_operation]
       content = Components::SharedDialogFeedback.new(message: "Refresh the book after its view catches up and resolve any pending save before editing.", check_url: session[:book_operation] && completion_tenant_books_path(params[:tenant_id]))

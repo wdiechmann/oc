@@ -11,12 +11,16 @@ class Views::Books::Show < Views::Base
       header(class: "flex items-center justify-between gap-4") do
         h1(class: "min-w-0 text-3xl font-semibold") { book ? book.fetch("name") : "Book setup accepted" }
         render Components::ContextMenu.new(id: "book-header-actions", label: "Book actions") do
-          if @detail["status"] == "ready" && book
+          if @detail["status"] == "ready" && book && @detail.dig("permissions", "revise")
             a(href: edit_dialog_tenant_book_path(tid, bid), role: "menuitem", data: { turbo_stream: true }, class: "vera-menu-item") { "Edit name and hierarchy" }
           else
             button(type: "button", role: "menuitem", disabled: true, class: "vera-menu-item") { "Edit name and hierarchy" }
           end
-          a(href: tenant_books_path(tid), role: "menuitem", class: "vera-menu-item") { "Back to books" }
+          if @detail.dig("permissions", "revise")
+            a(href: tenant_books_path(tid), role: "menuitem", class: "vera-menu-item") { "Back to books" }
+          else
+            a(href: root_path, role: "menuitem", class: "vera-menu-item") { "Your workspaces" }
+          end
           a(href: tenant_book_setup_path(tid, bid), role: "menuitem", class: "vera-menu-item") { "Roles and occasions" }
           a(href: tenant_book_chart_path(tid, bid), role: "menuitem", class: "vera-menu-item") { "Chart of accounts" }
           a(href: tenant_book_periods_path(tid, bid), role: "menuitem", class: "vera-menu-item") { "Accounting periods" }

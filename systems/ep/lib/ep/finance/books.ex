@@ -108,7 +108,8 @@ defmodule Ep.Finance.Books do
   def get(principal, tid, id) do
     with {:ok, tid} <- uuid(tid), {:ok, id} <- uuid(id) do
       Repo.transaction(fn ->
-        tenant = authorize!(principal, tid)
+        {_book, admin, _steward} = Ep.Finance.Setup.authorize!(principal, tid, id)
+        tenant = Repo.get!(Ep.Tenancy.Tenant, tid)
         running!(tid)
         current = Repo.get_by(Book, tenant_id: tid, id: id) || Repo.rollback(:not_found)
         row = Repo.get_by(BookView, tenant_id: tid, book_id: id)
@@ -119,7 +120,8 @@ defmodule Ep.Finance.Books do
           tenant_name: tenant.name,
           status: if(row && row.source_version == current.version, do: "ready", else: "pending"),
           book: row && present(row),
-          expected_version: current.version
+          expected_version: current.version,
+          permissions: %{revise: admin}
         }
       end)
     end
