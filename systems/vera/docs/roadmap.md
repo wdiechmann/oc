@@ -126,3 +126,6 @@ Completed: attachment-driven draft suggestions with persistent EP learning suppo
 ## Definition-based YTD balances — 2026-11-09
 
 Delivered definition-based YTD balances: selected cutoff, book fiscal-year start, opening/movement/closing columns, underlying account closing balances and saved revision coverage. Comparative periods, exports and a dedicated ledger balance projection remain future work.
+
+
+YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.

@@ -200,3 +200,6 @@ The scan frame stores ready staged extraction through EP and renders a small ext
 ## Definition-based YTD balances — 2026-11-09
 
 GET reports with ytd=1, report_id, version and as_of delegates to EP Reports.ytd. EP reauthorizes book access and checks setup readiness/version under the setup lock, reads tenant/book-scoped immutable JournalPosted payloads in one query and sums post_minor by account and posting date. Earlier facts form opening; fiscal-year facts through the inclusive cutoff form movement. Existing exact definition evaluation applies independently to opening, movement and closing; no commands or ledger writes occur. This first implementation reads facts on demand rather than maintaining a second ledger.
+
+
+YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.

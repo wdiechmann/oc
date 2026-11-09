@@ -194,3 +194,6 @@ After scanning completes, Attach enclosure carries the extracted information to 
 ## Definition-based YTD balances — 2026-11-09
 
 Report definitions now offer “YTD balances” on each saved definition, and “Run YTD report” on the selected revision. Choose a through date; the report shows Code, Name, Opening, YTD and Closing in book currency. Debit balances are positive and credits negative before configured mapping signs. Expand underlying account closing balances; coverage warnings remain visible. No footer grand total is added because definition totals and overlapping mappings could double count.
+
+
+YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.

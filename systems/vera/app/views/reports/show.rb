@@ -21,6 +21,7 @@ class Views::Reports::Show < Views::Base
         a(href: @check, class: BUTTON) { "Check completion" }
         form_with(url: @retry, method: :post) { |f| f.submit("Retry original request", class: BUTTON) } if @retry
       end
+      ytd_launcher unless @data["selected"] || @review || @editing
       @data.fetch("reports").each do |report|
         div(class: "mt-4 rounded-lg border border-stone-200 bg-white p-4") do
           a(href: url(report_id: report["id"]), class: "font-medium text-teal-900 underline") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
@@ -48,6 +49,26 @@ class Views::Reports::Show < Views::Base
       a(href: url(new: "1"), class: "mt-6 block text-sm text-teal-900 underline") { "New report" } if @data["selected"] && @editable
     end
   end
+  def ytd_launcher
+    section(class: "mt-6 rounded-xl border border-stone-200 bg-white p-4", aria: { label: "YTD balances" }) do
+      h2(class: "text-xl font-semibold") { "YTD balances" }
+      reports = @data.fetch("reports")
+      if reports.empty?
+        p(class: "mt-2 text-sm text-stone-600") { "Create and accept a report definition below first. YTD balances use its account mappings and formulas to show opening balances, year-to-date movement and closing balances from posted journals." }
+      else
+        form_with(url: url, method: :get, data: { turbo: false }, class: "mt-3 flex flex-wrap items-end gap-3") do |f|
+          f.hidden_field(:ytd, value: "1")
+          div do
+            f.label(:report_id, "Report definition")
+            f.select(:report_id, reports.map { |report| [ "#{report['name']}#{report['active'] ? '' : ' · Inactive'}", report["id"] ] }, {}, class: FIELD)
+          end
+          div { f.label(:as_of, "Through date"); f.date_field(:as_of, value: Date.current, required: true, class: FIELD) }
+          f.submit("Run YTD report", class: BUTTON, disabled: @data["status"] != "ready" || !!@check)
+        end
+      end
+    end
+  end
+
   def line_summary(lines, accounts)
     lookup = accounts.index_by { |a| a["id"] }
     lines.each do |line|

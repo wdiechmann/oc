@@ -280,3 +280,6 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 ## Definition-based YTD balances — 2026-11-09
 
 Added YTD balances to saved report definitions. Fiscal-year start is book-specific; cutoff is inclusive by posting date. Display includes opening/YTD/closing, saved coverage warnings and account closing detail, with definition signs and formulas preserved. Verified EP precommit (213 tests), Rails (127 tests/1255 assertions), RuboCop, Zeitwerk and Playwright at 1280px/390px, including changing the cutoff without horizontal page overflow.
+
+
+YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.

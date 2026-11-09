@@ -46,6 +46,20 @@ class ReportsTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "2 posted journals"
   end
 
+  test "YTD is discoverable without first opening a definition and explains empty setup" do
+    get path
+    assert_response :success
+    assert_select "section[aria-label='YTD balances']", text: /Create and accept a report definition below first/
+    stub_request(:get, api).to_return(status: 200, body: data.merge(reports: [ report ]).to_json)
+    get path
+    assert_select "section[aria-label='YTD balances']" do
+      assert_select "form[method=get]"
+      assert_select "select[name=report_id] option[value='#{RID}']", text: "Balance"
+      assert_select "input[name=ytd][value='1']"
+      assert_select "input[type=submit][value='Run YTD report']"
+    end
+  end
+
   test "report changes are reviewed before a signed small-pointer acceptance" do
     get path
     assert_response :success

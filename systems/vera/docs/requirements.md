@@ -180,3 +180,6 @@ When a staged enclosure has extracted text, pass its scoped extraction ID into a
 ## Definition-based YTD balances — 2026-11-09
 
 Report definitions must run fiscal year-to-date account balances through a selected posting date, using only authoritative posted journals. Show opening, YTD movement and closing amounts with the saved revision’s mappings, signs and formulas; never include drafts or infer balances for external-authority books.
+
+
+YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.
