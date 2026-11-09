@@ -4,7 +4,7 @@ class Views::Books::Show < Views::Base
     @data, @detail, @key = data, detail, key
   end
   def view_template
-    div(id: "vera-book-content", class: "max-w-3xl") do
+    div(id: "vera-book-content", class: "max-w-6xl") do
       tid = @data.fetch("tenant_id")
       book = @detail["book"]
       bid = @detail.fetch("book_id", book && book["book_id"])
@@ -32,6 +32,7 @@ class Views::Books::Show < Views::Base
         p(role: "status", class: "mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4") { "The book view is updating. Refresh shortly; editing is available when the accepted revision has been projected." }
       else
         p(class: "mt-3 text-sm text-stone-500") { "#{book['code']} · Draft · Revision #{book['version']}" }
+        render Components::BookOverview.new(data: @detail["overview"], tenant_id: tid, book_id: bid)
         dl(class: "mt-6 grid grid-cols-1 gap-4 rounded-xl border border-stone-200 bg-white p-6 sm:grid-cols-2") do
           { "Currency"=>book["base_currency"], "Accounting authority"=>book["accounting_authority"], "Timezone"=>book["timezone"], "Financial year starts"=>Date::MONTHNAMES[book["fiscal_year_start_month"]] }.each do |label, value|
             div { dt(class: "text-xs text-stone-500") { label }; dd(class: "mt-1 font-medium") { value } }

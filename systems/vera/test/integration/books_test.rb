@@ -18,6 +18,29 @@ class BooksTest < ActionDispatch::IntegrationTest
     stub_request(:get, "#{EP}/tenants/#{TID}/finance/books").to_return(status: 200, body: { tenant_id: TID, tenant_name: "Spejdernes Lejr", status: "ready", books: [ book ], source_version: 1, latest_version: 1 }.to_json)
     stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, status: "ready", book: book, expected_version: 1, permissions: { revise: true } }.to_json)
   end
+  test "book overview renders posted totals and accessible monthly graphs without fabricated percentages" do
+    views
+    months = 12.times.map { |index| { month: "2026-#{format('%02d', index + 1)}-01", income_minor: index == 0 ? 125000 : 0, expenses_minor: index == 0 ? 50000 : 0, future: index > 0 } }
+    overview = { status: "ready", start_date: "2026-01-01", as_of: "2026-01-31", prior_as_of: "2025-01-31", currency: "DKK", months: months, totals: { income_minor: 125000, expenses_minor: 50000, profit_minor: 75000 }, change_bps: { income_minor: 1000, expenses_minor: nil, profit_minor: -500 }, journal_count: 1, classification_warnings: [] }
+    stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, status: "ready", book: book, expected_version: 1, permissions: { revise: true }, overview: overview }.to_json)
+    get "/tenants/#{TID}/books/#{BID}"
+    assert_response :success
+    assert_select "section[aria-label='Financial overview']"
+    assert_select "[data-overview-total=income_minor]", text: "1.250,00"
+    assert_select "[data-overview-total=profit_minor]", text: "750,00"
+    assert_select "svg[role=img] rect", count: 24
+    assert_select "svg title", text: "Monthly income and expenses"
+    assert_select "details table tbody tr", count: 12
+    assert_includes response.body, "↗ 10 %"
+    overview[:months][0][:income_minor] = -125000
+    overview[:totals][:income_minor] = -125000
+    stub_request(:get, "#{EP}/tenants/#{TID}/finance/books/#{BID}").to_return(status: 200, body: { tenant_id: TID, status: "ready", book: book, permissions: { revise: true }, overview: overview }.to_json)
+    get "/tenants/#{TID}/books/#{BID}"
+    assert_response :success
+    assert_select "svg rect[height^='-']", count: 0
+    assert_select "[data-overview-total=income_minor]", text: "-1.250,00"
+  end
+
   test "list and create a book through EP with an idempotency key" do
     views
     get "/tenants/#{TID}/books"

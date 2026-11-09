@@ -157,7 +157,63 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "overview": {
+                      "type": "object",
+                      "description": "Posted fiscal overview; see books-api.md for amount, comparison, calendar and classification contracts.",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "enum": [
+                            "ready",
+                            "pending",
+                            "unavailable",
+                            "external"
+                          ]
+                        },
+                        "currency": {
+                          "type": "string"
+                        },
+                        "start_date": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "as_of": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "prior_as_of": {
+                          "type": "string",
+                          "format": "date"
+                        },
+                        "totals": {
+                          "type": "object"
+                        },
+                        "previous": {
+                          "type": "object"
+                        },
+                        "change_bps": {
+                          "type": "object"
+                        },
+                        "months": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "journal_count": {
+                          "type": "integer"
+                        },
+                        "classification_warnings": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }

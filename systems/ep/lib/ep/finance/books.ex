@@ -121,7 +121,12 @@ defmodule Ep.Finance.Books do
           status: if(row && row.source_version == current.version, do: "ready", else: "pending"),
           book: row && present(row),
           expected_version: current.version,
-          permissions: %{revise: admin}
+          permissions: %{revise: admin},
+          overview:
+            if(row && row.source_version == current.version,
+              do: Ep.Finance.BookOverview.read_authorized!(current),
+              else: %{status: "pending"}
+            )
         }
       end)
     end

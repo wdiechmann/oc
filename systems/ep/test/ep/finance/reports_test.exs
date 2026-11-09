@@ -136,6 +136,80 @@ defmodule Ep.Finance.ReportsTest do
     )
   end
 
+  test "book overview reads only scoped posted facts and retains retired account history", c do
+    {:ok, _} = Ep.Finance.BookProjector.deliver(c.tid)
+    view = Repo.get!(Ep.Finance.SetupView, c.bid)
+
+    accounts =
+      Enum.map(view.data["accounts"], fn account ->
+        case account["number"] do
+          "0010" ->
+            Map.merge(account, %{
+              "category" => "income",
+              "category_entry_id" => nil,
+              "retired" => true
+            })
+
+          "0020" ->
+            Map.merge(account, %{"category" => "expenses", "category_entry_id" => nil})
+
+          _ ->
+            account
+        end
+      end)
+
+    Repo.update!(Ecto.Changeset.change(view, data: Map.put(view.data, "accounts", accounts)))
+    income = Enum.find(accounts, &(&1["number"] == "0010"))
+    expense = Enum.find(accounts, &(&1["number"] == "0020"))
+    date = Date.utc_today() |> Date.to_iso8601()
+
+    Repo.transaction(fn ->
+      metadata = %{
+        scope: "tenant",
+        scope_key: "tenant:" <> c.tid,
+        tenant_id: c.tid,
+        stream_type: "finance_journals",
+        stream_id: c.bid,
+        actor_identity_id: c.actor.identity_id,
+        command_id: Ecto.UUID.generate(),
+        correlation_id: Ecto.UUID.generate()
+      }
+
+      payload = %{
+        "draft" => %{"data" => %{"posting_date" => date}},
+        "posting" => %{
+          "accounts" => [
+            %{"account" => %{"id" => income["id"]}, "post_minor" => -100_000},
+            %{"account" => %{"id" => expense["id"]}, "post_minor" => 50000}
+          ]
+        }
+      }
+
+      Ep.Events.append!(metadata, [{"JournalPosted", payload}, {"JournalDraftCreated", payload}])
+
+      Ep.Events.append!(%{metadata | stream_id: Ecto.UUID.generate()}, [
+        {"JournalPosted", payload}
+      ])
+    end)
+
+    assert {:ok, book} = Books.get(c.actor, c.tid, c.bid)
+    assert book.overview.status == "ready"
+    assert book.overview.journal_count == 1
+
+    assert book.overview.totals == %{
+             income_minor: 100_000,
+             expenses_minor: 50000,
+             profit_minor: 50000
+           }
+
+    assert {:error, :not_found} = Books.get(sign_in().principal, c.tid, c.bid)
+    control = Repo.get_by!(Ep.Projections.Control, tenant_id: c.tid, name: "finance_setup")
+    Repo.update!(Ecto.Changeset.change(control, state: "stopped"))
+    assert {:ok, stopped} = Books.get(c.actor, c.tid, c.bid)
+    assert stopped.overview.status == "unavailable"
+    assert stopped.status == "ready"
+  end
+
   test "included YTD definition is immediately runnable and customizations persist as ordinary reports",
        c do
     {:ok, index} = Reports.get(c.actor, c.tid, c.bid)
