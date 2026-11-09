@@ -7,7 +7,7 @@ defmodule EpWeb.ReportController do
     do:
       reply(
         conn,
-        Reports.get(
+        if(p["ytd"] == "1", do: &Reports.ytd/4, else: &Reports.get/4).(
           conn.assigns.current_principal,
           p["tenant_id"],
           p["book_id"],

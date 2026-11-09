@@ -189,3 +189,8 @@ After scanning completes, Attach enclosure carries the extracted information to 
 2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.
 
 2026-11-09: Journal header evidence is a single-line, vertically centered control between the title and context menu, with button-like hover/focus feedback. Clicking it opens all revision, book/authority, pending/stale and saved validation/line-error content in the shared dialog. The reserved control width prevents feedback text from shifting the header; overflow truncates on narrow screens. The read-only dialog preserves current row edits and selected historical/review context.
+
+
+## Definition-based YTD balances — 2026-11-09
+
+Report definitions now offer “YTD balances” on each saved definition, and “Run YTD report” on the selected revision. Choose a through date; the report shows Code, Name, Opening, YTD and Closing in book currency. Debit balances are positive and credits negative before configured mapping signs. Expand underlying account closing balances; coverage warnings remain visible. No footer grand total is added because definition totals and overlapping mappings could double count.

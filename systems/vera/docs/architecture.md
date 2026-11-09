@@ -195,3 +195,8 @@ The scan frame stores ready staged extraction through EP and renders a small ext
 2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.
 
 2026-11-09: Journal header evidence is a single-line, vertically centered control between the title and context menu, with button-like hover/focus feedback. Clicking it opens all revision, book/authority, pending/stale and saved validation/line-error content in the shared dialog. The reserved control width prevents feedback text from shifting the header; overflow truncates on narrow screens. The read-only dialog preserves current row edits and selected historical/review context.
+
+
+## Definition-based YTD balances — 2026-11-09
+
+GET reports with ytd=1, report_id, version and as_of delegates to EP Reports.ytd. EP reauthorizes book access and checks setup readiness/version under the setup lock, reads tenant/book-scoped immutable JournalPosted payloads in one query and sums post_minor by account and posting date. Earlier facts form opening; fiscal-year facts through the inclusive cutoff form movement. Existing exact definition evaluation applies independently to opening, movement and closing; no commands or ledger writes occur. This first implementation reads facts on demand rather than maintaining a second ledger.

@@ -246,6 +246,90 @@ defmodule Ep.Finance.Reports do
     end
   end
 
+  @doc "Fiscal year-to-date balances from immutable posted journals, using a saved definition."
+  def ytd(principal, tid, bid, params) do
+    with {:ok, data} <- get(principal, tid, bid, Map.take(params, ~w(report_id version))),
+         {:ok, cutoff} <- report_date(params["as_of"]) do
+      cond do
+        data.status != "ready" ->
+          {:error, :view_pending}
+
+        is_nil(data.selected) ->
+          {:error, :not_found}
+
+        true ->
+          Repo.transaction(fn ->
+            {book, _, _} = Setup.authorize!(principal, tid, bid)
+            unless ready!(tid, bid) == data.latest_version, do: Repo.rollback(:view_pending)
+
+            unless book.accounting_authority == "ep",
+              do: Repo.rollback(:external_accounting_authority)
+
+            month = book.fiscal_year_start_month
+            year = cutoff.year - if(cutoff.month < month, do: 1, else: 0)
+            start = Date.new!(year, month, 1)
+
+            facts =
+              Repo.all(
+                from e in Ep.Events.Event,
+                  join: d in Ep.Events.Details,
+                  on: d.event_id == e.id,
+                  where:
+                    e.tenant_id == ^tid and e.stream_id == ^bid and
+                      e.stream_type == "finance_journals" and e.event_type == "JournalPosted",
+                  select: d.payload
+              )
+
+            zero = Map.new(data.selected["definition"]["accounts"], &{&1["id"], 0})
+
+            {opening, movement, count} =
+              Enum.reduce(facts, {zero, zero, 0}, fn fact, {opening, movement, count} ->
+                date = Date.from_iso8601!(fact["draft"]["data"]["posting_date"])
+
+                cond do
+                  Date.compare(date, cutoff) == :gt ->
+                    {opening, movement, count}
+
+                  Date.compare(date, start) == :lt ->
+                    {add_posting(opening, fact), movement, count}
+
+                  true ->
+                    {opening, add_posting(movement, fact), count + 1}
+                end
+              end)
+
+            closing = Map.merge(opening, movement, fn _, a, b -> a + b end)
+            definition = data.selected["definition"]
+
+            Map.put(data, :ytd, %{
+              start_date: Date.to_iso8601(start),
+              as_of: Date.to_iso8601(cutoff),
+              currency: book.base_currency,
+              journal_count: count,
+              opening: evaluate(definition, opening),
+              movement: evaluate(definition, movement),
+              closing: evaluate(definition, closing),
+              balances: closing
+            })
+          end)
+      end
+    else
+      {:error, :invalid_format} -> {:error, :invalid_report}
+      {:error, :invalid_date} -> {:error, :invalid_report}
+      error -> error
+    end
+  end
+
+  defp report_date(nil), do: {:ok, Date.utc_today()}
+  defp report_date(value) when is_binary(value), do: Date.from_iso8601(value)
+  defp report_date(_), do: {:error, :invalid_report}
+
+  defp add_posting(balances, fact) do
+    Enum.reduce(fact["posting"]["accounts"], balances, fn row, values ->
+      Map.update(values, row["account"]["id"], row["post_minor"], &(&1 + row["post_minor"]))
+    end)
+  end
+
   def evaluate(definition, balances) do
     lines = definition["lines"]
     accounts = Map.new(definition["accounts"], &{&1["id"], &1})

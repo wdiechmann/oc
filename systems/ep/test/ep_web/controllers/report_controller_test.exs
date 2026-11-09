@@ -145,6 +145,23 @@ defmodule EpWeb.ReportControllerTest do
     assert Plug.Conn.get_resp_header(response, "cache-control") == ["no-store"]
     assert hd(json_response(response, 200)["results"])["amount_minor"] == -25
 
+    ytd_response =
+      get(conn, path, %{
+        report_id: id,
+        version: accepted["stream_version"],
+        ytd: "1",
+        as_of: "2026-11-09"
+      })
+
+    assert Plug.Conn.get_resp_header(ytd_response, "cache-control") == ["no-store"]
+    ytd = json_response(ytd_response, 200)["ytd"]
+    assert ytd["as_of"] == "2026-11-09"
+    assert ytd["journal_count"] == 0
+    assert hd(ytd["movement"])["amount_minor"] == 0
+
+    assert json_response(get(conn, path, %{report_id: id, ytd: "1", as_of: "bad"}), 422)["error"] ==
+             "invalid_report"
+
     receipt =
       json_response(
         get(conn, "/api/v1/me/commands", %{

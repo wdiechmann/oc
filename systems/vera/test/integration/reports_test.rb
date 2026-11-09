@@ -29,6 +29,23 @@ class ReportsTest < ActionDispatch::IntegrationTest
     { expected_version: "5", name: "Balance", active: "true", report_id: "", expected_report_version: "", lines: { "0"=>line.except(:formula_refs).merge(id: "", account_ids: [ "", PID ], formula: "") } }
   end
   def token = css_select("#accept-report input[name=form_token]").first["value"]
+  test "YTD runs the selected saved revision through a read-only scoped API" do
+    selected = data.merge(selected: report, coverage: coverage, current_coverage: coverage)
+    results = ->(amount) { [ { account_id: LID, status: "ok", amount_minor: amount } ] }
+    ytd = { start_date: "2026-01-01", as_of: "2026-11-09", currency: "DKK", journal_count: 2,
+      opening: results.call(10000), movement: results.call(-2500), closing: results.call(7500) }
+    request = stub_request(:get, api).with(query: { report_id: RID, version: "6", ytd: "1", as_of: "2026-11-09" }).to_return(status: 200, body: selected.merge(ytd: ytd).to_json)
+    get path, params: { report_id: RID, version: 6, ytd: 1, as_of: "2026-11-09" }
+    assert_response :success
+    assert_requested request
+    assert_select "table tbody tr", count: 1
+    assert_select "td", text: "100,00"
+    assert_select "td", text: "-25,00"
+    assert_select "td", text: "75,00"
+    assert_select "input[name=version][value='6']"
+    assert_includes response.body, "2 posted journals"
+  end
+
   test "report changes are reviewed before a signed small-pointer acceptance" do
     get path
     assert_response :success

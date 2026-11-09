@@ -48,6 +48,26 @@
               "type": "integer",
               "minimum": 0
             }
+          },
+          {
+            "name": "ytd",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            },
+            "description": "Run saved definition against authoritative posted fiscal YTD balances."
+          },
+          {
+            "name": "as_of",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Inclusive posting date cutoff; used with ytd=1."
           }
         ],
         "responses": {

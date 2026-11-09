@@ -175,3 +175,8 @@ When a staged enclosure has extracted text, pass its scoped extraction ID into a
 2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.
 
 2026-11-09: Journal header evidence is a single-line, vertically centered control between the title and context menu, with button-like hover/focus feedback. Clicking it opens all revision, book/authority, pending/stale and saved validation/line-error content in the shared dialog. The reserved control width prevents feedback text from shifting the header; overflow truncates on narrow screens. The read-only dialog preserves current row edits and selected historical/review context.
+
+
+## Definition-based YTD balances — 2026-11-09
+
+Report definitions must run fiscal year-to-date account balances through a selected posting date, using only authoritative posted journals. Show opening, YTD movement and closing amounts with the saved revision’s mappings, signs and formulas; never include drafts or infer balances for external-authority books.

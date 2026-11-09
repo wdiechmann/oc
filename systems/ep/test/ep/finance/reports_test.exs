@@ -136,6 +136,76 @@ defmodule Ep.Finance.ReportsTest do
     )
   end
 
+  test "YTD uses posted facts, fiscal boundaries, saved mappings and exact totals", c do
+    book = Repo.get!(Ep.Finance.Book, c.bid)
+    Repo.update!(Ecto.Changeset.change(book, fiscal_year_start_month: 4))
+    {:ok, review} = Reports.review(c.actor, c.tid, c.bid, draft(c))
+    {:ok, accepted} = accept(c, review)
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    id = hd(accepted["event_ids"])
+    [account] = hd(review.plan["definition"]["lines"])["account_ids"]
+
+    Repo.transaction(fn ->
+      metadata = %{
+        scope: "tenant",
+        scope_key: "tenant:" <> c.tid,
+        tenant_id: c.tid,
+        stream_type: "finance_journals",
+        stream_id: c.bid,
+        actor_identity_id: c.actor.identity_id,
+        command_id: Ecto.UUID.generate(),
+        correlation_id: Ecto.UUID.generate()
+      }
+
+      for {date, amount, type} <- [
+            {"2026-03-31", 300, "JournalPosted"},
+            {"2026-04-01", 600, "JournalPosted"},
+            {"2026-11-09", -150, "JournalPosted"},
+            {"2026-11-10", 900, "JournalPosted"},
+            {"2026-08-01", 900, "JournalDraftCreated"}
+          ] do
+        Ep.Events.append!(metadata, [
+          {type,
+           %{
+             "draft" => %{"data" => %{"posting_date" => date}},
+             "posting" => %{
+               "accounts" => [%{"account" => %{"id" => account}, "post_minor" => amount}]
+             }
+           }}
+        ])
+      end
+
+      Ep.Events.append!(%{metadata | stream_id: Ecto.UUID.generate()}, [
+        {"JournalPosted",
+         %{
+           "draft" => %{"data" => %{"posting_date" => "2026-05-01"}},
+           "posting" => %{"accounts" => [%{"account" => %{"id" => account}, "post_minor" => 999}]}
+         }}
+      ])
+    end)
+
+    params = %{"report_id" => id, "version" => 6, "as_of" => "2026-11-09"}
+    # Resolve the accepted report revision rather than relying on setup stream versions.
+    {:ok, selected} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => id})
+    params = Map.put(params, "version", selected.selected["version"])
+    assert {:ok, result} = Reports.ytd(c.actor, c.tid, c.bid, params)
+    assert result.ytd.start_date == "2026-04-01"
+    assert result.ytd.journal_count == 2
+    assert Enum.map(result.ytd.opening, & &1["amount_minor"]) == [300, 100]
+    assert Enum.map(result.ytd.movement, & &1["amount_minor"]) == [450, 150]
+    assert Enum.map(result.ytd.closing, & &1["amount_minor"]) == [750, 250]
+
+    assert {:error, :invalid_report} =
+             Reports.ytd(c.actor, c.tid, c.bid, %{params | "as_of" => "bad"})
+
+    assert {:error, :not_found} = Reports.ytd(sign_in().principal, c.tid, c.bid, params)
+
+    assert {:ok, earlier} =
+             Reports.ytd(c.actor, c.tid, c.bid, %{params | "as_of" => "2026-03-31"})
+
+    assert earlier.ytd.start_date == "2025-04-01"
+  end
+
   test "private review is not acceptance; accepted reports preserve exact mappings and actor history",
        c do
     before = Repo.aggregate(ReportDefinition, :count)

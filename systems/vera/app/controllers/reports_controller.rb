@@ -35,7 +35,7 @@ class ReportsController < FinanceSetupController
     { review_id: id, expected_version: signed.fetch("expected_version"), digest: signed.fetch("digest") }
   end
   def show_setup(status: 200, message: nil)
-    data = @calculated || ep.reports(params[:tenant_id], params[:book_id], { report_id: params[:report_id].presence, version: @previewing ? params[:report_version].presence : params[:version].presence })
+    data = @calculated || ep.reports(params[:tenant_id], params[:book_id], { report_id: params[:report_id].presence, version: @previewing ? params[:report_version].presence : params[:version].presence, ytd: params[:ytd].presence, as_of: params[:as_of].presence })
     review_id = params[:review_id].presence || @attrs && @attrs[:review_id]
     review = ep.report_review(params[:tenant_id], params[:book_id], review_id) if review_id
     if review && params[:edit] == "1"
@@ -71,6 +71,7 @@ class ReportsController < FinanceSetupController
     when "report_code_reserved" then "That line code belongs to another saved line. Restore that line or choose a new code."
     when "invalid_formula" then "Total formulas reference report line codes in brackets, for example [REVENUE] - [COSTS]. References must exist and cannot point to headers or form a cycle."
     when "version_conflict" then "The chart or report changed. Compare your draft with the current accepted version and review again explicitly."
+    when "external_accounting_authority" then "This book uses an external accounting authority. EP has no authoritative ledger balances to report."
     when "invalid_balances" then "Enter signed whole minor-unit test balances for the accounts in this report revision; blanks are unknown."
     when "review_expired" then "This private review expired. Review the report again before accepting."
     when "view_pending" then "The report view is still updating. Refresh before reviewing or previewing."

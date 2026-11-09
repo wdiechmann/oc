@@ -275,3 +275,8 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-09: Attaching an interpreted enclosure fills empty accounts/amounts even when a saved or unsaved line reference exists. Preserve that reference. Attachment-stream draft restoration retains the server’s suggested financial fields when prior financial inputs were empty, while retaining actual entered amounts/accounts and user edits.
 
 2026-11-09: Journal header evidence is a single-line, vertically centered control between the title and context menu, with button-like hover/focus feedback. Clicking it opens all revision, book/authority, pending/stale and saved validation/line-error content in the shared dialog. The reserved control width prevents feedback text from shifting the header; overflow truncates on narrow screens. The read-only dialog preserves current row edits and selected historical/review context.
+
+
+## Definition-based YTD balances — 2026-11-09
+
+Added YTD balances to saved report definitions. Fiscal-year start is book-specific; cutoff is inclusive by posting date. Display includes opening/YTD/closing, saved coverage warnings and account closing detail, with definition signs and formulas preserved. Verified EP precommit (213 tests), Rails (127 tests/1255 assertions), RuboCop, Zeitwerk and Playwright at 1280px/390px, including changing the cutoff without horizontal page overflow.

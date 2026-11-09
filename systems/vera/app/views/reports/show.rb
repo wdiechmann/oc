@@ -1,4 +1,5 @@
 class Views::Reports::Show < Views::Base
+  include Phlex::Rails::Helpers::NumberWithPrecision
   def initialize(data:, review: nil, token: nil, editing: nil, balances: nil, extra_line: false, message: nil, check_url: nil, retry_url: nil, **options)
     super(**options)
     @data, @review, @token, @editing, @balances, @extra_line, @message, @check, @retry = data, review, token, editing, balances || data["balances"] || {}, extra_line, message, check_url, retry_url
@@ -10,8 +11,8 @@ class Views::Reports::Show < Views::Base
     div(id: "vera-book-content", class: "min-w-0 break-words") do
       a(href: tenant_book_chart_path(@tid, @bid), class: "text-teal-900 underline") { "← Chart of accounts" }
       p(class: "mt-6 text-xs font-semibold uppercase tracking-widest text-teal-800") { @data.fetch("book_name") }
-      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review report definition" : "Report definitions" }
-      p(class: "mt-4 text-sm text-stone-600") { "Map posting accounts to named report lines. Totals reference line codes, for example [REVENUE] - [COSTS]. Each accepted revision preserves its account labels, mappings and formulas. Test balances use whole minor units and are not saved." }
+      h1(class: "mt-2 text-3xl font-semibold") { @review ? "Review report definition" : (@data["ytd"] ? "YTD account balances" : "Report definitions") }
+      p(class: "mt-4 text-sm text-stone-600") { @data["ytd"] ? "Posted account balances using the selected report definition and the book’s fiscal year. Change the through date to rerun the report." : "Map posting accounts to named report lines. Totals reference line codes, for example [REVENUE] - [COSTS]. Each accepted revision preserves its account labels, mappings and formulas. Test balances use whole minor units and are not saved." }
       render Components::Toast.new(message: @message, kind: "alert") if @message
       p(class: "mt-3 text-xs text-stone-500") { "View revision #{@data['source_version']} · Latest accepted #{@data['latest_version']}" }
       p(role: "status", class: "mt-4 text-sm text-amber-900") { "The report view is updating. Refresh before editing or previewing." } unless @data["status"] == "ready"
@@ -23,6 +24,7 @@ class Views::Reports::Show < Views::Base
       @data.fetch("reports").each do |report|
         div(class: "mt-4 rounded-lg border border-stone-200 bg-white p-4") do
           a(href: url(report_id: report["id"]), class: "font-medium text-teal-900 underline") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
+          a(href: url(report_id: report["id"], version: report["version"], ytd: "1", as_of: Date.current.iso8601), class: "ml-4 text-sm text-teal-900 underline") { "YTD balances" }
           details(class: "mt-2 text-sm") do
             summary(class: "cursor-pointer text-teal-900") { "Revision history (#{report.fetch('history', []).length})" }
             report.fetch("history", []).reverse_each do |h|
@@ -148,6 +150,12 @@ class Views::Reports::Show < Views::Base
     definition = report.fetch("definition")
     h2(class: "mt-8 text-xl font-semibold") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
     p(class: "mt-2 text-sm text-stone-600") { "Account labels and coverage below are pinned to chart revision #{definition['chart_version']}. Current-chart coverage is shown separately." }
+    year_to_date(report)
+    if @data["ytd"]
+      a(href: url(report_id: report["id"], version: report["version"]), class: "mt-4 inline-block text-sm text-teal-900 underline") { "View report definition" }
+      coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
+      return
+    end
     line_summary(definition["lines"], definition["accounts"])
     coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
     coverage(@data["current_coverage"], @data["accounts"], "Current chart coverage")
@@ -186,5 +194,50 @@ class Views::Reports::Show < Views::Base
       end
     end
   end
+  def year_to_date(report)
+    h3(class: "mt-6 text-xl font-semibold") { "Year-to-date account balances" }
+    form_with(url: url, method: :get, data: { turbo: false }, class: "mt-3 flex items-end gap-3") do |f|
+      f.hidden_field(:report_id, value: report["id"])
+      f.hidden_field(:version, value: report["version"])
+      f.hidden_field(:ytd, value: "1")
+      div { f.label(:as_of, "Through date"); f.date_field(:as_of, value: @data.dig("ytd", "as_of") || Date.current, required: true, class: FIELD) }
+      f.submit("Run YTD report", class: BUTTON)
+    end
+    return unless (data = @data["ytd"])
+    p(class: "mt-3 text-sm text-stone-600") { "#{data['start_date']} – #{data['as_of']} · #{data['currency']} · #{data['journal_count']} posted journals in period · Debit positive, credit negative; definition signs apply. Opening includes all earlier postings. Drafts are excluded." }
+    div(class: "mt-4 overflow-x-auto") do
+      table(class: "w-full text-sm") do
+        thead { tr { %w[Code Name Opening YTD Closing].each { |label| th(class: "p-2 text-right first:text-left") { label } } } }
+        tbody do
+          report.fetch("definition").fetch("lines").sort_by { |line| line["position"] }.each do |line|
+            tr(class: "border-t border-stone-200") do
+              td(class: "p-2") { line["code"] }
+              td(class: "p-2") { line["name"] }
+              %w[opening movement closing].each do |column|
+                result = data.fetch(column).find { |r| r["account_id"] == line["id"] }
+                td(class: "p-2 text-right tabular-nums") do
+                  if line["kind"] == "header"
+                    plain ""
+                  elsif result && result["status"] == "ok"
+                    plain number_with_precision(BigDecimal(result.fetch("amount_minor").to_s) / 100, precision: 2, delimiter: ".", separator: ",")
+                  else
+                    plain "Cannot calculate"
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
+    end
+    details(class: "mt-4 text-sm") do
+      summary(class: "cursor-pointer text-teal-900") { "Underlying account closing balances" }
+      report.fetch("definition").fetch("accounts").each do |account|
+        amount = data.fetch("balances", {}).fetch(account["id"], 0)
+        p(class: "mt-2") { "#{account_label(account)}: #{number_with_precision(BigDecimal(amount.to_s) / 100, precision: 2, delimiter: '.', separator: ',')} #{data['currency']}" }
+      end
+    end
+  end
+
   def account_label(account) = "#{account['number']} · #{account['name']}#{account['active'] ? '' : ' · Inactive'}"
 end
