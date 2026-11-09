@@ -5,7 +5,9 @@ class Components::EnclosureScanResult < Components::Base
   end
   def view_template
     turbo_frame(id: @frame_id, class: "enclosure-suggestions") do
+      input(type: "hidden", name: "extraction_id", value: @result["extraction_id"], form: "attach-enclosure") if @result["extraction_id"]
       h3(class: "font-semibold") { "Suggested document values" }
+      p(class: "mt-2 text-xs text-stone-500") { "Attaching will suggest accounts and amounts for an empty row. Review them before saving." } if @result["extraction_id"]
       if @result["status"] == "ready"
         p(class: "mt-2 text-xs text-stone-500") { "Review suggestions against the document before using them. Dates use day/month/year when not in ISO format." }
         p(class: "mt-1 text-xs text-stone-500") { "First 3 PDF pages inspected." } if @result["limited_pages"]

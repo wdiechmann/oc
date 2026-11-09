@@ -81,6 +81,27 @@ defmodule Ep.Finance.JournalWork do
               result
             end
 
+          if mode == "row",
+            do:
+              Ep.Finance.EnclosureLearning.confirm!(
+                tid,
+                bid,
+                result["row_id"],
+                hd(result["event_ids"])
+              )
+
+          result =
+            if mode == "attachment" && p["extraction_id"] do
+              record = Repo.get!(Ep.Finance.EnclosureLearningRecord, p["extraction_id"])
+
+              Map.merge(result, %{
+                "extraction_id" => record.id,
+                "suggested_row_id" => if(record.seeded, do: record.row_id)
+              })
+            else
+              result
+            end
+
           if did && result["draft_id"] != did, do: Repo.rollback(:invalid_journal)
 
           Repo.insert!(%CommandReceipt{
@@ -138,7 +159,8 @@ defmodule Ep.Finance.JournalWork do
         draft_id: row.draft_id,
         row_id: row.id,
         posting_id: row.posting_id,
-        attachments: JournalRows.attachment_metadata(tid, bid, row.id)
+        attachments: JournalRows.attachment_metadata(tid, bid, row.id),
+        interpretations: Ep.Finance.EnclosureLearning.summaries(tid, bid, row.id)
       }
     end)
   end
@@ -215,12 +237,12 @@ defmodule Ep.Finance.JournalWork do
       row = row!(tid, bid, row_id)
 
       upload =
-        Repo.get_by(ChartImport,
-          id: uuid!(upload_id),
-          tenant_id: tid,
-          book_id: bid,
-          identity_id: principal.identity_id,
-          application_id: app
+        Repo.one(
+          from r in ChartImport,
+            where:
+              r.id == ^uuid!(upload_id) and r.tenant_id == ^tid and r.book_id == ^bid and
+                r.identity_id == ^principal.identity_id and r.application_id == ^app,
+            lock: "FOR SHARE"
         ) || Repo.rollback(:not_found)
 
       unless upload.data["purpose"] == "journal_attachment" && upload.data["row_id"] == row.id,
@@ -277,6 +299,7 @@ defmodule Ep.Finance.JournalWork do
       case mode do
         "create" -> Map.delete(p, "initial_row")
         "row" -> Map.delete(p, "append_row")
+        "attachment" -> Map.delete(p, "extraction_id")
         _ -> p
       end
 
@@ -362,12 +385,12 @@ defmodule Ep.Finance.JournalWork do
 
         "attachment" ->
           r =
-            Repo.get_by(ChartImport,
-              id: uuid!(p["upload_id"]),
-              tenant_id: tid,
-              book_id: bid,
-              identity_id: principal.identity_id,
-              application_id: app
+            Repo.one(
+              from r in ChartImport,
+                where:
+                  r.id == ^uuid!(p["upload_id"]) and r.tenant_id == ^tid and r.book_id == ^bid and
+                    r.identity_id == ^principal.identity_id and r.application_id == ^app,
+                lock: "FOR UPDATE"
             ) || Repo.rollback(:not_found)
 
           unless r.data["purpose"] == "journal_attachment" &&
@@ -382,20 +405,36 @@ defmodule Ep.Finance.JournalWork do
                20,
              do: Repo.rollback(:invalid_attachment)
 
-          Repo.insert!(
-            %JournalAttachment{
-              tenant_id: tid,
-              book_id: bid,
-              row_id: row.id,
-              filename: r.data["filename"],
-              content_type: r.data["content_type"],
-              sha256: r.data["sha256"],
-              byte_size: r.data["byte_size"],
-              bytes: Base.decode64!(r.data["content"]),
-              actor_identity_id: principal.identity_id
-            },
-            log: false
-          )
+          attachment =
+            Repo.insert!(
+              %JournalAttachment{
+                tenant_id: tid,
+                book_id: bid,
+                row_id: row.id,
+                filename: r.data["filename"],
+                content_type: r.data["content_type"],
+                sha256: r.data["sha256"],
+                byte_size: r.data["byte_size"],
+                bytes: Base.decode64!(r.data["content"]),
+                actor_identity_id: principal.identity_id
+              },
+              log: false
+            )
+
+          data =
+            if p["extraction_id"] do
+              Ep.Finance.EnclosureLearning.bind!(
+                p["extraction_id"],
+                r,
+                attachment,
+                principal,
+                app,
+                data,
+                row
+              )
+            else
+              data
+            end
 
           Repo.update!(Ecto.Changeset.change(r, accepted_command_id: Ecto.UUID.generate()))
           data

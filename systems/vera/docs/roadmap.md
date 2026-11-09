@@ -115,3 +115,5 @@ Completed: portable local PDF-text extraction and image/scanned-PDF OCR in enclo
 2026-11-06: Enclosure preview spans the full width above suggested document values. A bounded single-column grid allocates vertical space in a 3:1 preview/values ratio; suggestions scroll within their own panel, including while scanning. The layout applies to staged and saved documents on desktop and mobile.
 
 Completed: labelled Tenant/Occasion workspace columns and direct linked-book navigation. Current book stewards can read their book detail without tenant-wide list/edit authority.
+
+Completed: attachment-driven draft suggestions with persistent EP learning support, traceable actual choices, event-triggered recalculation and a 15-minute Oban sweep. Predictions use current chart candidates or confirmed supplier examples from the same book. Existing lines and posted accounting remain unchanged by inference jobs.

@@ -96,6 +96,7 @@ defmodule Ep.Finance.JournalPosting do
             )
 
           unless event.stream_version == version, do: Repo.rollback(:version_conflict)
+          Ep.Finance.EnclosureLearning.confirm_posted!(draft, eid)
           Repo.update!(Ecto.Changeset.change(Repo.get!(JournalState, bid), version: version))
           Repo.insert!(%Outbox{tenant_id: tid, event_id: eid})
           Oban.insert!(JournalWorker.new(%{tenant_id: tid}))

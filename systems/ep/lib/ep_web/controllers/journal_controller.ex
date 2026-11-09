@@ -120,6 +120,21 @@ defmodule EpWeb.JournalController do
         )
       )
 
+  def extract_attachment(conn, p),
+    do:
+      reply(
+        conn,
+        Ep.Finance.EnclosureLearning.extract(
+          conn.assigns.current_principal,
+          p["tenant_id"],
+          p["book_id"],
+          p["row_id"],
+          p["upload_id"],
+          Map.drop(p, ~w(tenant_id book_id row_id upload_id)),
+          conn.assigns.backend_id
+        )
+      )
+
   def staged_preview(conn, p),
     do:
       reply(

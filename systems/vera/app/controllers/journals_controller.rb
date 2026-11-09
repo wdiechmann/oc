@@ -124,6 +124,10 @@ class JournalsController < FinanceSetupController
   end
   def scan_attachment
     result = EnclosureScan.call(enclosure_file)
+    if params[:upload_id].present? && result["status"] == "ready"
+      record = ep.record_enclosure_extraction(params[:tenant_id], params[:book_id], params[:row_id], params[:upload_id], result.slice("text", "fields", "method"))
+      result["extraction_id"] = record.fetch("extraction_id")
+    end
     render Components::EnclosureScanResult.new(frame_id: scan_frame_id, result: result, separator: decimal_separator, retry_url: scan_attachment_tenant_book_journals_path(params[:tenant_id], params[:book_id], params.permit(:row_id, :upload_id, :attachment_id).to_h))
   end
   def preview_attachment
@@ -148,6 +152,9 @@ class JournalsController < FinanceSetupController
   end
   def scan_frame_id = "enclosure-scan-#{params[:upload_id].presence || params[:attachment_id]}"
   def accepted_notice(result)
+    if @action == "journal_attachment"
+      return result["suggested_row_id"] ? "Enclosure attached. Review the suggested accounts and amounts, then save the row." : "Enclosure attached. Existing row values are retained."
+    end
     return "Journal posted. Authorization, verification and account entries have been recorded." if @action == "journal_post"
     return "Journal deleted. Numbered postings and history are retained for traceability." if @action == "journal_delete"
     result["posting_id"] ? "Posting ID #{result['posting_id']} saved. The journal remains work in progress." : "Journal draft saved. Continue working on its lines."
@@ -183,6 +190,7 @@ class JournalsController < FinanceSetupController
       when "journal_attachment"
         @attachment_row_id = signed.fetch("row_id")
         attrs[:upload_id] = signed.fetch("upload_id")
+        attrs[:extraction_id] = params[:extraction_id] if params[:extraction_id].present?
       else raise Ep::Client::Error.new(422, code: "invalid_journal")
       end
       return attrs
@@ -227,9 +235,11 @@ class JournalsController < FinanceSetupController
     return super unless request.format.turbo_stream? && @action == "journal_attachment" && @attachment_row_id
     info = ep.journal_attachments(params[:tenant_id], params[:book_id], @attachment_row_id)
     data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: result.fetch("draft_id") })
+    data["suggested_row_id"] = result["suggested_row_id"]
     render_attachments(data, info, refresh: true, message: notice)
   end
   def render_attachments(data, info, upload: nil, refresh: false, message: nil, status: 200)
+    data["decimal_separator"] = decimal_separator
     if request.format.turbo_stream?
       content = Components::JournalAttachments.new(data: data, info: info, upload: upload, token: method(:work_token), message: message, check_url: completion_url, retry_url: retry_url)
       journal = refresh ? Views::Journals::Show.new(fragment: true, work_token: method(:work_token), decimal_separator: decimal_separator, data: data, signed_in: signed_in?) : nil

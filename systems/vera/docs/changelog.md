@@ -269,3 +269,5 @@ Verification: 198 EP tests and 94 VERA tests pass; RuboCop, Zeitwerk and JavaScr
 2026-11-06: Enclosure preview spans the full width above suggested document values. A bounded single-column grid allocates vertical space in a 3:1 preview/values ratio; suggestions scroll within their own panel, including while scanning. The layout applies to staged and saved documents on desktop and mobile.
 
 2026-11-09: Separated signed-in workspace navigation into Tenant and Occasion columns, linked occasions directly to their accessible books, and kept steward book details readable without granting metadata edits.
+
+2026-11-09: Added persisted enclosure interpretation and best-guess row building on Attach enclosure. Empty rows receive editable suggestions without renumbering or replacing entered values. Added traceable actual-choice support and book-scoped, batched Oban recalculation, plus a latest-suggestion panel for saved enclosures.

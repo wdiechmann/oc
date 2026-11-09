@@ -769,6 +769,333 @@ defmodule Ep.Finance.JournalWorkTest do
              1
   end
 
+  test "enclosure interpretation seeds an empty row and learns only from explicit saved choices",
+       c do
+    alias Ep.Finance.{
+      EnclosureLearning,
+      EnclosureLearningRecord,
+      EnclosureGuessWorker,
+      Account,
+      CatalogueEntry
+    }
+
+    did = create(c)
+
+    empty = %{
+      "id" => nil,
+      "reference" => "",
+      "debit_account_id" => nil,
+      "credit_account_id" => nil,
+      "amount_minor" => 0,
+      "amount_basis" => nil,
+      "void" => false
+    }
+
+    first = save(c, did, empty, "learning-empty")
+    {_tax, _rule, _attrs, expense, bank, command} = posting_setup(c)
+    category = Repo.get_by!(CatalogueEntry, book_id: c.bid, kind: "category", code: "expenses")
+
+    for {id, name, category_id} <- [
+          {expense.id, "Purchases", category.id},
+          {bank.id, "Bank account", nil}
+        ] do
+      account = Repo.get!(Account, id)
+
+      command.(
+        "account_revise",
+        %{
+          "account_id" => id,
+          "expected_account_version" => account.version,
+          "active" => true,
+          "kind" => "posting",
+          "number" => account.number,
+          "name" => name,
+          "position" => account.position,
+          "vat_entry_id" => account.vat_entry_id,
+          "category_entry_id" => category_id
+        },
+        "learning-name-#{id}"
+      )
+    end
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+
+    fields =
+      Enum.map(
+        [
+          {"supplier", "Acme"},
+          {"invoice_number", "INV-1"},
+          {"currency", "DKK"},
+          {"net", 50000},
+          {"vat", 12500},
+          {"total", 62500}
+        ],
+        fn {key, value} ->
+          %{
+            "key" => key,
+            "label" => key,
+            "source" => "Source #{key}",
+            "value" => value,
+            "amount" => is_integer(value)
+          }
+        end
+      )
+
+    extraction = %{
+      "text" => "Acme INV-1 net 500 VAT 125 total 625 DKK",
+      "fields" => fields,
+      "method" => "pdf_text"
+    }
+
+    stage = fn row_id, bytes ->
+      {:ok, upload} =
+        JournalWork.stage(c.actor, c.tid, c.bid, row_id, %{
+          "filename" => "invoice.pdf",
+          "content_type" => "application/pdf",
+          "content" => Base.encode64(bytes)
+        })
+
+      {:ok, record} =
+        EnclosureLearning.extract(
+          c.actor,
+          c.tid,
+          c.bid,
+          row_id,
+          upload.upload_id,
+          extraction,
+          "internal"
+        )
+
+      {upload, record}
+    end
+
+    {upload, interpretation} = stage.(first["row_id"], "%PDF-1.4 first")
+
+    assert {:ok, again} =
+             EnclosureLearning.extract(
+               c.actor,
+               c.tid,
+               c.bid,
+               first["row_id"],
+               upload.upload_id,
+               extraction,
+               "internal"
+             )
+
+    assert again.extraction_id == interpretation.extraction_id
+    original = Repo.get!(JournalRow, first["row_id"])
+    assert original.data["amount_minor"] == 0
+
+    attach =
+      body(c, did, %{})
+      |> Map.delete("row")
+      |> Map.merge(%{
+        "upload_id" => upload.upload_id,
+        "extraction_id" => interpretation.extraction_id
+      })
+
+    assert {:ok, result} =
+             JournalWork.save(c.actor, c.tid, c.bid, "attachment", attach, "learning-attach")
+
+    assert result["suggested_row_id"] == original.id
+
+    assert {:ok, %{"replayed" => true}} =
+             JournalWork.save(c.actor, c.tid, c.bid, "attachment", attach, "learning-attach")
+
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    seeded = Repo.get!(JournalRow, original.id).data
+    assert seeded["debit_account_id"] == expense.id
+    assert seeded["credit_account_id"] == bank.id
+    assert seeded["amount_minor"] == 50000
+    assert seeded["credit_total_minor"] == 62500
+    assert seeded["posting_id"] == original.posting_id
+    support = Repo.get!(EnclosureLearningRecord, interpretation.extraction_id)
+    assert support.extracted_text == extraction["text"]
+    assert support.used_values["amount_minor"] == 50000
+    assert support.used_values["credit_total_minor"] == 62500
+    assert length(support.used_values["posting_legs"]) == 3
+    assert is_nil(support.used_confirmed_at)
+    second = save(c, did, empty, "learning-second")
+    {upload2, interpretation2} = stage.(second["row_id"], "%PDF-1.4 second")
+
+    attach2 =
+      body(c, did, %{})
+      |> Map.delete("row")
+      |> Map.merge(%{
+        "upload_id" => upload2.upload_id,
+        "extraction_id" => interpretation2.extraction_id
+      })
+
+    {:ok, _} =
+      JournalWork.save(c.actor, c.tid, c.bid, "attachment", attach2, "learning-attach-second")
+
+    {:ok, _} = JournalProjector.deliver(c.tid)
+    before = Repo.get!(JournalRow, second["row_id"]).data
+    assert before["debit_account_id"] == expense.id
+    taxed = Repo.get!(Account, expense.id)
+
+    command.(
+      "account_create",
+      %{
+        "kind" => "posting",
+        "number" => "0030",
+        "name" => "Travel costs",
+        "position" => 70,
+        "category_entry_id" => category.id,
+        "vat_entry_id" => taxed.vat_entry_id
+      },
+      "learning-alternate"
+    )
+
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    alternate = Repo.get_by!(Account, book_id: c.bid, number: "0030")
+    corrected = JournalRows.input(seeded) |> Map.put("debit_account_id", alternate.id)
+    saved = save(c, did, corrected, "human-choice")
+    support = Repo.get!(EnclosureLearningRecord, support.id)
+    assert support.used_values["debit_account_id"] == alternate.id
+    assert support.used_confirmed_at
+    assert support.used_event_id == hd(saved["event_ids"])
+
+    assert :ok =
+             EnclosureGuessWorker.perform(%Oban.Job{
+               args: %{"tenant_id" => c.tid, "book_id" => c.bid}
+             })
+
+    updated = Repo.get!(EnclosureLearningRecord, interpretation2.extraction_id)
+    assert updated.initial_guess["row"]["debit_account_id"] == expense.id
+    assert updated.applied_guess["row"]["debit_account_id"] == expense.id
+    assert updated.best_guess["row"]["debit_account_id"] == alternate.id
+    assert updated.best_guess["source"] == "confirmed_supplier_rows"
+    assert updated.used_values["debit_account_id"] == expense.id
+    assert Repo.get!(JournalRow, second["row_id"]).data == before
+    assert Repo.get!(JournalCounter, c.bid).last_number == 2
+  end
+
+  test "extraction ownership and atomic attachment preserve an already entered row", c do
+    alias Ep.Finance.{EnclosureLearning, EnclosureLearningRecord}
+    did = create(c)
+    saved = save(c, did, row(c), "entered-row")
+    original = Repo.get!(JournalRow, saved["row_id"]).data
+
+    {:ok, upload} =
+      JournalWork.stage(c.actor, c.tid, c.bid, saved["row_id"], %{
+        "filename" => "receipt.pdf",
+        "content_type" => "application/pdf",
+        "content" => Base.encode64("%PDF-1.4 receipt")
+      })
+
+    p = %{
+      "text" => "Supplier: Acme total 999",
+      "method" => "pdf_text",
+      "fields" => [
+        %{
+          "key" => "total",
+          "label" => "Total",
+          "source" => "999",
+          "amount" => true,
+          "value" => 99900
+        }
+      ]
+    }
+
+    assert {:error, :not_found} =
+             EnclosureLearning.extract(
+               sign_in().principal,
+               c.tid,
+               c.bid,
+               saved["row_id"],
+               upload.upload_id,
+               p,
+               "internal"
+             )
+
+    assert {:error, :not_found} =
+             EnclosureLearning.extract(
+               c.actor,
+               c.tid,
+               c.bid,
+               saved["row_id"],
+               upload.upload_id,
+               p,
+               "wrong-app"
+             )
+
+    {:ok, record} =
+      EnclosureLearning.extract(
+        c.actor,
+        c.tid,
+        c.bid,
+        saved["row_id"],
+        upload.upload_id,
+        p,
+        "internal"
+      )
+
+    attach =
+      body(c, did, %{})
+      |> Map.delete("row")
+      |> Map.merge(%{"upload_id" => upload.upload_id, "extraction_id" => Ecto.UUID.generate()})
+
+    assert {:error, :invalid_extraction} =
+             JournalWork.save(c.actor, c.tid, c.bid, "attachment", attach, "bad-extraction")
+
+    assert Repo.aggregate(JournalAttachment, :count) == 0
+    assert Repo.get!(JournalRow, saved["row_id"]).data == original
+
+    assert {:ok, result} =
+             JournalWork.save(
+               c.actor,
+               c.tid,
+               c.bid,
+               "attachment",
+               %{attach | "extraction_id" => record.extraction_id},
+               "good-extraction"
+             )
+
+    assert is_nil(result["suggested_row_id"])
+    after_row = Repo.get!(JournalRow, saved["row_id"]).data
+    assert JournalRows.input(after_row) == JournalRows.input(original)
+
+    assert Repo.get!(EnclosureLearningRecord, record.extraction_id).used_values["amount_minor"] ==
+             original["amount_minor"]
+
+    # An abandoned alternate extraction expires, while the accepted record survives.
+    # The accepted upload cannot be rescanned; create the alternate before binding in its own stage.
+    {:ok, orphan_upload} =
+      JournalWork.stage(c.actor, c.tid, c.bid, saved["row_id"], %{
+        "filename" => "abandoned.pdf",
+        "content_type" => "application/pdf",
+        "content" => Base.encode64("%PDF-1.4 abandoned")
+      })
+
+    {:ok, orphan} =
+      EnclosureLearning.extract(
+        c.actor,
+        c.tid,
+        c.bid,
+        saved["row_id"],
+        orphan_upload.upload_id,
+        p,
+        "internal"
+      )
+
+    for id <- [upload.upload_id, orphan_upload.upload_id] do
+      stage = Repo.get!(Ep.Finance.ChartImport, id)
+
+      Repo.update!(
+        Ecto.Changeset.change(stage, expires_at: DateTime.add(DateTime.utc_now(), -1, :second))
+      )
+
+      assert :ok =
+               Ep.Finance.ChartImportCleanupWorker.perform(%Oban.Job{
+                 args: %{"import_id" => id, "tenant_id" => c.tid}
+               })
+    end
+
+    assert Repo.get!(EnclosureLearningRecord, record.extraction_id).attachment_id
+    assert is_nil(Repo.get(EnclosureLearningRecord, orphan.extraction_id))
+  end
+
   test "another book starts its own sequence and numbered rows cannot be removed", c do
     did = create(c)
     save(c, did, row(c), "first")

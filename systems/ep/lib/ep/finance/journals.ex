@@ -387,6 +387,7 @@ defmodule Ep.Finance.Journals do
             )
 
           unless event.stream_version == version, do: Repo.rollback(:version_conflict)
+          Ep.Finance.EnclosureLearning.sync!(draft, eid)
 
           state =
             Repo.get(JournalState, bid) ||

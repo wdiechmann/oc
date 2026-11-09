@@ -65,7 +65,7 @@ class Components::JournalWork < Components::Base
   def row_form(selected, row)
     is_draft = @draft && @draft["id"] == row["id"]
     values = is_draft ? row.merge(@draft) : row
-    editing = is_draft || (@editable && !@draft && row["id"] == @entry_row_id)
+    editing = is_draft || (@editable && !@draft && (row["id"] == @entry_row_id || row["id"] == @data["suggested_row_id"]))
     credit_override = is_draft ? @draft["credit_override"] == "true" : (!row["credit_amount_minor"].nil? || (row["id"].present? && !row.key?("credit_total_minor")))
     override = values.key?("basis_override") ? [ true, "true" ].include?(values["basis_override"]) : !values["amount_basis"].nil?
     enabled = values.key?("vat_enabled") ? [ true, "true" ].include?(values["vat_enabled"]) : @data["accounts"].any? { |a| [ values["debit_account_id"], values["credit_account_id"] ].include?(a["id"]) && a["vat_entry_id"].present? }

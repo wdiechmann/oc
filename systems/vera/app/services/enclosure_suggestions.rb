@@ -76,6 +76,6 @@ class EnclosureSuggestions
     end
   end
   def add(key, label, value, source, amount: false)
-    @fields << { "key"=>key, "label"=>label, "value"=>value, "source"=>source, "amount"=>amount }
+    @fields << { "key"=>key, "label"=>label, "value"=>amount ? value : value.to_s[0, 256], "source"=>source.to_s[0, 500], "amount"=>amount }
   end
 end

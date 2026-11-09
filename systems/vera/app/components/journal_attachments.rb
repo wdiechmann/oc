@@ -24,6 +24,7 @@ class Components::JournalAttachments < Components::Base
           summary(class: "cursor-pointer text-sm font-medium text-teal-900") { "Preview document" }
           document_preview(preview_attachment_tenant_book_journals_path(@tid, @bid, attachment_id: file["id"]), file["content_type"], file["filename"], attachment_id: file["id"])
         end
+        interpretation_preview(file)
       end
     end
     if !@check && @data.dig("permissions", "prepare") && @data["status"] == "ready"
@@ -46,6 +47,32 @@ class Components::JournalAttachments < Components::Base
           f.submit("Review enclosure", class: BUTTON)
         end
       end
+    end
+  end
+  def interpretation_preview(file)
+    record = @info.fetch("interpretations", []).find { |entry| entry["attachment_id"] == file["id"] }
+    return unless record
+    guess = record.fetch("best_guess")
+    row = guess.fetch("row")
+    details(class: "mt-3") do
+      summary(class: "cursor-pointer text-sm font-medium text-teal-900") { "Account and amount suggestion" }
+      p(class: "mt-2 text-xs text-stone-500") { guess["source"] == "confirmed_supplier_rows" ? "Based on explicitly saved choices for this supplier in this book." : "Based on the document and current chart. Review the choices before using them." }
+      p(class: "mt-2 text-sm text-amber-900") { "Document currency differs from this book; enter converted amounts explicitly." } if guess["currency_mismatch"]
+      dl(class: "mt-3 grid gap-3 sm:grid-cols-2") do
+        %w[debit credit].each do |side|
+          account = @data.fetch("accounts").find { |entry| entry["id"] == row["#{side}_account_id"] }
+          div do
+            dt(class: "text-xs text-stone-500") { "#{side.capitalize} account" }
+            dd { account ? "#{account['number']} · #{account['name']}" : "Choose an account" }
+          end
+          amount = row[side == "debit" ? "amount_minor" : "credit_amount_minor"]
+          div do
+            dt(class: "text-xs text-stone-500") { "#{side.capitalize} amount" }
+            dd { amount.nil? ? "Not determined" : JournalMoney.format(amount, separator: @data.fetch("decimal_separator", ".")) }
+          end
+        end
+      end
+      p(class: "mt-2 text-xs text-stone-500") { "This recalculated suggestion does not change the saved row." }
     end
   end
   def document_preview(url, type, filename, **query)

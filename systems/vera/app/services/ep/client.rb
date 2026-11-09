@@ -52,6 +52,7 @@ module Ep
     def journal_row_preview(tid, bid, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/row-preview", body: attrs)
     def journal_attachments(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(id)}/attachments")
     def stage_journal_attachment(tid, bid, id, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(id)}/attachments/stage", body: attrs)
+    def record_enclosure_extraction(tid, bid, row_id, upload_id, attrs) = request(:post, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(row_id)}/attachments/stage/#{uuid!(upload_id)}/extraction", body: attrs)
     def staged_journal_attachment(tid, bid, row_id, upload_id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/rows/#{uuid!(row_id)}/attachments/stage/#{uuid!(upload_id)}")
     def journal_attachment(tid, bid, id) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals/attachments/#{uuid!(id)}")
     def journals(tid, bid, query = {}) = request(:get, "#{book_root(tid)}/#{uuid!(bid)}/journals", query: query.compact)

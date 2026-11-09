@@ -140,22 +140,36 @@ class JournalWorkTest < ActionDispatch::IntegrationTest
     assert_select "turbo-stream[target=shared-dialog-host] iframe[src*=preview_attachment][title='Preview of receipt.pdf']"
     assert_select "turbo-frame[src*=scan_attachment][loading=lazy]"
     signed_token = token("#attach-enclosure")
-    binding = stub_request(:post, "#{api}/work/attachment").to_timeout
+    extraction_id = SecureRandom.uuid
+    extracted = { "status"=>"ready", "text"=>"Invoice text "*2000, "fields"=>[], "method"=>"pdf_text" }
+    stub_request(:get, "#{api}/rows/#{rid}/attachments/stage/#{upload_id}").to_return(status: 200, body: { filename: "receipt.pdf", content_type: "application/pdf", content: Base64.strict_encode64("synthetic") }.to_json)
+    persisted = stub_request(:post, "#{api}/rows/#{rid}/attachments/stage/#{upload_id}/extraction").with { |request| JSON.parse(request.body)["text"] == extracted["text"] }.to_return(status: 200, body: { extraction_id: extraction_id }.to_json)
+    scanner = Object.new
+    scanner.define_singleton_method(:call) { |_file| extracted }
+    stub_const(Object, :EnclosureScan, scanner) do
+      get "#{path}/scan_attachment", params: { row_id: rid, upload_id: upload_id }, headers: { "Turbo-Frame"=>"enclosure-scan-#{upload_id}" }
+    end
+    assert_response :success
+    assert_select "input[name=extraction_id][form=attach-enclosure][value='#{extraction_id}']"
+    assert_requested persisted
+    binding = stub_request(:post, "#{api}/work/attachment").with { |request| JSON.parse(request.body)["extraction_id"] == extraction_id && !JSON.parse(request.body).key?("text") }.to_timeout
     refreshed = data.merge(source_version: 2, latest_version: 2)
     refreshed[:selected][:version] = 2
     view(refreshed)
-    patch path, params: { form_token: signed_token, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s) }, headers: headers
+    patch path, params: { form_token: signed_token, draft_id: JID, expected_version: "1", expected_draft_version: "1", contexts: contexts.transform_values(&:to_s), extraction_id: extraction_id }, headers: headers
     assert_response :service_unavailable
+    assert_operator response.headers["Set-Cookie"].to_s.bytesize, :<, 4096
     assert_select "turbo-stream[target=shared-dialog-host] a[href='#{path}/completion']"
     decoded = Rails.application.message_verifier(:finance_setup).verified(signed_token, purpose: :finance_setup)
     stub_request(:get, "#{EP}/me/commands").with(query: { command_type: "FinanceJournalWork:attachment", idempotency_key: decoded.fetch("key") }).to_return(status: 200, body: { status: "unknown" }.to_json)
     get "#{path}/completion", headers: headers
     assert_response :success
     assert_select "turbo-stream[target=shared-dialog-host] form[action='#{path}/retry']"
-    binding.to_return(status: 200, body: { draft_id: JID, stream_version: 2 }.to_json)
+    binding.to_return(status: 200, body: { draft_id: JID, stream_version: 2, suggested_row_id: rid, extraction_id: extraction_id }.to_json)
     post "#{path}/retry", headers: headers
     assert_response :success
     assert_requested binding, times: 2
+    assert_select "turbo-stream[target=vera-book-content] #work-row-#{rid}[data-editing=true]"
     assert_select "turbo-stream[target=vera-book-content][data-preserve-journal-draft] input[name=expected_draft_version][value='2']"
     assert_select "turbo-stream[target=shared-dialog-host] input[type=file]"
     assert_not_includes response.body, "<html"
