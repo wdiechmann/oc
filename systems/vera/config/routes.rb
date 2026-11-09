@@ -23,6 +23,7 @@ Rails.application.routes.draw do
         post :retry
       end
       resource :journals, only: %i[new show update], controller: "journals" do
+        get :evidence
         get :history
         get :post_dialog
         get :delete_dialog

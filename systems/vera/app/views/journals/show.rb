@@ -1,5 +1,5 @@
 class Views::Journals::Show < Views::Base
-  ERRORS = { "account_required"=>"Select a posting account.", "posting_account_required"=>"Headers and calculations cannot be journal accounts.", "account_inactive_or_retired"=>"The account is inactive or retired.", "choose_one_nonzero_side"=>"Enter a nonzero amount on exactly one side.", "inactive_vat_entry"=>"The selected VAT entry is inactive.", "vat_rule_missing"=>"No active VAT rule covers this date.", "invalid_amount"=>"Enter a signed whole-minor-unit VAT base; assessed overrides apply only to import statements.", "assessment_required"=>"Enter the signed VAT amount from the import statement.", "journal_unbalanced"=>"Debit and credit totals differ.", "two_nonzero_lines_required"=>"The journal needs at least two lines and a nonzero total.", "period_not_open"=>"The posting date is not in an open period.", "account_vat_not_selected"=>"This account has a VAT selection; confirm the explicit no-VAT choice or select a rule." }.freeze
+  ERRORS = Components::JournalEvidence::ERRORS
   def initialize(data:, new_journal: false, requested_id: nil, requested_version: nil, work_token: nil, work_draft: nil, work_header: nil, decimal_separator: ".", review: nil, token: nil, editing: nil, extra_line: false, message: nil, check_url: nil, retry_url: nil, **options)
     super(**options, full_width: true)
     @requested_id, @requested_version = requested_id, requested_version
@@ -58,18 +58,9 @@ class Views::Journals::Show < Views::Base
     end
   end
   def journal_evidence
-    div(id: "journal-header-evidence", class: "journal-header-evidence", role: "status", aria_live: "polite", tabindex: "0", aria_label: "Journal validation and saved status") do
-      p(class: "text-xs text-stone-500") { "Draft view #{@data['source_version']} · Latest accepted #{@data['latest_version']} · Book #{@data['book_status']} · #{@data['accounting_authority']} accounting" }
-      p { "A draft, setup or period view is updating. Refresh before preparing another review." } unless @data["status"] == "ready"
-      p { "Account, VAT or period configuration changed. Save uses a fresh validation; previous evidence stays in History." } if @data["validation_stale"]
-      validation = @data.dig("selected", "validation")
-      if validation
-        p { @data.dig("selected", "data", "posted") ? "Posted · Authorized and verified" : validation["status"] == "prepared" ? "Saved draft · Checks passed at review" : "Saved draft · Needs attention" }
-        Array(validation["errors"]).each { |error| p { ERRORS.fetch(error, error.tr("_", " ")) } }
-        Array(validation["lines"]).each do |line|
-          Array(line["errors"]).each { |error| p { "Line #{line['id']} · #{ERRORS.fetch(error, error.tr('_', ' '))}" } }
-        end
-      end
+    href = evidence_tenant_book_journals_path(@tid, @bid, draft_id: @data.dig("selected", "id") || @requested_id, version: @requested_version, review_id: @review && @review["review_id"])
+    a(id: "journal-header-evidence", href: href, class: "journal-header-evidence", data: { turbo_stream: true }, aria_label: "Journal validation and saved status", aria_haspopup: "dialog", title: "Show journal validation and saved status") do
+      plain "#{Components::JournalEvidence.status(@data)} · Revision #{@data['source_version']} / #{@data['latest_version']}"
     end
   end
   def journal_menu

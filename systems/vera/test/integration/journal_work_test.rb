@@ -329,6 +329,26 @@ Total 1.250,00 DKK
     assert_response :see_other
     assert_requested command
   end
+  test "journal header evidence is a single control opening complete saved status in the shared dialog" do
+    d=data
+    d[:validation_stale]=true
+    d[:selected][:validation][:errors]=[ "journal_unbalanced" ]
+    d[:selected][:validation][:lines]=[ { id: "line-1", errors: [ "account_required" ] } ]
+    view(d)
+    get path, params: { draft_id: JID }
+    assert_select "a#journal-header-evidence[data-turbo-stream][aria-haspopup=dialog]"
+    assert_select "#journal-header-evidence p", count: 0
+    assert_select "#journal-header-evidence", text: /Saved draft · Needs attention/
+    get "#{path}/evidence", params: { draft_id: JID }, headers: { "Accept"=>"text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target=shared-dialog-host] #shared-dialog-title", text: "Journal validation and saved status"
+    assert_includes response.body, "Draft view 1 · Latest accepted 1"
+    assert_includes response.body, "Account, VAT or period configuration changed"
+    assert_includes response.body, "Debit and credit totals differ."
+    assert_includes response.body, "Line line-1 · Select a posting account."
+    assert_select "turbo-stream[target=vera-book-content]", count: 0
+  end
+
   test "journal row menu opens a summed posting dialog and posts only its signed reviewed plan" do
     plan = { tenant_id: TID, book_id: BID, draft_id: JID, name: "Work journal", posting_date: "2026-06-01", base_currency: "DKK", expected_version: 1, expected_draft_version: 1, contexts: contexts, digest: "reviewed-impact", can_post: true, errors: [], accounts: [ { account: { id: PID, number: "0010", name: "Purchases" }, prepost_minor: 10000, post_minor: 25000, postpost_minor: 35000 } ] }
     stub_request(:get, "#{api}/posting-impact").with(query: { draft_id: JID }).to_return(status: 200, body: plan.to_json)

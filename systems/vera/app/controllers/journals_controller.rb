@@ -5,6 +5,15 @@ class JournalsController < FinanceSetupController
   def new
     show_setup
   end
+  def evidence
+    data = ep.journals(params[:tenant_id], params[:book_id], { draft_id: params[:draft_id].presence, version: params[:version].presence })
+    if params[:review_id].present?
+      review = ep.journal_review(params[:tenant_id], params[:book_id], params[:review_id])
+      data["selected"] = review.fetch("plan").slice("data", "validation")
+    end
+    content = Components::JournalEvidence.new(data: data)
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
   def user_manual
     ep.journals(params[:tenant_id], params[:book_id])
     content = Components::JournalUserManual.new(separator: decimal_separator)
