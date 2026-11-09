@@ -2,7 +2,7 @@ class ReportsController < FinanceSetupController
   def review
     return pending_feedback if session[:finance_operation]
     raw = params[:lines]
-    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.is_a?(ActionController::Parameters) && raw.keys.length <= 51
+    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.is_a?(ActionController::Parameters) && raw.keys.length <= 2001
     raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.each_pair.all? { |_, line| line.is_a?(ActionController::Parameters) }
     lines = raw.each_pair.reject { |_, l| l[:remove] == "1" }.map do |_, l|
       { id: l[:id].presence, code: l[:code].to_s, name: l[:name].to_s, kind: l[:kind].to_s, position: Integer(l[:position], exception: false), formula: l[:formula].to_s, account_ids: Array(l[:account_ids]).reject(&:blank?), sign: Integer(l[:sign], exception: false) }
@@ -45,6 +45,9 @@ class ReportsController < FinanceSetupController
     end
     token = review_token(review) if review && !review["accepted_command_id"] && data.dig("permissions", "configure") && data["status"] == "ready" && !session[:finance_operation]
     editing = @editing || (params[:edit] == "1" && data["selected"] ? data["selected"].slice("id", "name", "active").merge("report_id"=>data["selected"]["id"], "expected_report_version"=>data["selected"]["version"], "expected_version"=>data["latest_version"], "lines"=>data["selected"].dig("definition", "lines")) : nil)
+    if editing && data.dig("selected", "builtin")
+      editing = editing.except("id").merge("report_id" => nil, "expected_report_version" => nil)
+    end
     render Views::Reports::Show.new(data: data, review: review, token: token, editing: editing, balances: @balances, extra_line: @extra_line, message: message, check_url: completion_url, retry_url: retry_url, signed_in: signed_in?, notice: flash[:notice]), status: status
   end
   def review_token(review)
@@ -75,7 +78,7 @@ class ReportsController < FinanceSetupController
     when "invalid_balances" then "Enter signed whole minor-unit test balances for the accounts in this report revision; blanks are unknown."
     when "review_expired" then "This private review expired. Review the report again before accepting."
     when "view_pending" then "The report view is still updating. Refresh before reviewing or previewing."
-    when "report_limit", "chart_too_large" then "Reports support 50 lines, 4,000 account assignments, 2,000 chart accounts and 20 definitions per book."
+    when "report_limit", "chart_too_large" then "Reports support 2,000 lines, 4,000 account assignments, 2,000 chart accounts and 20 definitions per book."
     else super
     end
   end

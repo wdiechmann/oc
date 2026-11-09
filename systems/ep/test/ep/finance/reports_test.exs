@@ -136,6 +136,87 @@ defmodule Ep.Finance.ReportsTest do
     )
   end
 
+  test "included YTD definition is immediately runnable and customizations persist as ordinary reports",
+       c do
+    {:ok, index} = Reports.get(c.actor, c.tid, c.bid)
+    preset = Enum.find(index.reports, & &1["builtin"])
+    assert preset["name"] == "YTD balances"
+    {:ok, selected} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => preset["id"]})
+    definition = selected.selected["definition"]
+    assert length(definition["lines"]) == length(index.accounts)
+
+    assert Enum.flat_map(definition["lines"], & &1["account_ids"]) ==
+             Enum.map(index.accounts, & &1["id"])
+
+    assert {:ok, output} =
+             Reports.ytd(c.actor, c.tid, c.bid, %{
+               "report_id" => preset["id"],
+               "as_of" => "2026-11-09"
+             })
+
+    assert Enum.all?(output.ytd.movement, &(&1["amount_minor"] == 0))
+
+    assert {:error, :not_found} =
+             Reports.get(c.actor, c.tid, c.bid, %{"report_id" => preset["id"], "version" => 2})
+
+    lines =
+      Enum.map(
+        definition["lines"],
+        &Map.take(&1, ~w(id code name kind position account_ids sign formula))
+      )
+
+    params = %{
+      "name" => "YTD balances",
+      "active" => true,
+      "report_id" => nil,
+      "expected_report_version" => nil,
+      "expected_version" => index.latest_version,
+      "lines" => [Map.put(hd(lines), "name", "My customized account") | tl(lines)]
+    }
+
+    {:ok, review} = Reports.review(c.actor, c.tid, c.bid, params)
+    {:ok, saved} = accept(c, review)
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, after_save} = Reports.get(c.actor, c.tid, c.bid)
+    assert length(Enum.filter(after_save.reports, &(&1["name"] == "YTD balances"))) == 1
+    refute Enum.any?(after_save.reports, & &1["builtin"])
+    {:ok, custom} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => hd(saved["event_ids"])})
+    assert hd(custom.selected["definition"]["lines"])["name"] == "My customized account"
+  end
+
+  test "included YTD covers charts larger than the former fifty-line limit", c do
+    accounts =
+      for index <- 1..228,
+          do: %{
+            "id" => Ecto.UUID.generate(),
+            "number" => to_string(index),
+            "name" => "Account",
+            "active" => true
+          }
+
+    definition = Ep.Finance.ReportPresets.ytd(accounts, 1)["definition"]
+    assert length(definition["lines"]) == 228
+    results = Reports.evaluate(definition, Map.new(accounts, &{&1["id"], 12500}))
+    assert length(results) == 228
+    assert Enum.all?(results, &(&1["amount_minor"] == 12500))
+    # Exercise accepted persistence above the former limit as well as evaluation.
+    params = draft(c)
+    [account] = hd(params["lines"])["account_ids"]
+
+    params =
+      Map.put(
+        params,
+        "lines",
+        for(index <- 1..60, do: line("ACCOUNT#{index}", "mapping", [account], "", index * 100))
+      )
+
+    {:ok, review} = Reports.review(c.actor, c.tid, c.bid, params)
+    {:ok, saved} = accept(c, review)
+    {:ok, _} = SetupProjector.deliver(c.tid)
+    {:ok, selected} = Reports.get(c.actor, c.tid, c.bid, %{"report_id" => hd(saved["event_ids"])})
+    assert length(selected.selected["definition"]["lines"]) == 60
+  end
+
   test "YTD uses posted facts, fiscal boundaries, saved mappings and exact totals", c do
     book = Repo.get!(Ep.Finance.Book, c.bid)
     Repo.update!(Ecto.Changeset.change(book, fiscal_year_start_month: 4))

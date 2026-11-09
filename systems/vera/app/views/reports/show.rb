@@ -119,7 +119,7 @@ class Views::Reports::Show < Views::Base
     p(class: "mt-2 text-sm text-stone-600") { "Codes start with a letter and remain reserved to the same line. Mapping lines select accounts and a sign; total lines use formulas; headers use neither. Remove a line from this revision with its Remove checkbox. Changes require review and acceptance." }
     lines = values.fetch("lines", []).dup
     lines << {} if lines.empty? || @extra_line
-    lines = lines.first(50)
+    lines = lines.first(2000)
     form_with(url: review_tenant_book_reports_path(@tid, @bid), method: :post, id: "report-editor", data: { turbo: false }) do |f|
       f.hidden_field(:expected_version, value: values["expected_version"] || @data["latest_version"])
       f.hidden_field(:report_id, value: values["report_id"])
@@ -163,7 +163,7 @@ class Views::Reports::Show < Views::Base
         end
       end
       f.submit("Review report", class: BUTTON)
-      button(type: "submit", name: "intent", value: "add_line", class: "ml-4 text-sm text-teal-900 underline", formnovalidate: true) { "Add report line" } if lines.length < 50
+      button(type: "submit", name: "intent", value: "add_line", class: "ml-4 text-sm text-teal-900 underline", formnovalidate: true) { "Add report line" } if lines.length < 2000
     end
   end
   def selected
@@ -171,6 +171,7 @@ class Views::Reports::Show < Views::Base
     definition = report.fetch("definition")
     h2(class: "mt-8 text-xl font-semibold") { "#{report['name']} · Revision #{report['version']}#{report['active'] ? '' : ' · Inactive'}" }
     p(class: "mt-2 text-sm text-stone-600") { "Account labels and coverage below are pinned to chart revision #{definition['chart_version']}. Current-chart coverage is shown separately." }
+    p(class: "mt-2 text-sm text-stone-600") { "Included YTD definition: one line per posting account in chart order, debit positive and credit negative. Customize it to save your own book-specific mappings and formulas." } if report["builtin"]
     year_to_date(report)
     if @data["ytd"]
       a(href: url(report_id: report["id"], version: report["version"]), class: "mt-4 inline-block text-sm text-teal-900 underline") { "View report definition" }
@@ -180,7 +181,7 @@ class Views::Reports::Show < Views::Base
     line_summary(definition["lines"], definition["accounts"])
     coverage(@data["coverage"], definition["accounts"], "Saved revision coverage")
     coverage(@data["current_coverage"], @data["accounts"], "Current chart coverage")
-    a(href: url(report_id: report["id"], edit: "1"), class: "mt-4 block text-sm text-teal-900 underline") { "Edit current report" } if @editable
+    a(href: url(report_id: report["id"], edit: "1"), class: "mt-4 block text-sm text-teal-900 underline") { report["builtin"] ? "Customize YTD definition" : "Edit current report" } if @editable
     if @data["status"] == "ready" && !@check
       h3(class: "mt-6 text-lg font-semibold") { "Test this report revision" }
       form_with(url: preview_tenant_book_reports_path(@tid, @bid), method: :post, id: "report-preview", data: { turbo: false }) do |f|

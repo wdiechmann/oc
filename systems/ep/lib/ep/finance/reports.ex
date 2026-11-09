@@ -21,13 +21,21 @@ defmodule Ep.Finance.Reports do
 
   def get(principal, tid, bid, params \\ %{}) do
     with {:ok, data} <- Setup.get(principal, tid, bid) do
-      reports = data.reports
+      accounts =
+        Setup.normalize_accounts(data.accounts) |> Enum.filter(&(&1["kind"] == "posting"))
+
+      preset = Ep.Finance.ReportPresets.ytd(accounts, data.source_version)
+
+      reports =
+        if Enum.any?(data.reports, &(&1["name"] == preset["name"])),
+          do: data.reports,
+          else: [preset | data.reports]
 
       selected =
         if params["report_id"], do: Enum.find(reports, &(&1["id"] == params["report_id"]))
 
       selected =
-        if selected && params["version"] do
+        if selected && params["version"] && !selected["builtin"] do
           Enum.find(
             selected["history"] || [],
             &(to_string(&1["version"]) == to_string(params["version"]))
@@ -40,7 +48,8 @@ defmodule Ep.Finance.Reports do
           selected
         end
 
-      if params["report_id"] && !selected do
+      if (selected && selected["builtin"] && params["version"] &&
+            to_string(params["version"]) != "1") || (params["report_id"] && !selected) do
         {:error, :not_found}
       else
         accounts =
@@ -474,7 +483,7 @@ defmodule Ep.Finance.Reports do
   end
 
   defp lines!(list, accounts, old) do
-    unless is_list(list) && length(list) in 1..50, do: Repo.rollback(:invalid_report)
+    unless is_list(list) && length(list) in 1..2000, do: Repo.rollback(:invalid_report)
     allowed = MapSet.new(Enum.map(accounts, & &1["id"]))
     reserved = if old, do: old.reserved_codes, else: %{}
     prior = Map.new(if(old, do: old.definition["lines"], else: []), &{&1["id"], &1})

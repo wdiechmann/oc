@@ -60,6 +60,21 @@ class ReportsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "included YTD runs immediately and customizing saves a book-specific definition" do
+    builtin = report.merge(name: "YTD balances", builtin: true)
+    stub_request(:get, api).to_return(status: 200, body: data.merge(reports: [ builtin ]).to_json)
+    get path
+    assert_select "a[href*='ytd=1']", text: "YTD balances"
+    stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: data.merge(reports: [ builtin ], selected: builtin, coverage: coverage, current_coverage: coverage).to_json)
+    get path, params: { report_id: RID }
+    assert_select "a", text: "Customize YTD definition"
+    get path, params: { report_id: RID, edit: "1" }
+    assert_select "#report-editor input[name=report_id][value]", count: 0
+    assert_select "#report-editor input[name=expected_report_version][value]", count: 0
+    assert_select "#report-editor input[name=name][value='YTD balances']"
+    assert_select "#report-editor input[name='lines[0][code]'][value=BANK]"
+  end
+
   test "report changes are reviewed before a signed small-pointer acceptance" do
     get path
     assert_response :success

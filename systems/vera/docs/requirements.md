@@ -183,3 +183,8 @@ Report definitions must run fiscal year-to-date account balances through a selec
 
 
 YTD discoverability (2026-11-09): the reports landing view always shows a YTD balances section. Accepted definitions appear in a selector beside the through date and Run YTD report action; an empty catalogue explains that a definition must first be created and accepted. Existing per-definition links and pinned-revision reports remain available.
+
+
+## Included YTD definition — 2026-11-09
+
+EP now ships the reusable YTD balances definition, immediately listed and runnable in every accessible book without creating or accepting a definition first. It maps each current posting account exactly once, in chart order, with debit-positive/credit-negative balances. The shipped definition is versioned application configuration and follows the current chart; Customize YTD definition copies it into the normal review/accept flow. An accepted book-specific YTD balances definition is persisted with ordinary event history and replaces the shipped default in the list; subsequent edits use normal revisions. Definitions now support up to 2,000 lines so the complete chart can be represented without the former 50-line truncation.
