@@ -48,6 +48,7 @@ Rails.application.routes.draw do
       resource :reports, only: %i[show update], controller: "reports" do
         post :review
         post :preview
+        post :line_dialog
         get :completion
         post :retry
       end

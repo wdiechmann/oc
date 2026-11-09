@@ -207,3 +207,8 @@ EP now ships the reusable YTD balances definition, immediately listed and runnab
 ## Reports list and separate run/edit views — 2026-11-09
 
 The reports index is a list of all defined reports (including the shipped YTD definition) by name. A vertically centered right header context menu contains Back to chart of accounts and New report. Each row has a right context menu with Run and Edit. Run opens `/reports/:report_id/show` with posted fiscal YTD results and a through-date form; Edit opens `/reports/:report_id/edit` with the definition editor, including the normal built-in customization behavior. `/reports/new` opens creation separately. Mutation actions are disabled for read-only, updating or unresolved-operation views; direct new/edit routes recheck configuration permission. Existing review, acceptance, receipt reconciliation and query-based revision links remain compatible.
+
+
+## Report definition line editor — 2026-11-09
+
+The report edit/new view displays a compact Type, Code, Name, Position, Sign and Accounts/Formula table. Select a line (Enter/Space also work) to load a Phlex shared dialog through a read-only POST Turbo Stream, with current EP configuration authority checked. Home/End and PageUp/PageDown or arrows navigate row buttons. Apply to draft updates that row’s hidden command inputs and visible summary without persisting or losing other edits; closing/Escape discards dialog changes and restores focus. Changing type clears irrelevant mapping/formula fields on Apply. Row removal is staged; Add report line retains the draft and adds a blank row. Review and accepted persistence retain the existing full-definition/version/idempotency workflow. Draft data stays in the page rather than sessions or a VERA business database.

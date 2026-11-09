@@ -78,7 +78,7 @@ class ReportsTest < ActionDispatch::IntegrationTest
     get "#{path}/#{RID}/edit"
     assert_response :success
     assert_select "#report-editor input[name=report_id][value='#{RID}']"
-    assert_select "table", count: 0
+    assert_select "#report-editor table", count: 1
     stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.merge(permissions: { configure: false }).to_json)
     get "#{path}/#{RID}/edit"
     assert_response :not_found
@@ -99,6 +99,35 @@ class ReportsTest < ActionDispatch::IntegrationTest
     assert_select "#report-editor input[name='lines[0][code]'][value=BANK]"
   end
 
+  test "report lines render compactly and open an authorized shared dialog without accepting changes" do
+    selected = data.merge(selected: report, reports: [ report ], coverage: coverage, current_coverage: coverage)
+    stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.to_json)
+    get "#{path}/#{RID}/edit"
+    assert_select "#report-editor table tbody tr", count: 1
+    assert_select "#report-editor fieldset", count: 0
+    assert_select "button[data-edit-report-line='0']", text: "Bank line"
+    assert_select "select[name='lines[0][kind]']", count: 0
+    post "#{path}/line_dialog", params: draft.merge(line_index: "0"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "turbo-stream[target='shared-dialog-host']"
+    assert_select "#report-line-dialog-form input[name=code][value=BANK]"
+    assert_select "#report-line-dialog-form select[name=kind] option", count: 3
+    assert_select "#report-line-dialog-form select[name='account_ids[]'] option[value='#{PID}'][selected]"
+    assert_not_requested :post, "#{api}/reviews"
+    post "#{path}/line_dialog", params: draft.merge(line_index: "9"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :unprocessable_entity
+    stub_request(:get, api).to_return(status: 200, body: data.merge(permissions: { configure: false }).to_json)
+    post "#{path}/line_dialog", params: draft.merge(line_index: "0"), headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :not_found
+    assert_select "#report-line-dialog-form", count: 0
+  end
+
+  test "a blank new row can open its dialog" do
+    post "#{path}/line_dialog", params: draft.merge(line_index: "0", lines: { "0" => { kind: "mapping", position: "100", sign: "1" } }), headers: { "Accept" => "text/vnd.turbo-stream.html" }
+    assert_response :success
+    assert_select "#report-line-dialog-form input[name=position][value='100']"
+  end
+
   test "report changes are reviewed before a signed small-pointer acceptance" do
     get "#{path}/new"
     assert_response :success
@@ -117,7 +146,7 @@ class ReportsTest < ActionDispatch::IntegrationTest
   test "adding a line and validation errors preserve an unsaved request-local draft" do
     post "#{path}/review", params: draft.merge(intent: "add_line")
     assert_response :success
-    assert_select "#report-editor fieldset", count: 2
+    assert_select "#report-editor [data-report-line]", count: 2
     assert_select "input[name='lines[0][code]'][value=BANK]"
     stub_request(:post, "#{api}/reviews").to_return(status: 422, body: { error: "invalid_formula" }.to_json)
     post "#{path}/review", params: draft
@@ -176,6 +205,6 @@ class ReportsTest < ActionDispatch::IntegrationTest
     selected = data.merge(accounts: [], selected: report, reports: [ report ], coverage: coverage, current_coverage: coverage.merge(unavailable: [ PID ]))
     stub_request(:get, api).with(query: { report_id: RID }).to_return(status: 200, body: selected.to_json)
     get path, params: { report_id: RID, edit: "1" }
-    assert_select "select[name='lines[0][account_ids][]'] option[value='#{PID}'][selected]", text: /Unavailable.*Bank/
+    assert_select "input[name='lines[0][account_ids][]'][value='#{PID}']"
   end
 end

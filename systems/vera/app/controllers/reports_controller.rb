@@ -16,13 +16,7 @@ class ReportsController < FinanceSetupController
 
   def review
     return pending_feedback if session[:finance_operation]
-    raw = params[:lines]
-    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.is_a?(ActionController::Parameters) && raw.keys.length <= 2001
-    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.each_pair.all? { |_, line| line.is_a?(ActionController::Parameters) }
-    lines = raw.each_pair.reject { |_, l| l[:remove] == "1" }.map do |_, l|
-      { id: l[:id].presence, code: l[:code].to_s, name: l[:name].to_s, kind: l[:kind].to_s, position: Integer(l[:position], exception: false), formula: l[:formula].to_s, account_ids: Array(l[:account_ids]).reject(&:blank?), sign: Integer(l[:sign], exception: false) }
-    end.reject { |l| l[:code].blank? && l[:name].blank? && l[:formula].blank? && l[:account_ids].empty? }
-    @editing = { report_id: params[:report_id].presence, expected_report_version: Integer(params[:expected_report_version], exception: false), expected_version: Integer(params[:expected_version], exception: false), name: params[:name].to_s, active: params[:active] == "true", lines: lines }.deep_stringify_keys
+    @editing = report_values
     if params[:intent] == "add_line"
       @extra_line = true
       return show_setup
@@ -30,6 +24,18 @@ class ReportsController < FinanceSetupController
     result = ep.review_report(params[:tenant_id], params[:book_id], @editing)
     redirect_to tenant_book_reports_path(params[:tenant_id], params[:book_id], review_id: result.fetch("review_id")), status: :see_other
   end
+  def line_dialog
+    values = report_values(keep_blank: true)
+    data = ep.reports(params[:tenant_id], params[:book_id])
+    raise Ep::Client::Error.new(404, code: "not_found") unless data.dig("permissions", "configure")
+    raise Ep::Client::Error.new(409, code: "view_pending") unless data["status"] == "ready" && !session[:finance_operation]
+    index = Integer(params[:line_index], exception: false)
+    raise Ep::Client::Error.new(422, code: "invalid_report") unless index && index >= 0 && index < values["lines"].length
+    values["lines"][index]["remove"] = params.dig(:lines, index.to_s, :remove)
+    content = Components::ReportLineDialog.new(line: values["lines"][index], index: index, accounts: data.fetch("accounts"))
+    render Components::SharedDialogStream.new(content: content), content_type: "text/vnd.turbo-stream.html"
+  end
+
   def preview
     @previewing = true
     raw = params[:balances]
@@ -42,6 +48,16 @@ class ReportsController < FinanceSetupController
   end
 
   private
+  def report_values(keep_blank: false)
+    raw = params[:lines]
+    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.is_a?(ActionController::Parameters) && raw.keys.length <= 2001
+    raise Ep::Client::Error.new(422, code: "invalid_report") unless raw.each_pair.all? { |_, line| line.is_a?(ActionController::Parameters) }
+    lines = raw.each_pair.reject { |_, l| !keep_blank && l[:remove] == "1" }.map do |_, l|
+      { id: l[:id].presence, code: l[:code].to_s, name: l[:name].to_s, kind: l[:kind].to_s, position: Integer(l[:position], exception: false), formula: l[:formula].to_s, account_ids: Array(l[:account_ids]).reject(&:blank?), sign: Integer(l[:sign], exception: false) }
+    end.reject { |l| !keep_blank && l[:code].blank? && l[:name].blank? && l[:formula].blank? && l[:account_ids].empty? }
+    { report_id: params[:report_id].presence, expected_report_version: Integer(params[:expected_report_version], exception: false), expected_version: Integer(params[:expected_version], exception: false), name: params[:name].to_s, active: params[:active] == "true", lines: lines }.deep_stringify_keys
+  end
+
   def destination(_result = nil) = tenant_book_reports_path(params[:tenant_id], params[:book_id])
   def execute_command(_action, attrs, key) = ep.accept_report(params[:tenant_id], params[:book_id], attrs, key)
   def attributes_for(action, id)
@@ -74,6 +90,7 @@ class ReportsController < FinanceSetupController
     Rails.application.message_verifier(:finance_setup).generate({ "scope"=>form_scope, "nonce"=>session[:finance_form_nonce], "action"=>"report_save", "account_id"=>review.fetch("review_id"), "digest"=>review.fetch("digest"), "expected_version"=>review.fetch("expected_version"), "key"=>SecureRandom.uuid }, purpose: :finance_setup, expires_in: 1.hour)
   end
   def setup_error(error)
+    return protected_feedback("The report line editor is unavailable. Your draft has not changed; refresh access or try again.", error.status) if action_name == "line_dialog" && ![ 401, 403, 404 ].include?(error.status)
     if error.code == "review_expired"
       session.delete(:finance_operation)
       return protected_feedback(error_message(error.code), 410)

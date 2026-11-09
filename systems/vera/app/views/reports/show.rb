@@ -87,56 +87,7 @@ class Views::Reports::Show < Views::Base
     a(href: url(review_id: @review["review_id"], edit: "1"), class: "mt-4 block text-sm text-teal-900 underline") { "Continue editing this draft" } if @editable && !@review["accepted_command_id"]
   end
   def editor(values)
-    h2(class: "mt-8 text-xl font-semibold") { values["report_id"] ? "Edit report draft" : "New report draft" }
-    p(class: "mt-2 text-sm text-stone-600") { "Codes start with a letter and remain reserved to the same line. Mapping lines select accounts and a sign; total lines use formulas; headers use neither. Remove a line from this revision with its Remove checkbox. Changes require review and acceptance." }
-    lines = values.fetch("lines", []).dup
-    lines << {} if lines.empty? || @extra_line
-    lines = lines.first(2000)
-    form_with(url: review_tenant_book_reports_path(@tid, @bid), method: :post, id: "report-editor", data: { turbo: false }) do |f|
-      f.hidden_field(:expected_version, value: values["expected_version"] || @data["latest_version"])
-      f.hidden_field(:report_id, value: values["report_id"])
-      f.hidden_field(:expected_report_version, value: values["expected_report_version"])
-      div { f.label(:name, "Report name"); f.text_field(:name, value: values["name"], maxlength: 120, required: true, class: FIELD) }
-      div { f.label(:active, "Status"); f.select(:active, [ [ "Active", "true" ], [ "Inactive", "false" ] ], { selected: values["active"].to_s }, class: FIELD) }
-      lines.each_with_index do |line, index|
-        fieldset(class: "mt-5 rounded-xl border border-stone-200 bg-white p-4") do
-          legend(class: "px-2 text-sm font-semibold") { "Report line #{index + 1}" }
-          input(type: "hidden", name: "lines[#{index}][id]", value: line["id"])
-          div(class: "grid gap-3 sm:grid-cols-2") do
-            %w[code name position].each do |field|
-              div do
-                label(for: "line-#{index}-#{field}", class: "text-sm") { field.capitalize }
-                input(id: "line-#{index}-#{field}", name: "lines[#{index}][#{field}]", type: field == "position" ? "number" : "text", value: line[field] || (field == "position" ? ((values["lines"] || []).map { |l| l["position"].to_i }.max || 0) + 100 : nil), class: FIELD)
-              end
-            end
-            div do
-              label(for: "line-#{index}-kind", class: "text-sm") { "Type" }
-              select(id: "line-#{index}-kind", name: "lines[#{index}][kind]", class: FIELD) { %w[mapping total header].each { |kind| option(value: kind, selected: (line["kind"] || "mapping") == kind) { kind.capitalize } } }
-            end
-            div do
-              label(for: "line-#{index}-sign", class: "text-sm") { "Mapping sign" }
-              select(id: "line-#{index}-sign", name: "lines[#{index}][sign]", class: FIELD) { option(value: "1", selected: line["sign"] != -1) { "+ Add balances" }; option(value: "-1", selected: line["sign"] == -1) { "− Subtract balances" } }
-            end
-            div do
-              label(for: "line-#{index}-formula", class: "text-sm") { "Total formula" }
-              textarea(id: "line-#{index}-formula", name: "lines[#{index}][formula]", maxlength: 2000, class: FIELD) { line["formula"] }
-            end
-          end
-          label(for: "line-#{index}-accounts", class: "mt-3 block text-sm") { "Posting accounts (mapping lines; select multiple with Ctrl/Cmd)" }
-          input(type: "hidden", name: "lines[#{index}][account_ids][]", value: "")
-          select(id: "line-#{index}-accounts", name: "lines[#{index}][account_ids][]", multiple: true, size: 5, class: FIELD) do
-            @data.fetch("accounts").each { |a| option(value: a["id"], selected: Array(line["account_ids"]).include?(a["id"])) { account_label(a) } }
-            (Array(line["account_ids"]) - @data.fetch("accounts").map { |a| a["id"] }).each do |id|
-              saved = Array(values["saved_accounts"] || @data.dig("selected", "definition", "accounts")).find { |a| a["id"] == id }
-              option(value: id, selected: true) { "Unavailable / retired: #{saved ? account_label(saved) : id} — clear before review" }
-            end
-          end
-          label(class: "mt-3 flex items-center gap-2 text-sm") { input(type: "checkbox", name: "lines[#{index}][remove]", value: "1"); plain "Remove this line from the draft" }
-        end
-      end
-      f.submit("Review report", class: BUTTON)
-      button(type: "submit", name: "intent", value: "add_line", class: "ml-4 text-sm text-teal-900 underline", formnovalidate: true) { "Add report line" } if lines.length < 2000
-    end
+    render Components::ReportDefinitionEditor.new(data: @data, values: values, extra_line: @extra_line)
   end
   def selected
     report = @data.fetch("selected")

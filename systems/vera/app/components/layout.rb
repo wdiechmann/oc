@@ -26,6 +26,7 @@ class Components::Layout < Components::Base
         javascript_include_tag "chart_order_editor", type: "module", defer: true
         javascript_include_tag "vat_index_refresh", type: "module", defer: true
         javascript_include_tag "toast", type: "module", defer: true
+        javascript_include_tag "report_definition_editor", type: "module", defer: true
         javascript_include_tag "shared_dialog", type: "module", defer: true
         javascript_include_tag "context_menu", type: "module", defer: true
         javascript_include_tag "journal_work_editor", type: "module", defer: true
